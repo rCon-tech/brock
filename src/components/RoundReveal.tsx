@@ -1,15 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { THROW_EMOJI } from '@/lib/game';
 import type { RevealedRound } from '@/lib/brock-service';
 
 interface Props {
   round: RevealedRound;
+  /** The player's streak after this round. */
+  streak: number;
 }
 
-const HEADLINE = { win: 'You win! 🎉', loss: 'You lose 😬', draw: 'Draw, go again!' } as const;
-const COLOR = { win: 'text-brock-win', loss: 'text-brock-loss', draw: 'text-brock-muted' } as const;
+const STAMP = { win: 'YOU WIN!', loss: 'THE HOUSE WINS', draw: 'TIE!' } as const;
+
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
+
+function verdict(round: RevealedRound, streak: number): string {
+  if (round.result === 'win') return `${cap(round.player)} beats ${round.house}. Streak ${streak}.`;
+  if (round.result === 'loss')
+    return `${cap(round.house)} beats ${round.player}. Streak back to 0.`;
+  return `You both threw ${round.player}. A tie doesn’t count, so Brock again.`;
+}
 
 async function sha256Hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -17,7 +26,7 @@ async function sha256Hex(text: string): Promise<string> {
 }
 
 /** Recomputes the commitment in the browser so players don't have to trust the server's word. */
-function FairnessPanel({ round }: Props) {
+function FairnessPanel({ round }: { round: RevealedRound }) {
   const [verified, setVerified] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -31,20 +40,20 @@ function FairnessPanel({ round }: Props) {
   }, [round]);
 
   return (
-    <dl className="mt-3 space-y-1 rounded-xl border border-brock-line bg-brock-bg p-3 text-left font-mono text-xs text-brock-muted">
+    <dl className="panel w-full space-y-1 p-3 text-left font-mono text-xs">
       <div>
-        <dt className="inline text-brock-text">Committed hash: </dt>
+        <dt className="inline font-bold">Committed hash: </dt>
         <dd className="inline break-all">{round.commitHash}</dd>
       </div>
       <div>
-        <dt className="inline text-brock-text">House threw: </dt>
+        <dt className="inline font-bold">House threw: </dt>
         <dd className="inline">{round.house}</dd>
       </div>
       <div>
-        <dt className="inline text-brock-text">Salt: </dt>
+        <dt className="inline font-bold">Salt: </dt>
         <dd className="inline break-all">{round.salt}</dd>
       </div>
-      <p className="pt-1 font-sans text-sm text-brock-text" role="status">
+      <p className="pt-1 font-slab text-sm" role="status">
         {verified === true && '✅ sha256("house:salt") matches the hash shown before you threw.'}
         {verified === false && '❌ Hash mismatch!'}
         {verified === null && 'Checking…'}
@@ -53,27 +62,21 @@ function FairnessPanel({ round }: Props) {
   );
 }
 
-export function RoundReveal({ round }: Props) {
+/** The outcome stamp, what beat what, and the fairness proof for the round. */
+export function RoundReveal({ round, streak }: Props) {
   const [showProof, setShowProof] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-brock-line bg-brock-card p-5 text-center">
-      <div className="flex items-center justify-center gap-6 text-6xl" aria-hidden>
-        <span>{THROW_EMOJI[round.player]}</span>
-        <span className="text-xl text-brock-muted">vs</span>
-        <span>{THROW_EMOJI[round.house]}</span>
+    <div className="flex w-full flex-col items-center gap-3 text-center">
+      <div className="stamp" data-outcome={round.result} data-testid="outcome">
+        {STAMP[round.result]}
       </div>
-      <p className="sr-only">
-        You threw {round.player}. The House threw {round.house}.
-      </p>
-      <p className={`mt-3 text-2xl font-extrabold ${COLOR[round.result]}`}>
-        {HEADLINE[round.result]}
-      </p>
+      <p className="font-slab text-[15px] tracking-wide">{verdict(round, streak)}</p>
       <button
         type="button"
         onClick={() => setShowProof((v) => !v)}
         aria-expanded={showProof}
-        className="mt-3 text-sm text-brock-muted underline underline-offset-4 hover:text-brock-text"
+        className="caps text-xs underline underline-offset-4"
       >
         {showProof ? 'Hide' : 'Verify fairness'}
       </button>

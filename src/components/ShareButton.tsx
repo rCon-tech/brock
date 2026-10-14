@@ -37,15 +37,11 @@ export function ShareButton({ state }: Props) {
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <button
-        type="button"
-        onClick={share}
-        className="rounded-xl border border-brock-line bg-brock-card px-4 py-2.5 font-semibold transition hover:border-brock-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brock-accent"
-      >
+    <div className="flex items-center justify-center gap-3">
+      <button type="button" onClick={share} className="btn-paper">
         Share result
       </button>
-      <span role="status" className="text-sm text-brock-muted">
+      <span role="status" className="font-slab text-sm">
         {note}
       </span>
     </div>

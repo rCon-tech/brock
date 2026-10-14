@@ -10,7 +10,8 @@ const navHandle = (page: Page, handle: string) =>
 /** Opens the game as a brand-new visitor: no login, no setup, just the picker. */
 async function open(page: Page) {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /^Brock #\d+$/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Brock', exact: true })).toBeVisible();
+  await expect(page.getByLabel(/^Current streak \d+, best streak \d+$/)).toBeVisible();
 }
 
 /** Throws rock until the day's Brock is decided, returning how it ended. */
@@ -18,12 +19,13 @@ async function playUntilDecided(page: Page): Promise<'won' | 'lost'> {
   const picker = page.getByRole('group', { name: 'Choose your throw' });
   for (let i = 0; i < 25; i++) {
     await picker.getByRole('button', { name: 'Rock' }).click();
-    const outcome = page.locator('p.text-2xl');
+    const outcome = page.getByTestId('outcome');
     await expect(outcome).toBeVisible();
     const text = (await outcome.textContent()) ?? '';
-    if (text.includes('You win')) return 'won';
-    if (text.includes('You lose')) return 'lost';
-    await page.getByRole('button', { name: 'Throw again' }).click();
+    if (text === 'YOU WIN!') return 'won';
+    if (text === 'THE HOUSE WINS') return 'lost';
+    expect(text).toBe('TIE!');
+    await page.getByRole('button', { name: 'BROCK', exact: true }).click();
   }
   throw new Error('25 draws in a row, which should be (1/3)^25 unlikely');
 }
@@ -31,7 +33,7 @@ async function playUntilDecided(page: Page): Promise<'won' | 'lost'> {
 /** Names the player after a finished Brock. */
 async function nameMe(page: Page, handle: string) {
   await page.getByLabel('Add your name to the leaderboard').fill(handle);
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByRole('button', { name: 'SAVE', exact: true }).click();
   await expect(navHandle(page, handle)).toBeVisible();
 }
 
@@ -62,6 +64,12 @@ test('play, name yourself afterwards, and the browser remembers you', async ({ p
   await open(page);
   const result = await playUntilDecided(page);
 
+  // The arena shows the throw that was picked (playUntilDecided always throws rock).
+  await expect(page.locator('.arena-side[data-side="player"] .pivot use')).toHaveAttribute(
+    'href',
+    '#hand-rock',
+  );
+
   // Result first; only then are we asked for a name.
   await expect(page.getByLabel('Add your name to the leaderboard')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Share result' })).toBeVisible();
@@ -77,7 +85,11 @@ test('play, name yourself afterwards, and the browser remembers you', async ({ p
     page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Log in' }),
   ).toHaveCount(0);
   await expect(
-    page.getByText(result === 'won' ? 'Brocked! Streak: 🔥 1' : 'Streak over. Back to 0.'),
+    page.getByText(
+      result === 'won'
+        ? 'Come back tomorrow to keep your streak going.'
+        : 'Come back tomorrow to start a new streak.',
+    ),
   ).toBeVisible();
 
   // Remembered after a reload and in a new tab, with no login.
@@ -101,7 +113,7 @@ test('play, name yourself afterwards, and the browser remembers you', async ({ p
   const row = page.getByRole('row').filter({ hasText: `@${handle}` });
   if (result === 'won') {
     await expect(row).toHaveAttribute('aria-current', 'true');
-    await expect(row).toContainText('🔥 1');
+    await expect(row.getByRole('cell').nth(2)).toHaveText('1');
   } else {
     await expect(row).toHaveCount(0);
   }
@@ -125,7 +137,7 @@ test('on a new device you just type your username, and the old device stays logg
   await expect(page).toHaveURL(/\/login$/);
 
   await page.getByLabel('Your username').fill(original.handle.toUpperCase());
-  await page.getByRole('button', { name: 'Log in' }).click();
+  await page.getByRole('button', { name: 'LOG IN', exact: true }).click();
 
   // Same player: same handle, and today's Brock is already played.
   await expect(page).toHaveURL(/\/$/);
@@ -144,7 +156,7 @@ test('on a new device you just type your username, and the old device stays logg
 test('logging in with a name nobody has explains what to do', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('Your username').fill(unique('ghost'));
-  await page.getByRole('button', { name: 'Log in' }).click();
+  await page.getByRole('button', { name: 'LOG IN', exact: true }).click();
   await expect(
     page.getByRole('alert').filter({ hasText: 'No player with that name' }),
   ).toBeVisible();
@@ -159,7 +171,7 @@ test('a handle can only be taken once, case-insensitively', async ({ browser }) 
   await open(page);
   await playUntilDecided(page);
   await page.getByLabel('Add your name to the leaderboard').fill(first.handle.toUpperCase());
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByRole('button', { name: 'SAVE', exact: true }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'Handle taken' })).toBeVisible();
 
   await Promise.all([first.context.close(), context.close()]);

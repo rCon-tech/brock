@@ -4,14 +4,14 @@ export const metadata = { title: 'Log in' };
 
 export default function LoginPage() {
   return (
-    <section className="mx-auto flex max-w-sm flex-col gap-6 pt-6">
-      <div>
-        <h1 className="text-3xl font-extrabold">Log in</h1>
-        <p className="mt-2 text-brock-muted">
+    <section className="flex w-full max-w-sm flex-col gap-5 pt-4">
+      <h1 className="comic-heading -rotate-2 text-center text-6xl">LOG IN</h1>
+      <div className="panel flex flex-col gap-4 p-5">
+        <p className="text-[15px]">
           New phone or cleared your browser? Enter your username to pick up your streak.
         </p>
+        <LoginForm />
       </div>
-      <LoginForm />
     </section>
   );
 }

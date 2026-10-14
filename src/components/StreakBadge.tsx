@@ -3,14 +3,18 @@ interface Props {
   best: number;
 }
 
+/** Streak and best, in a comic caption box. */
 export function StreakBadge({ current, best }: Props) {
   return (
     <div
-      className="inline-flex items-baseline gap-3 rounded-full border border-brock-line bg-brock-card px-4 py-2"
+      className="panel flex rotate-1 items-center gap-3.5 px-3.5 pt-1.5 pb-1"
       aria-label={`Current streak ${current}, best streak ${best}`}
     >
-      <span className="text-2xl font-extrabold tabular-nums">🔥 {current}</span>
-      <span className="text-sm text-brock-muted">best {best}</span>
+      <span className="caps text-xs">Streak</span>
+      <span className="font-display text-3xl leading-none text-rust tabular-nums">{current}</span>
+      <span className="w-[3px] self-stretch bg-ink" aria-hidden="true" />
+      <span className="caps text-xs">Best</span>
+      <span className="font-display text-3xl leading-none tabular-nums">{best}</span>
     </div>
   );
 }

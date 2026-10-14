@@ -27,12 +27,10 @@ export default async function LeaderboardPage() {
   }
 
   return (
-    <section className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-3xl font-extrabold">Leaderboard</h1>
-        <p className="mt-1 text-brock-muted">
-          Ranked by current streak. Miss a day and yours is gone.
-        </p>
+    <section className="flex w-full flex-col gap-4">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <h1 className="comic-heading -rotate-2 text-6xl">LEADERBOARD</h1>
+        <p className="tagline">Miss a day and your streak is gone</p>
       </div>
       <LeaderboardTable entries={entries} myHandle={myHandle} outsideTop={outsideTop} />
     </section>
