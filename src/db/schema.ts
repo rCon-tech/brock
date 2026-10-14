@@ -18,18 +18,15 @@ export const roundResultEnum = pgEnum('round_result', ['win', 'loss', 'draw']);
 export const brockStatusEnum = pgEnum('brock_status', ['pending', 'won', 'lost']);
 
 /**
- * One row per browser that has played. There are no accounts: the player is identified by a
- * secret cookie, and only its SHA-256 is stored. The handle stays null until the player names
- * themselves after their first Brock.
+ * A player. There are no accounts: each browser holds a secret cookie that maps to a player
+ * through `player_session`. The handle stays null until the player names themselves after their
+ * first Brock; after that, typing the handle on another device logs that device in too.
  */
 export const player = pgTable(
   'player',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    tokenHash: text('token_hash').notNull().unique(),
     handle: varchar('handle', { length: 20 }),
-    /** SHA-256 of the one-time recovery code shown when the handle was claimed. */
-    recoveryHash: text('recovery_hash'),
     currentStreak: integer('current_streak').notNull().default(0),
     bestStreak: integer('best_streak').notNull().default(0),
     lastWinDay: date('last_win_day', { mode: 'string' }),
@@ -42,6 +39,19 @@ export const player = pgTable(
     uniqueIndex('player_handle_lower_idx').on(sql`lower(${t.handle})`),
     index('player_leaderboard_idx').on(t.lastWinDay, sql`${t.currentStreak} DESC`),
   ],
+);
+
+/** One row per logged-in browser. Only the SHA-256 of the cookie token is stored. */
+export const playerSession = pgTable(
+  'player_session',
+  {
+    tokenHash: text('token_hash').primaryKey(),
+    playerId: uuid('player_id')
+      .notNull()
+      .references(() => player.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('player_session_player_idx').on(t.playerId)],
 );
 
 export const brock = pgTable(

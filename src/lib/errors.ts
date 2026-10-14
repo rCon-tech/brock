@@ -2,7 +2,6 @@ export type DomainErrorCode =
   | 'invalid_request'
   | 'unauthorized'
   | 'play_first'
-  | 'invalid_recovery'
   | 'not_found'
   | 'new_day'
   | 'already_played'
@@ -15,7 +14,6 @@ const STATUS: Record<DomainErrorCode, number> = {
   invalid_request: 400,
   unauthorized: 401,
   play_first: 403,
-  invalid_recovery: 403,
   not_found: 404,
   new_day: 409,
   already_played: 409,

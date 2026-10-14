@@ -6,7 +6,7 @@ import { ClaimHandleBody, readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
-/** Names the current player. The recovery code in the response is shown once and never again. */
+/** Names the current player. */
 export async function POST(request: Request) {
   try {
     const me = await requirePlayer();
@@ -15,9 +15,9 @@ export async function POST(request: Request) {
       throw new DomainError('invalid_request', body.error.issues[0]?.message);
     }
 
-    const { player, recoveryCode } = await claimHandle(me.id, body.data.handle);
+    const player = await claimHandle(me.id, body.data.handle);
     return NextResponse.json(
-      { handle: player.handle, recoveryCode },
+      { handle: player.handle },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (err) {

@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "if [ \"$VERCEL_ENV\" = production ]; then drizzle-kit migrate; else echo \"Skipping migrations: not a production build\"; fi && next build",
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write .",
