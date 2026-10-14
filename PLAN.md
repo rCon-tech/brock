@@ -1,5 +1,7 @@
 # Brock — Build Plan
 
+> **Revision 2 (supersedes the sign-in parts of this plan).** Instead of Google/GitHub sign-in, players are anonymous and remembered by a secret cookie. They pick a handle *after* their first finished Brock and receive a one-time recovery code to restore their streak on another device. Consequently: Better Auth, the OAuth providers, the `user`/`session`/`account`/`verification` tables, `/onboarding` and `E2E_TEST_AUTH` are gone; `player` is now keyed by its own id with a hashed token and a nullable handle; new `/recover` page and `/api/player/{handle,recover}` routes; the leaderboard shows named players only. Everything else (rules, fairness, streaks, API for `/api/brock/*`) is unchanged. See `README.md` for the current design.
+
 **Brock** is a daily rock-paper-scissors game. Every player gets one Brock per day against the house. A win adds 1 to your streak, a loss resets it to 0, and a global leaderboard ranks everyone by their current streak.
 
 This document covers everything needed to build v1: the rules, the technology, every file, the data model, the API, and the build order. No code exists yet. Each phase below ends with acceptance criteria, so whoever builds it knows when a phase is finished.

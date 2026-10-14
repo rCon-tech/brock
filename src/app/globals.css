@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-brock-bg: #0f1115;
+  --color-brock-card: #181b22;
+  --color-brock-line: #2a2f3a;
+  --color-brock-text: #eceff4;
+  --color-brock-muted: #98a2b3;
+  --color-brock-accent: #ff7a1a;
+  --color-brock-win: #34d399;
+  --color-brock-loss: #f87171;
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-brock-bg);
+  color: var(--color-brock-text);
+  font-family: var(--font-sans);
+}
+
+@keyframes brock-shake {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  25% {
+    transform: translateY(-14px) rotate(-8deg);
+  }
+  75% {
+    transform: translateY(8px) rotate(8deg);
+  }
+}
+
+.brock-shake {
+  animation: brock-shake 0.4s ease-in-out 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brock-shake {
+    animation: none;
+  }
+}

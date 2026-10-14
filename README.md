@@ -1,0 +1,101 @@
+# Brock 🪨📄✂️
+
+Rock paper scissors, once a day. Win and your streak grows by 1. Lose, or skip a day, and it resets to 0. Streaks are ranked on a global leaderboard. There are no accounts: play straight away, and pick a name after your first Brock.
+
+The full design is in [`PLAN.md`](./PLAN.md). This README covers running, testing and deploying it.
+
+## The rules
+
+|              |                                                                                                                                                                                                      |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Opponent     | **The House**: a server-side pick, uniformly random (`crypto.randomInt`)                                                                                                                             |
+| A "day"      | A **UTC calendar day** (resets 00:00 UTC). The countdown shows the time left.                                                                                                                        |
+| Win          | Streak +1                                                                                                                                                                                            |
+| Loss         | Streak → 0                                                                                                                                                                                           |
+| Draw         | Throw again, the same day. A draw doesn't use up your Brock.                                                                                                                                         |
+| Missed day   | Streak → 0                                                                                                                                                                                           |
+| Fairness     | The House's throw is committed to before you throw: you see `sha256("<throw>:<salt>")` first, and the throw and salt are revealed afterwards. "Verify fairness" recomputes the hash in your browser. |
+| Leaderboard  | Current streak ↓, then best streak ↓, then handle A→Z. Ties share a rank.                                                                                                                            |
+| Brock number | Days since `LAUNCH_DAY` (Brock #1 is launch day)                                                                                                                                                     |
+
+The rules live in `src/lib/` (`game.ts`, `day.ts`, `streak.ts`, `fairness.ts`), so changing them means changing one file each.
+
+## Stack
+
+TypeScript · Next.js 16 (App Router) · React 19 · Tailwind CSS 4 · PostgreSQL 16 · Drizzle ORM · Zod · Vitest · Playwright · GitHub Actions · Vercel + Neon.
+
+## Getting started
+
+Requires Node ≥ 22 (`.nvmrc` pins 24), pnpm 10 and PostgreSQL 16.
+
+```bash
+pnpm install
+cp .env.example .env          # then fill it in, see below
+pnpm db:up                    # Postgres via Docker Compose: dev on :5432, tests on :5433
+pnpm db:migrate
+pnpm dev                      # http://localhost:3000
+```
+
+No Docker? Any Postgres 16 works. Create the `brock` and `brock_test` databases and point `DATABASE_URL` and `TEST_DATABASE_URL` at them.
+
+### Environment variables
+
+| Variable                      | Purpose                                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                | Postgres connection string for the app                                                                        |
+| `TEST_DATABASE_URL`           | A _separate_ database that integration and E2E tests wipe                                                     |
+| `LAUNCH_DAY`                  | `YYYY-MM-DD` of Brock #1                                                                                      |
+| `NEXT_PUBLIC_SITE_URL`        | Public URL, used in metadata and share text. An `https://` value also makes the identity cookie `Secure`.     |
+| `MAX_NEW_PLAYERS_PER_IP_HOUR` | Optional. New anonymous players one IP may create per hour (default 30). Raise it for events on shared Wi-Fi. |
+
+There are no secrets to configure beyond the database URL.
+
+## How identity works
+
+- The first time a browser opens the game, the server creates an anonymous player and sets an `httpOnly`, `SameSite=Lax` cookie (`brock_id`, about a year) holding a random 256-bit token. Only the token's SHA-256 is stored, so a database leak can't be used to impersonate anyone.
+- A name can only be claimed after a finished Brock, once, and is unique ignoring case. Claiming it returns a recovery code (16 characters, about 78 bits) which is stored only as a hash and shown once.
+- `/recover` swaps in a new token for the player and issues a new recovery code. The old device is signed out and the old code stops working. Wrong handle and wrong code give the same error, and guesses are limited to 5 per handle per 15 minutes.
+
+## Scripts
+
+| Script                               | What it does                                                           |
+| ------------------------------------ | ---------------------------------------------------------------------- |
+| `pnpm dev` / `build` / `start`       | Next.js                                                                |
+| `pnpm lint` / `typecheck` / `format` | ESLint, `tsc --noEmit`, Prettier                                       |
+| `pnpm db:up`                         | Start Postgres containers                                              |
+| `pnpm db:generate`                   | Generate a migration after editing `src/db/schema.ts`                  |
+| `pnpm db:migrate`                    | Apply migrations to `DATABASE_URL`                                     |
+| `pnpm db:studio`                     | Browse the database                                                    |
+| `pnpm test`                          | Unit tests (no database needed)                                        |
+| `pnpm test:integration`              | Service-layer tests against real Postgres (`TEST_DATABASE_URL`)        |
+| `pnpm test:e2e`                      | Playwright: builds the app, runs it on :3100 against the test database |
+
+If a Chromium is already installed (e.g. in a container), point Playwright at it with `PW_CHROMIUM_PATH=/path/to/chromium pnpm test:e2e`. Otherwise run `pnpm exec playwright install chromium` once.
+
+## How one Brock stays fair
+
+Everything that matters happens inside one transaction holding a row lock on the player's Brock for the day (`src/lib/brock-service.ts`), backed by `UNIQUE (user_id, day)`. Two tabs submitting at once can't both count, and nobody can play twice in a day. The House's throw and salt stay on the server until the player's throw is saved. API responses are built in one place (`buildState`) so an open round can only ever expose its hash.
+
+## Deploying (Vercel + Neon)
+
+1. Create a Neon project and copy the **pooled** connection string.
+2. Import the repo into Vercel. Set `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL` (the production `https://` URL) and `LAUNCH_DAY`. **Don't** set `TEST_DATABASE_URL`.
+3. Run the migrations against Neon: `DATABASE_URL='<neon url>' pnpm db:migrate`
+4. Deploy. That's it: no OAuth apps or secrets are needed.
+
+## Project layout
+
+```
+src/app/          pages and API routes (/, /leaderboard, /recover, /u/[handle], /api/*)
+src/components/   UI (BrockGame is the main client component)
+src/lib/          game rules, services, identity, validation
+src/db/           Drizzle schema and client
+drizzle/          generated migrations (never hand-edit)
+tests/            unit, integration, e2e
+```
+
+## Known limitations
+
+- **Identity is a cookie.** Clearing site data, switching browser or device, or using a private window starts a new anonymous player. Named players can get their streak back with their recovery code. Unnamed players can't, but they have nothing on the leaderboard to lose. A lost recovery code can't be re-issued.
+- **One person can play as many players** by using several browsers, and could farm streaks that way. Fine for a friends game. Handle claims need a finished Brock and new players are limited per IP, which slows it down but doesn't stop it.
+- **Rate limits are in memory**, so on serverless hosting each instance counts separately. They slow abuse down; they're not a hard guarantee. Recovery codes are ~78 bits, so guessing isn't feasible regardless.
