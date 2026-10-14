@@ -1,24 +1,28 @@
 export type DomainErrorCode =
   | 'invalid_request'
   | 'unauthorized'
-  | 'onboarding_required'
+  | 'play_first'
+  | 'invalid_recovery'
   | 'not_found'
   | 'new_day'
   | 'already_played'
   | 'stale_round'
   | 'handle_taken'
-  | 'already_onboarded';
+  | 'already_named'
+  | 'rate_limited';
 
 const STATUS: Record<DomainErrorCode, number> = {
   invalid_request: 400,
   unauthorized: 401,
-  onboarding_required: 403,
+  play_first: 403,
+  invalid_recovery: 403,
   not_found: 404,
   new_day: 409,
   already_played: 409,
   stale_round: 409,
   handle_taken: 409,
-  already_onboarded: 409,
+  already_named: 409,
+  rate_limited: 429,
 };
 
 export class DomainError extends Error {

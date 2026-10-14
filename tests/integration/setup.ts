@@ -7,14 +7,15 @@ process.env.DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? 'postgres://brock:brock@localhost:5433/brock_test';
 
 import { closeDb, getDb, schema } from '@/db';
+import { hashToken } from '@/lib/identity';
 
 beforeAll(async () => {
   await migrate(getDb(), { migrationsFolder: './drizzle' });
 });
 
 beforeEach(async () => {
-  // Cascades through player -> brock -> brock_round and the auth tables.
-  await getDb().execute(sql`TRUNCATE TABLE "user" CASCADE`);
+  // Cascades through player -> brock -> brock_round.
+  await getDb().execute(sql`TRUNCATE TABLE player CASCADE`);
 });
 
 afterAll(async () => {
@@ -23,14 +24,30 @@ afterAll(async () => {
 
 let counter = 0;
 
-/** Inserts a user + player and returns the user id. */
+/** Inserts a player (unnamed when `handle` is null) and returns its id. */
 export async function createPlayer(
-  handle: string,
+  handle: string | null,
   overrides: Partial<typeof schema.player.$inferInsert> = {},
 ): Promise<string> {
-  const id = `user_${++counter}_${handle}`;
-  const db = getDb();
-  await db.insert(schema.user).values({ id, name: handle, email: `${id}@example.com` });
-  await db.insert(schema.player).values({ userId: id, handle, ...overrides });
-  return id;
+  const [row] = await getDb()
+    .insert(schema.player)
+    .values({ tokenHash: hashToken(`test-token-${++counter}-${handle}`), handle, ...overrides })
+    .returning({ id: schema.player.id });
+  return row.id;
+}
+
+/** Bulk-inserts `count` named players sharing the same overrides. */
+export async function createPlayers(
+  count: number,
+  overrides: Partial<typeof schema.player.$inferInsert> = {},
+): Promise<void> {
+  await getDb()
+    .insert(schema.player)
+    .values(
+      Array.from({ length: count }, (_, i) => ({
+        tokenHash: hashToken(`bulk-token-${++counter}-${i}`),
+        handle: `player_${String(i).padStart(3, '0')}`,
+        ...overrides,
+      })),
+    );
 }

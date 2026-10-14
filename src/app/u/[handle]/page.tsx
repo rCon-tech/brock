@@ -54,7 +54,7 @@ export default async function ProfilePage({ params }: Props) {
 
   return (
     <section className="flex flex-col gap-6">
-      <h1 className="text-3xl font-extrabold">@{player.handle}</h1>
+      <h1 className="text-3xl font-extrabold">@{player.handle ?? handle}</h1>
 
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Streak" value={`🔥 ${current}`} />

@@ -1,6 +1,6 @@
 import { LeaderboardTable } from '@/components/LeaderboardTable';
 import { rankOf, topPlayers } from '@/lib/leaderboard';
-import { getViewer } from '@/lib/session';
+import { getCurrentPlayer } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Leaderboard' };
@@ -8,17 +8,20 @@ export const metadata = { title: 'Leaderboard' };
 const LIMIT = 100;
 
 export default async function LeaderboardPage() {
-  const [entries, viewer] = await Promise.all([topPlayers(LIMIT), getViewer()]);
-  const myHandle = viewer.state === 'player' ? viewer.player.handle : undefined;
+  const [entries, me] = await Promise.all([
+    topPlayers(LIMIT),
+    getCurrentPlayer().catch(() => null),
+  ]);
+  const myHandle = me?.handle ?? undefined;
 
   let outsideTop = null;
-  if (viewer.state === 'player' && !entries.some((e) => e.handle === myHandle)) {
-    const standing = await rankOf(viewer.player.userId);
+  if (me?.handle && !entries.some((e) => e.handle === myHandle)) {
+    const standing = await rankOf(me.id);
     if (standing) {
       outsideTop = {
         ...standing,
-        handle: viewer.player.handle,
-        bestStreak: viewer.player.bestStreak,
+        handle: me.handle,
+        bestStreak: me.bestStreak,
       };
     }
   }

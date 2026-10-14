@@ -1,42 +1,79 @@
 'use client';
 
-import { useActionState } from 'react';
-import { claimHandleAction, type HandleFormState } from '@/app/onboarding/actions';
+import { useState } from 'react';
 
-export function HandleForm() {
-  const [state, action, pending] = useActionState<HandleFormState, FormData>(claimHandleAction, {});
+interface Props {
+  onNamed: (handle: string, recoveryCode: string) => void;
+}
+
+const MESSAGES: Record<string, string> = {
+  handle_taken: 'Handle taken. Try another.',
+  invalid_request: 'Use 3–20 letters, numbers or underscores.',
+  rate_limited: 'Slow down a moment and try again.',
+};
+
+/** Shown after a finished Brock so the streak can go on the leaderboard. */
+export function HandleForm({ onNamed }: Props) {
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const handle = String(new FormData(event.currentTarget).get('handle') ?? '').trim();
+    setPending(true);
+    setError('');
+    try {
+      const res = await fetch('/api/player/handle', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ handle }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(MESSAGES[data.error] ?? 'Something went wrong. Please try again.');
+        return;
+      }
+      onNamed(data.handle, data.recoveryCode);
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <form onSubmit={submit} className="flex flex-col gap-3">
       <label htmlFor="handle" className="text-sm font-semibold">
-        Your handle
+        Add your name to the leaderboard
       </label>
-      <input
-        id="handle"
-        name="handle"
-        required
-        minLength={3}
-        maxLength={20}
-        pattern="[a-zA-Z0-9_]{3,20}"
-        autoComplete="off"
-        autoCapitalize="none"
-        spellCheck={false}
-        aria-describedby="handle-help handle-error"
-        className="rounded-xl border border-brock-line bg-brock-card px-4 py-3 text-base outline-none focus:border-brock-accent"
-      />
+      <div className="flex gap-2">
+        <input
+          id="handle"
+          name="handle"
+          required
+          minLength={3}
+          maxLength={20}
+          pattern="[a-zA-Z0-9_]{3,20}"
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          aria-describedby="handle-help handle-error"
+          className="min-w-0 flex-1 rounded-xl border border-brock-line bg-brock-bg px-4 py-3 text-base outline-none focus:border-brock-accent"
+        />
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded-xl bg-brock-accent px-4 py-3 font-bold text-black transition hover:brightness-110 disabled:opacity-60"
+        >
+          {pending ? 'Saving…' : 'Save'}
+        </button>
+      </div>
       <p id="handle-help" className="text-sm text-brock-muted">
-        3–20 letters, numbers or underscores. This is what shows on the leaderboard.
+        3–20 letters, numbers or underscores. No account needed. This browser remembers you.
       </p>
       <p id="handle-error" role="alert" className="min-h-5 text-sm text-brock-loss">
-        {state.error}
+        {error}
       </p>
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-xl bg-brock-accent px-4 py-3 text-base font-bold text-black transition hover:brightness-110 disabled:opacity-60"
-      >
-        {pending ? 'Saving…' : 'Start Brocking'}
-      </button>
     </form>
   );
 }

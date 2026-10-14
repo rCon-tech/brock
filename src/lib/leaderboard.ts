@@ -1,4 +1,4 @@
-import { and, count, eq, gt, gte, or, sql } from 'drizzle-orm';
+import { and, count, eq, gt, gte, isNotNull, or, sql } from 'drizzle-orm';
 import { getDb, schema, type Db } from '@/db';
 import { previousDay, utcDay, type Day } from './day';
 import { clampLimit } from './validation';
@@ -22,7 +22,11 @@ export interface MyStanding {
  * (last win 2+ days ago) is excluded even though its stored value hasn't been reset yet.
  */
 function onBoard(today: Day) {
-  return and(gt(player.currentStreak, 0), gte(player.lastWinDay, previousDay(today)));
+  return and(
+    isNotNull(player.handle),
+    gt(player.currentStreak, 0),
+    gte(player.lastWinDay, previousDay(today)),
+  );
 }
 
 /**
@@ -43,7 +47,7 @@ export async function topPlayers(
     SELECT handle, current_streak, best_streak,
            RANK() OVER (ORDER BY current_streak DESC, best_streak DESC) AS rank
     FROM player
-    WHERE current_streak > 0 AND last_win_day >= ${previousDay(today)}::date
+    WHERE handle IS NOT NULL AND current_streak > 0 AND last_win_day >= ${previousDay(today)}::date
     ORDER BY current_streak DESC, best_streak DESC, lower(handle) ASC
     LIMIT ${clampLimit(limit)}
   `);
@@ -58,14 +62,14 @@ export async function topPlayers(
 
 /** 1 + the number of players with a strictly better (streak, best). Null if not on the board. */
 export async function rankOf(
-  userId: string,
+  playerId: string,
   today: Day = utcDay(new Date()),
   database: Db = getDb(),
 ): Promise<MyStanding | null> {
   const [me] = await database
     .select()
     .from(player)
-    .where(and(eq(player.userId, userId), onBoard(today)));
+    .where(and(eq(player.id, playerId), onBoard(today)));
   if (!me) return null;
 
   const [{ better }] = await database

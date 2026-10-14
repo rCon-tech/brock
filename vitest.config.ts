@@ -30,7 +30,7 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      include: ['src/lib/{game,day,streak,fairness,share}.ts'],
+      include: ['src/lib/{game,day,streak,fairness,share,identity,rate-limit}.ts'],
     },
   },
 });

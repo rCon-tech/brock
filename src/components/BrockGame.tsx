@@ -1,10 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { RevealedRound, TodayState } from '@/lib/brock-service';
 import { THROW_EMOJI, type Throw } from '@/lib/game';
 import { Countdown } from './Countdown';
+import { HandleForm } from './HandleForm';
+import { RecoveryCode } from './RecoveryCode';
 import { RoundReveal } from './RoundReveal';
 import { ShareButton } from './ShareButton';
 import { StreakBadge } from './StreakBadge';
@@ -13,18 +16,20 @@ import { ThrowPicker } from './ThrowPicker';
 type Phase = 'loading' | 'ready' | 'throwing' | 'drawn' | 'done' | 'error';
 
 /** Errors that just mean "your view is out of date": reload the day and carry on. */
-const STALE_ERRORS = ['stale_round', 'new_day', 'already_played'];
+const STALE_ERRORS = ['stale_round', 'new_day', 'already_played', 'unauthorized'];
 const SUSPENSE_MS = 1200;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function BrockGame() {
+  const router = useRouter();
   const [state, setState] = useState<TodayState | null>(null);
   const [phase, setPhase] = useState<Phase>('loading');
   const [lastRound, setLastRound] = useState<RevealedRound | null>(null);
   const [picked, setPicked] = useState<Throw | null>(null);
   const [message, setMessage] = useState('');
   const [announce, setAnnounce] = useState('');
+  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -112,6 +117,13 @@ export function BrockGame() {
         <StreakBadge current={state.streak.current} best={state.streak.best} />
       </div>
 
+      {state.rounds.length === 0 && state.handle === null && phase === 'ready' && (
+        <p className="text-brock-muted">
+          One rock paper scissors a day against the House. Win and your streak grows. Lose, or skip
+          a day, and it resets. No sign-up: just play.
+        </p>
+      )}
+
       {message && (
         <p
           role="alert"
@@ -162,6 +174,27 @@ export function BrockGame() {
       {phase === 'done' && decided && finalRound && (
         <>
           <RoundReveal round={finalRound} />
+          {recoveryCode ? (
+            <RecoveryCode
+              heading="You’re on the board! Save your recovery code"
+              code={recoveryCode}
+              onDone={() => {
+                setRecoveryCode(null);
+                void load();
+              }}
+            />
+          ) : (
+            state.handle === null && (
+              <div className="rounded-2xl border border-brock-line bg-brock-card p-5">
+                <HandleForm
+                  onNamed={(_handle, code) => {
+                    setRecoveryCode(code);
+                    router.refresh();
+                  }}
+                />
+              </div>
+            )
+          )}
           <div className="rounded-2xl border border-brock-line bg-brock-card p-5">
             <p className="text-xl font-extrabold">
               {state.status === 'won'

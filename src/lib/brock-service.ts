@@ -30,6 +30,8 @@ export interface OpenRound {
 export interface TodayState {
   day: Day;
   brockNumber: number;
+  /** Null until the player names themselves after a finished Brock. */
+  handle: string | null;
   status: BrockStatus;
   streak: { current: number; best: number };
   rounds: RevealedRound[];
@@ -81,6 +83,7 @@ function buildState(
   return {
     day,
     brockNumber: brockNumber(day),
+    handle: playerRow.handle,
     status,
     streak: { current: effectiveStreak(playerRow, day), best: playerRow.bestStreak },
     rounds: revealed,
@@ -90,10 +93,10 @@ function buildState(
   };
 }
 
-async function loadPlayer(tx: Tx, userId: string, lock: boolean): Promise<Player> {
-  const query = tx.select().from(player).where(eq(player.userId, userId)).limit(1);
+async function loadPlayer(tx: Tx, playerId: string, lock: boolean): Promise<Player> {
+  const query = tx.select().from(player).where(eq(player.id, playerId)).limit(1);
   const [row] = await (lock ? query.for('update') : query);
-  if (!row) throw new DomainError('onboarding_required');
+  if (!row) throw new DomainError('unauthorized');
   return row;
 }
 
@@ -102,20 +105,20 @@ async function loadPlayer(tx: Tx, userId: string, lock: boolean): Promise<Player
  * round (committing to the House's throw); later calls return the same state.
  */
 export async function getToday(
-  userId: string,
+  playerId: string,
   now: Date = new Date(),
   database: Db = getDb(),
 ): Promise<TodayState> {
   const day = utcDay(now);
 
   return database.transaction(async (tx) => {
-    const playerRow = await loadPlayer(tx, userId, false);
+    const playerRow = await loadPlayer(tx, playerId, false);
 
-    await tx.insert(brock).values({ userId, day }).onConflictDoNothing();
+    await tx.insert(brock).values({ playerId, day }).onConflictDoNothing();
     const [today] = await tx
       .select()
       .from(brock)
-      .where(and(eq(brock.userId, userId), eq(brock.day, day)))
+      .where(and(eq(brock.playerId, playerId), eq(brock.day, day)))
       .for('update');
 
     let rounds = await loadRounds(tx, today.id);
@@ -137,7 +140,7 @@ export async function getToday(
  * so concurrent submissions can't both succeed.
  */
 export async function submitThrow(
-  userId: string,
+  playerId: string,
   input: { roundNo: number; throw: Throw },
   now: Date = new Date(),
   database: Db = getDb(),
@@ -148,7 +151,7 @@ export async function submitThrow(
     const [today] = await tx
       .select()
       .from(brock)
-      .where(and(eq(brock.userId, userId), eq(brock.day, day)))
+      .where(and(eq(brock.playerId, playerId), eq(brock.day, day)))
       .for('update');
 
     if (!today) throw new DomainError('new_day');
@@ -167,7 +170,7 @@ export async function submitThrow(
 
     let status: BrockStatus = 'pending';
     let allRounds = rounds.map((r) => (r.id === revealedRow.id ? revealedRow : r));
-    let playerRow = await loadPlayer(tx, userId, true);
+    let playerRow = await loadPlayer(tx, playerId, true);
 
     if (result === 'draw') {
       const [next] = await tx
@@ -181,7 +184,7 @@ export async function submitThrow(
       [playerRow] = await tx
         .update(player)
         .set({ ...streak, totalWins: playerRow.totalWins + 1 })
-        .where(eq(player.userId, userId))
+        .where(eq(player.id, playerId))
         .returning();
     } else {
       status = 'lost';
@@ -189,7 +192,7 @@ export async function submitThrow(
       [playerRow] = await tx
         .update(player)
         .set({ ...streak, totalLosses: playerRow.totalLosses + 1 })
-        .where(eq(player.userId, userId))
+        .where(eq(player.id, playerId))
         .returning();
     }
 

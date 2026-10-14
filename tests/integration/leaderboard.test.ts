@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { getDb, schema } from '@/db';
 import { rankOf, topPlayers } from '@/lib/leaderboard';
-import { createPlayer } from './setup';
+import { createPlayer, createPlayers } from './setup';
 
 const TODAY = '2026-11-10';
 const YESTERDAY = '2026-11-09';
@@ -56,28 +55,19 @@ describe('topPlayers', () => {
     expect((await topPlayers(100, TODAY)).map((e) => e.handle)).toEqual(['active']);
   });
 
+  it('leaves out players who never chose a handle, even with a streak', async () => {
+    await createPlayer(null, streak(9));
+    await createPlayer('named', streak(1));
+
+    expect((await topPlayers(100, TODAY)).map((e) => e.handle)).toEqual(['named']);
+  });
+
   it('is empty when nobody has a streak', async () => {
     expect(await topPlayers(100, TODAY)).toEqual([]);
   });
 
   it('clamps the limit to 1–100', async () => {
-    const db = getDb();
-    await db
-      .insert(schema.user)
-      .values(
-        Array.from({ length: 105 }, (_, i) => ({
-          id: `u${i}`,
-          name: `u${i}`,
-          email: `u${i}@x.com`,
-        })),
-      );
-    await db.insert(schema.player).values(
-      Array.from({ length: 105 }, (_, i) => ({
-        userId: `u${i}`,
-        handle: `player_${String(i).padStart(3, '0')}`,
-        ...streak(3),
-      })),
-    );
+    await createPlayers(105, streak(3));
 
     expect(await topPlayers(1000, TODAY)).toHaveLength(100);
     expect(await topPlayers(0, TODAY)).toHaveLength(1);
@@ -111,28 +101,17 @@ describe('rankOf', () => {
   });
 
   it('ranks a player outside the top 100', async () => {
-    const db = getDb();
-    await db
-      .insert(schema.user)
-      .values(
-        Array.from({ length: 100 }, (_, i) => ({
-          id: `u${i}`,
-          name: `u${i}`,
-          email: `u${i}@x.com`,
-        })),
-      );
-    await db.insert(schema.player).values(
-      Array.from({ length: 100 }, (_, i) => ({
-        userId: `u${i}`,
-        handle: `player_${String(i).padStart(3, '0')}`,
-        ...streak(5),
-      })),
-    );
+    await createPlayers(100, streak(5));
     const me = await createPlayer('me', streak(1));
 
     const top = await topPlayers(100, TODAY);
     expect(top.some((e) => e.handle === 'me')).toBe(false);
     expect(await rankOf(me, TODAY)).toEqual({ rank: 101, streak: 1 });
+  });
+
+  it('is null for a player without a handle', async () => {
+    const anon = await createPlayer(null, streak(4));
+    expect(await rankOf(anon, TODAY)).toBeNull();
   });
 
   it('is null for a lapsed streak, a zero streak, and an unknown user', async () => {
@@ -141,6 +120,6 @@ describe('rankOf', () => {
 
     expect(await rankOf(lapsed, TODAY)).toBeNull();
     expect(await rankOf(zero, TODAY)).toBeNull();
-    expect(await rankOf('nobody', TODAY)).toBeNull();
+    expect(await rankOf('00000000-0000-4000-8000-000000000000', TODAY)).toBeNull();
   });
 });

@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm';
 import {
-  boolean,
   date,
   index,
   integer,
@@ -8,81 +7,29 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
   varchar,
-  unique,
 } from 'drizzle-orm/pg-core';
-
-// ---------------------------------------------------------------------------
-// Auth tables (shape dictated by Better Auth)
-// ---------------------------------------------------------------------------
-
-export const user = pgTable('user', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  email: text('email').notNull().unique(),
-  emailVerified: boolean('email_verified').notNull().default(false),
-  image: text('image'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
-
-export const session = pgTable('session', {
-  id: text('id').primaryKey(),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-  token: text('token').notNull().unique(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  ipAddress: text('ip_address'),
-  userAgent: text('user_agent'),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-});
-
-export const account = pgTable('account', {
-  id: text('id').primaryKey(),
-  accountId: text('account_id').notNull(),
-  providerId: text('provider_id').notNull(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  accessToken: text('access_token'),
-  refreshToken: text('refresh_token'),
-  idToken: text('id_token'),
-  accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
-  refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
-  scope: text('scope'),
-  password: text('password'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
-
-export const verification = pgTable('verification', {
-  id: text('id').primaryKey(),
-  identifier: text('identifier').notNull(),
-  value: text('value').notNull(),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
-
-// ---------------------------------------------------------------------------
-// Game tables
-// ---------------------------------------------------------------------------
 
 export const throwEnum = pgEnum('throw', ['rock', 'paper', 'scissors']);
 export const roundResultEnum = pgEnum('round_result', ['win', 'loss', 'draw']);
 export const brockStatusEnum = pgEnum('brock_status', ['pending', 'won', 'lost']);
 
+/**
+ * One row per browser that has played. There are no accounts: the player is identified by a
+ * secret cookie, and only its SHA-256 is stored. The handle stays null until the player names
+ * themselves after their first Brock.
+ */
 export const player = pgTable(
   'player',
   {
-    userId: text('user_id')
-      .primaryKey()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    handle: varchar('handle', { length: 20 }).notNull().unique(),
+    id: uuid('id').primaryKey().defaultRandom(),
+    tokenHash: text('token_hash').notNull().unique(),
+    handle: varchar('handle', { length: 20 }),
+    /** SHA-256 of the one-time recovery code shown when the handle was claimed. */
+    recoveryHash: text('recovery_hash'),
     currentStreak: integer('current_streak').notNull().default(0),
     bestStreak: integer('best_streak').notNull().default(0),
     lastWinDay: date('last_win_day', { mode: 'string' }),
@@ -91,7 +38,7 @@ export const player = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    // Handles are unique regardless of case.
+    // Handles are unique regardless of case. Unnamed players (NULL) never collide.
     uniqueIndex('player_handle_lower_idx').on(sql`lower(${t.handle})`),
     index('player_leaderboard_idx').on(t.lastWinDay, sql`${t.currentStreak} DESC`),
   ],
@@ -101,16 +48,16 @@ export const brock = pgTable(
   'brock',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: text('user_id')
+    playerId: uuid('player_id')
       .notNull()
-      .references(() => player.userId, { onDelete: 'cascade' }),
+      .references(() => player.id, { onDelete: 'cascade' }),
     day: date('day', { mode: 'string' }).notNull(),
     status: brockStatusEnum('status').notNull().default('pending'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     decidedAt: timestamp('decided_at', { withTimezone: true }),
   },
   // One Brock per player per day, enforced by the database itself.
-  (t) => [unique('brock_user_day_unique').on(t.userId, t.day)],
+  (t) => [unique('brock_player_day_unique').on(t.playerId, t.day)],
 );
 
 export const brockRound = pgTable(

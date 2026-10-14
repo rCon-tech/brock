@@ -1,6 +1,6 @@
 # Brock 🪨📄✂️
 
-Rock paper scissors, once a day. Win and your streak grows by 1. Lose, or skip a day, and it resets to 0. Streaks are ranked on a global leaderboard.
+Rock paper scissors, once a day. Win and your streak grows by 1. Lose, or skip a day, and it resets to 0. Streaks are ranked on a global leaderboard. There are no accounts: play straight away, and pick a name after your first Brock.
 
 The full design is in [`PLAN.md`](./PLAN.md). This README covers running, testing and deploying it.
 
@@ -22,7 +22,7 @@ The rules live in `src/lib/` (`game.ts`, `day.ts`, `streak.ts`, `fairness.ts`), 
 
 ## Stack
 
-TypeScript · Next.js 16 (App Router) · React 19 · Tailwind CSS 4 · PostgreSQL 16 · Drizzle ORM · Better Auth (Google + GitHub) · Zod · Vitest · Playwright · GitHub Actions · Vercel + Neon.
+TypeScript · Next.js 16 (App Router) · React 19 · Tailwind CSS 4 · PostgreSQL 16 · Drizzle ORM · Zod · Vitest · Playwright · GitHub Actions · Vercel + Neon.
 
 ## Getting started
 
@@ -40,26 +40,21 @@ No Docker? Any Postgres 16 works. Create the `brock` and `brock_test` databases 
 
 ### Environment variables
 
-| Variable                                    | Purpose                                                                                                                                                                                                        |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                              | Postgres connection string for the app                                                                                                                                                                         |
-| `TEST_DATABASE_URL`                         | A _separate_ database that integration and E2E tests wipe                                                                                                                                                      |
-| `BETTER_AUTH_SECRET`                        | Session signing secret: `openssl rand -base64 32`                                                                                                                                                              |
-| `BETTER_AUTH_URL`                           | Public base URL of the app                                                                                                                                                                                     |
-| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub OAuth app                                                                                                                                                                                               |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth client                                                                                                                                                                                            |
-| `LAUNCH_DAY`                                | `YYYY-MM-DD` of Brock #1                                                                                                                                                                                       |
-| `NEXT_PUBLIC_SITE_URL`                      | Public URL, used in metadata and share text                                                                                                                                                                    |
-| `E2E_TEST_AUTH`                             | **Tests only.** Enables email/password sign-in for Playwright. Auth refuses to initialise with it on unless `BETTER_AUTH_URL` is loopback, and never on Vercel production. It also switches off rate limiting. |
+| Variable                      | Purpose                                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                | Postgres connection string for the app                                                                        |
+| `TEST_DATABASE_URL`           | A _separate_ database that integration and E2E tests wipe                                                     |
+| `LAUNCH_DAY`                  | `YYYY-MM-DD` of Brock #1                                                                                      |
+| `NEXT_PUBLIC_SITE_URL`        | Public URL, used in metadata and share text. An `https://` value also makes the identity cookie `Secure`.     |
+| `MAX_NEW_PLAYERS_PER_IP_HOUR` | Optional. New anonymous players one IP may create per hour (default 30). Raise it for events on shared Wi-Fi. |
 
-A provider's sign-in button only appears when both of its variables are set.
+There are no secrets to configure beyond the database URL.
 
-### OAuth apps
+## How identity works
 
-- **GitHub**: Settings → Developer settings → OAuth Apps → New. Callback URL: `<BETTER_AUTH_URL>/api/auth/callback/github`
-- **Google**: Cloud Console → APIs & Services → Credentials → OAuth client ID (Web application). Authorized redirect URI: `<BETTER_AUTH_URL>/api/auth/callback/google`
-
-Register a second callback for each provider with your production URL when you deploy.
+- The first time a browser opens the game, the server creates an anonymous player and sets an `httpOnly`, `SameSite=Lax` cookie (`brock_id`, about a year) holding a random 256-bit token. Only the token's SHA-256 is stored, so a database leak can't be used to impersonate anyone.
+- A name can only be claimed after a finished Brock, once, and is unique ignoring case. Claiming it returns a recovery code (16 characters, about 78 bits) which is stored only as a hash and shown once.
+- `/recover` swaps in a new token for the player and issues a new recovery code. The old device is signed out and the old code stops working. Wrong handle and wrong code give the same error, and guesses are limited to 5 per handle per 15 minutes.
 
 ## Scripts
 
@@ -84,17 +79,16 @@ Everything that matters happens inside one transaction holding a row lock on the
 ## Deploying (Vercel + Neon)
 
 1. Create a Neon project and copy the **pooled** connection string.
-2. Import the repo into Vercel. Set `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (the production URL), `NEXT_PUBLIC_SITE_URL`, `LAUNCH_DAY`, and the OAuth variables. **Don't** set `TEST_DATABASE_URL` or `E2E_TEST_AUTH`.
-3. Add the production callback URLs to the GitHub and Google OAuth apps.
-4. Run the migrations against Neon: `DATABASE_URL='<neon url>' pnpm db:migrate`
-5. Deploy. The first player to win gets Brock #1's streak.
+2. Import the repo into Vercel. Set `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL` (the production `https://` URL) and `LAUNCH_DAY`. **Don't** set `TEST_DATABASE_URL`.
+3. Run the migrations against Neon: `DATABASE_URL='<neon url>' pnpm db:migrate`
+4. Deploy. That's it: no OAuth apps or secrets are needed.
 
 ## Project layout
 
 ```
-src/app/          pages and API routes (/, /leaderboard, /onboarding, /u/[handle], /api/*)
+src/app/          pages and API routes (/, /leaderboard, /recover, /u/[handle], /api/*)
 src/components/   UI (BrockGame is the main client component)
-src/lib/          game rules, services, auth, validation
+src/lib/          game rules, services, identity, validation
 src/db/           Drizzle schema and client
 drizzle/          generated migrations (never hand-edit)
 tests/            unit, integration, e2e
@@ -102,5 +96,6 @@ tests/            unit, integration, e2e
 
 ## Known limitations
 
-- One person can make several accounts through different OAuth providers to farm streaks. Fine for a friends game. If it ever matters, restrict to one provider or add an admin ban tool.
-- Better Auth's rate limiter keeps counters in memory, so on serverless hosting limits apply per instance. If you need hard limits, switch to `rateLimit.storage: "database"` (this needs an extra `rateLimit` table; see the Better Auth docs).
+- **Identity is a cookie.** Clearing site data, switching browser or device, or using a private window starts a new anonymous player. Named players can get their streak back with their recovery code. Unnamed players can't, but they have nothing on the leaderboard to lose. A lost recovery code can't be re-issued.
+- **One person can play as many players** by using several browsers, and could farm streaks that way. Fine for a friends game. Handle claims need a finished Brock and new players are limited per IP, which slows it down but doesn't stop it.
+- **Rate limits are in memory**, so on serverless hosting each instance counts separately. They slow abuse down; they're not a hard guarantee. Recovery codes are ~78 bits, so guessing isn't feasible regardless.

@@ -1,12 +1,12 @@
 import Link from 'next/link';
-import { getViewer } from '@/lib/session';
-import { SignOutButton } from './SignInButtons';
+import { getCurrentPlayer } from '@/lib/session';
 
 const navLink =
   'whitespace-nowrap rounded-lg px-1.5 py-1 text-sm text-brock-muted hover:text-brock-text focus-visible:outline-2 focus-visible:outline-brock-accent';
 
 export async function Header() {
-  const viewer = await getViewer().catch(() => ({ state: 'signed_out' }) as const);
+  // The header must never take the page down, so a database hiccup just hides the handle.
+  const player = await getCurrentPlayer().catch(() => null);
 
   return (
     <header className="border-b border-brock-line">
@@ -21,18 +21,18 @@ export async function Header() {
           <Link href="/leaderboard" className={navLink}>
             Leaderboard
           </Link>
-          {viewer.state === 'player' && (
-            <>
-              <Link
-                href={`/u/${viewer.player.handle}`}
-                className={`${navLink} inline-block max-w-28 truncate font-semibold`}
-              >
-                @{viewer.player.handle}
-              </Link>
-              <SignOutButton />
-            </>
+          {player?.handle ? (
+            <Link
+              href={`/u/${player.handle}`}
+              className={`${navLink} inline-block max-w-28 truncate font-semibold`}
+            >
+              @{player.handle}
+            </Link>
+          ) : (
+            <Link href="/recover" className={navLink}>
+              Restore
+            </Link>
           )}
-          {viewer.state === 'needs_handle' && <SignOutButton />}
         </nav>
       </div>
     </header>

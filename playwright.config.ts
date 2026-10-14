@@ -26,11 +26,10 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: {
       DATABASE_URL: TEST_DATABASE_URL,
-      BETTER_AUTH_SECRET: 'e2e-only-secret-0123456789abcdef0123456789',
-      BETTER_AUTH_URL: `http://localhost:${PORT}`,
       NEXT_PUBLIC_SITE_URL: `http://localhost:${PORT}`,
       LAUNCH_DAY: '2026-11-01',
-      E2E_TEST_AUTH: 'true',
+      // Every test starts as a brand-new visitor from the same IP.
+      MAX_NEW_PLAYERS_PER_IP_HOUR: '100000',
     },
   },
 });
