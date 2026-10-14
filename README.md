@@ -81,9 +81,9 @@ Everything that matters happens inside one transaction holding a row lock on the
 
 1. Create a Neon project and copy the **pooled** connection string.
 2. Import the repo into Vercel. Set `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL` (the production `https://` URL) and `LAUNCH_DAY`. **Don't** set `TEST_DATABASE_URL`.
-3. Deploy. Vercel runs the `vercel-build` script, which applies any new database migrations and then builds, so schema changes go live with the deploy. No OAuth apps or secrets are needed.
+3. Deploy. Vercel runs the `vercel-build` script: on **production** deploys it applies any new database migrations, then builds, so schema changes go live with the code that needs them. No OAuth apps or secrets are needed.
 
-Preview deployments get `DATABASE_URL` too, so they migrate the same database as production. That's fine for a game this size; give previews their own Neon branch if you ever need to try a risky migration.
+Preview deployments never run migrations (they share `DATABASE_URL` with production, so a preview that migrated would change the live database under the live code). A branch that changes the schema therefore can't be fully tried on its preview URL; give previews their own Neon branch if you need that.
 
 ## Project layout
 
