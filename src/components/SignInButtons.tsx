@@ -52,7 +52,7 @@ export function SignOutButton() {
   const router = useRouter();
   return (
     <button
-      className="rounded-lg px-2 py-1 text-sm text-brock-muted hover:text-brock-text focus-visible:outline-2 focus-visible:outline-brock-accent"
+      className="whitespace-nowrap rounded-lg px-1.5 py-1 text-sm text-brock-muted hover:text-brock-text focus-visible:outline-2 focus-visible:outline-brock-accent"
       onClick={async () => {
         await signOut();
         router.push('/');

@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { DomainError } from '@/lib/errors';
 import { claimHandle } from '@/lib/players';
@@ -24,5 +25,7 @@ export async function claimHandleAction(
     }
     throw err;
   }
+  // The header (in the root layout) shows the handle, so it must re-render after onboarding.
+  revalidatePath('/', 'layout');
   redirect('/');
 }

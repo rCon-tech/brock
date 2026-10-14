@@ -1,0 +1,53 @@
+'use client';
+
+import { useState } from 'react';
+import type { TodayState } from '@/lib/brock-service';
+import { buildShareText } from '@/lib/share';
+
+interface Props {
+  state: TodayState;
+}
+
+export function ShareButton({ state }: Props) {
+  const [note, setNote] = useState('');
+
+  async function share() {
+    if (state.status === 'pending') return;
+    const text = buildShareText({
+      brockNumber: state.brockNumber,
+      rounds: state.rounds.map((r) => ({ player: r.player, house: r.house })),
+      status: state.status,
+      streak: state.streak.current,
+      url: process.env.NEXT_PUBLIC_SITE_URL || window.location.origin,
+    });
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+      setNote('Copied!');
+    } catch (err) {
+      // Dismissing the native share sheet rejects with AbortError; that's not a failure.
+      if ((err as DOMException)?.name === 'AbortError') return;
+      setNote('Couldn’t copy. Select and copy manually.');
+    }
+    setTimeout(() => setNote(''), 2500);
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        onClick={share}
+        className="rounded-xl border border-brock-line bg-brock-card px-4 py-2.5 font-semibold transition hover:border-brock-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brock-accent"
+      >
+        Share result
+      </button>
+      <span role="status" className="text-sm text-brock-muted">
+        {note}
+      </span>
+    </div>
+  );
+}
