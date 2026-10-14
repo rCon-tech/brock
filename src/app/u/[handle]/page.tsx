@@ -65,7 +65,10 @@ export default async function ProfilePage({ params }: Props) {
 
       <div>
         <h2 className="mb-2 text-lg font-extrabold">Last 30 days</h2>
-        <ol className="grid grid-cols-10 gap-1.5 text-center" aria-label="Last 30 days, oldest first">
+        <ol
+          className="grid grid-cols-10 gap-1.5 text-center"
+          aria-label="Last 30 days, oldest first"
+        >
           {days.map((d) => (
             <DayCell key={d.day} day={d} />
           ))}

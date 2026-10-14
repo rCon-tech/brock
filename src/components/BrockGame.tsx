@@ -113,7 +113,10 @@ export function BrockGame() {
       </div>
 
       {message && (
-        <p role="alert" className="rounded-xl border border-brock-loss/40 p-3 text-sm text-brock-loss">
+        <p
+          role="alert"
+          className="rounded-xl border border-brock-loss/40 p-3 text-sm text-brock-loss"
+        >
           {message}
         </p>
       )}
@@ -166,12 +169,17 @@ export function BrockGame() {
                 : 'Streak over. Back to 0.'}
             </p>
             <p className="mt-1 text-sm text-brock-muted" aria-label="Your throws against the House">
-              {state.rounds.map((r) => `${THROW_EMOJI[r.player]}→${THROW_EMOJI[r.house]}`).join('  ')}
+              {state.rounds
+                .map((r) => `${THROW_EMOJI[r.player]}→${THROW_EMOJI[r.house]}`)
+                .join('  ')}
             </p>
             <div className="mt-4 flex flex-col gap-3">
               <ShareButton state={state} />
               <Countdown msUntilReset={state.msUntilReset} onZero={() => void load()} />
-              <Link href="/leaderboard" className="text-sm font-semibold text-brock-accent hover:underline">
+              <Link
+                href="/leaderboard"
+                className="text-sm font-semibold text-brock-accent hover:underline"
+              >
                 See the leaderboard →
               </Link>
             </div>

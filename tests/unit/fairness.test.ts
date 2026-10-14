@@ -27,7 +27,9 @@ describe('commit / verify', () => {
 
   it('is sha256 of "<throw>:<salt>" so clients can recompute it', () => {
     // printf 'rock:abc' | sha256sum
-    expect(commit('rock', 'abc')).toBe('056c2fcf7699263e0aa19831eaf9cd04ff91ec3386a448d5e104c5577b55f4d6');
+    expect(commit('rock', 'abc')).toBe(
+      '056c2fcf7699263e0aa19831eaf9cd04ff91ec3386a448d5e104c5577b55f4d6',
+    );
   });
 });
 

@@ -7,9 +7,17 @@ export function e2eAuthEnabled(): boolean {
   return process.env.E2E_TEST_AUTH === 'true';
 }
 
-function assertSafeEnv() {
-  if (e2eAuthEnabled() && process.env.VERCEL_ENV === 'production') {
-    throw new Error('E2E_TEST_AUTH must never be enabled in production');
+const LOOPBACK_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
+
+/**
+ * Test-only sign-in must never be reachable from a public deployment, so it is refused unless
+ * the app's base URL is loopback (and always on Vercel production).
+ */
+export function assertSafeEnv(env: NodeJS.ProcessEnv = process.env): void {
+  if (env.E2E_TEST_AUTH !== 'true') return;
+  const host = new URL(env.BETTER_AUTH_URL ?? 'http://localhost:3000').hostname;
+  if (env.VERCEL_ENV === 'production' || !LOOPBACK_HOSTS.includes(host)) {
+    throw new Error('E2E_TEST_AUTH must never be enabled on a public deployment');
   }
 }
 
@@ -49,7 +57,8 @@ function createAuth() {
       }),
     },
     emailAndPassword: { enabled: e2eAuthEnabled() },
-    rateLimit: { enabled: true, window: 60, max: 100 },
+    // Always on, except under the test-only flag: Playwright signs up many users from one IP.
+    rateLimit: { enabled: !e2eAuthEnabled(), window: 60, max: 100 },
     advanced: {
       // Cookies are httpOnly + sameSite=lax by default; `secure` follows the public URL's scheme.
       useSecureCookies: baseURL.startsWith('https://'),

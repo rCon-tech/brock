@@ -20,9 +20,7 @@ export async function GET(request: Request) {
 
     // Anonymous responses are safe to share at the edge. Signed-in ones carry `me`, so they
     // must not be stored by shared caches.
-    const cache = user
-      ? 'private, no-store'
-      : 'public, s-maxage=30, stale-while-revalidate=60';
+    const cache = user ? 'private, no-store' : 'public, s-maxage=30, stale-while-revalidate=60';
 
     return NextResponse.json(
       { entries, ...(user && { me }) },

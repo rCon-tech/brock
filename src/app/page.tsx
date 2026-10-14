@@ -38,7 +38,10 @@ export default async function Home() {
           <h2 id="top-title" className="text-xl font-extrabold">
             Longest streaks
           </h2>
-          <Link href="/leaderboard" className="text-sm font-semibold text-brock-accent hover:underline">
+          <Link
+            href="/leaderboard"
+            className="text-sm font-semibold text-brock-accent hover:underline"
+          >
             Full leaderboard →
           </Link>
         </div>

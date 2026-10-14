@@ -44,7 +44,11 @@ describe('applyWin', () => {
 describe('applyLoss', () => {
   it('resets the current streak and keeps everything else', () => {
     const player: StreakState = { currentStreak: 7, bestStreak: 9, lastWinDay: '2026-11-01' };
-    expect(applyLoss(player)).toEqual({ currentStreak: 0, bestStreak: 9, lastWinDay: '2026-11-01' });
+    expect(applyLoss(player)).toEqual({
+      currentStreak: 0,
+      bestStreak: 9,
+      lastWinDay: '2026-11-01',
+    });
   });
 });
 

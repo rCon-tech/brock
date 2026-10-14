@@ -84,7 +84,8 @@ function buildState(
     status,
     streak: { current: effectiveStreak(playerRow, day), best: playerRow.bestStreak },
     rounds: revealed,
-    openRound: status === 'pending' && open ? { roundNo: open.roundNo, commitHash: open.commitHash } : null,
+    openRound:
+      status === 'pending' && open ? { roundNo: open.roundNo, commitHash: open.commitHash } : null,
     msUntilReset: msUntilReset(now),
   };
 }

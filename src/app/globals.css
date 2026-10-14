@@ -9,7 +9,8 @@
   --color-brock-accent: #ff7a1a;
   --color-brock-win: #34d399;
   --color-brock-loss: #f87171;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
 }
 
 html {

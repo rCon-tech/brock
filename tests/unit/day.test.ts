@@ -19,7 +19,8 @@ describe('previousDay', () => {
     expect(previousDay('2028-03-01')).toBe('2028-02-29');
     expect(previousDay('2028-02-29')).toBe('2028-02-28');
   });
-  it('is the inverse of addDays(1)', () => expect(addDays(previousDay('2026-10-14'), 1)).toBe('2026-10-14'));
+  it('is the inverse of addDays(1)', () =>
+    expect(addDays(previousDay('2026-10-14'), 1)).toBe('2026-10-14'));
 });
 
 describe('brockNumber', () => {

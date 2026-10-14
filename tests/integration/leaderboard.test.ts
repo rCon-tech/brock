@@ -62,9 +62,15 @@ describe('topPlayers', () => {
 
   it('clamps the limit to 1–100', async () => {
     const db = getDb();
-    await db.insert(schema.user).values(
-      Array.from({ length: 105 }, (_, i) => ({ id: `u${i}`, name: `u${i}`, email: `u${i}@x.com` })),
-    );
+    await db
+      .insert(schema.user)
+      .values(
+        Array.from({ length: 105 }, (_, i) => ({
+          id: `u${i}`,
+          name: `u${i}`,
+          email: `u${i}@x.com`,
+        })),
+      );
     await db.insert(schema.player).values(
       Array.from({ length: 105 }, (_, i) => ({
         userId: `u${i}`,
@@ -106,9 +112,15 @@ describe('rankOf', () => {
 
   it('ranks a player outside the top 100', async () => {
     const db = getDb();
-    await db.insert(schema.user).values(
-      Array.from({ length: 100 }, (_, i) => ({ id: `u${i}`, name: `u${i}`, email: `u${i}@x.com` })),
-    );
+    await db
+      .insert(schema.user)
+      .values(
+        Array.from({ length: 100 }, (_, i) => ({
+          id: `u${i}`,
+          name: `u${i}`,
+          email: `u${i}@x.com`,
+        })),
+      );
     await db.insert(schema.player).values(
       Array.from({ length: 100 }, (_, i) => ({
         userId: `u${i}`,

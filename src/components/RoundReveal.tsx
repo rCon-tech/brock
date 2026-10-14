@@ -66,7 +66,9 @@ export function RoundReveal({ round }: Props) {
       <p className="sr-only">
         You threw {round.player}. The House threw {round.house}.
       </p>
-      <p className={`mt-3 text-2xl font-extrabold ${COLOR[round.result]}`}>{HEADLINE[round.result]}</p>
+      <p className={`mt-3 text-2xl font-extrabold ${COLOR[round.result]}`}>
+        {HEADLINE[round.result]}
+      </p>
       <button
         type="button"
         onClick={() => setShowProof((v) => !v)}

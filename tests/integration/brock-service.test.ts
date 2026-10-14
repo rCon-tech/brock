@@ -57,7 +57,10 @@ describe('getToday', () => {
       streak: { current: 0, best: 0 },
       rounds: [],
     });
-    expect(state.openRound).toEqual({ roundNo: 1, commitHash: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    expect(state.openRound).toEqual({
+      roundNo: 1,
+      commitHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    });
     expect(state.msUntilReset).toBe(14 * 3600_000);
   });
 
@@ -115,7 +118,9 @@ describe('house throw secrecy', () => {
     const result = await play(userId, D1, 'rock', row.houseThrow);
     expect(result.round).toMatchObject({ roundNo: 1, house: row.houseThrow, salt: row.salt });
     expect(result.round.commitHash).toBe(before.openRound!.commitHash);
-    expect(fairness.verify(result.round.commitHash, result.round.house, result.round.salt)).toBe(true);
+    expect(fairness.verify(result.round.commitHash, result.round.house, result.round.salt)).toBe(
+      true,
+    );
   });
 });
 
@@ -180,7 +185,12 @@ describe('submitThrow', () => {
 
     expect(result.status).toBe('lost');
     expect(result.streak).toEqual({ current: 0, best: 2 });
-    expect(await playerRow(userId)).toMatchObject({ currentStreak: 0, bestStreak: 2, totalWins: 2, totalLosses: 1 });
+    expect(await playerRow(userId)).toMatchObject({
+      currentStreak: 0,
+      bestStreak: 2,
+      totalWins: 2,
+      totalLosses: 1,
+    });
   });
 
   it('a missed day lapses the streak, and the next win restarts at 1', async () => {

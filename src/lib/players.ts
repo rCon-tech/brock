@@ -33,10 +33,7 @@ export async function claimHandle(userId: string, rawHandle: string): Promise<Pl
     throw new DomainError('invalid_request', parsed.error.issues[0]?.message);
   }
   try {
-    const [row] = await getDb()
-      .insert(player)
-      .values({ userId, handle: parsed.data })
-      .returning();
+    const [row] = await getDb().insert(player).values({ userId, handle: parsed.data }).returning();
     return row;
   } catch (err) {
     const { code, constraint_name } = pgError(err);

@@ -23,7 +23,10 @@ export async function Header() {
           </Link>
           {viewer.state === 'player' && (
             <>
-              <Link href={`/u/${viewer.player.handle}`} className={`${navLink} inline-block max-w-28 truncate font-semibold`}>
+              <Link
+                href={`/u/${viewer.player.handle}`}
+                className={`${navLink} inline-block max-w-28 truncate font-semibold`}
+              >
                 @{viewer.player.handle}
               </Link>
               <SignOutButton />
