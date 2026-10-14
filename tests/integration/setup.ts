@@ -31,8 +31,11 @@ export async function createPlayer(
 ): Promise<string> {
   const [row] = await getDb()
     .insert(schema.player)
-    .values({ tokenHash: hashToken(`test-token-${++counter}-${handle}`), handle, ...overrides })
+    .values({ handle, ...overrides })
     .returning({ id: schema.player.id });
+  await getDb()
+    .insert(schema.playerSession)
+    .values({ tokenHash: hashToken(`test-token-${++counter}-${handle}`), playerId: row.id });
   return row.id;
 }
 
@@ -45,7 +48,6 @@ export async function createPlayers(
     .insert(schema.player)
     .values(
       Array.from({ length: count }, (_, i) => ({
-        tokenHash: hashToken(`bulk-token-${++counter}-${i}`),
         handle: `player_${String(i).padStart(3, '0')}`,
         ...overrides,
       })),

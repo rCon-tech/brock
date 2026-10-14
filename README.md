@@ -6,17 +6,18 @@ The full design is in [`PLAN.md`](./PLAN.md). This README covers running, testin
 
 ## The rules
 
-|              |                                                                                                                                                                                                      |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Opponent     | **The House**: a server-side pick, uniformly random (`crypto.randomInt`)                                                                                                                             |
-| A "day"      | A **UTC calendar day** (resets 00:00 UTC). The countdown shows the time left.                                                                                                                        |
-| Win          | Streak +1                                                                                                                                                                                            |
-| Loss         | Streak → 0                                                                                                                                                                                           |
-| Draw         | Throw again, the same day. A draw doesn't use up your Brock.                                                                                                                                         |
-| Missed day   | Streak → 0                                                                                                                                                                                           |
-| Fairness     | The House's throw is committed to before you throw: you see `sha256("<throw>:<salt>")` first, and the throw and salt are revealed afterwards. "Verify fairness" recomputes the hash in your browser. |
-| Leaderboard  | Current streak ↓, then best streak ↓, then handle A→Z. Ties share a rank.                                                                                                                            |
-| Brock number | Days since `LAUNCH_DAY` (Brock #1 is launch day)                                                                                                                                                     |
+|              |                                                                                                                                                                                                          |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Opponent     | **The House**: a server-side pick, uniformly random (`crypto.randomInt`)                                                                                                                                 |
+| A "day"      | A **UTC calendar day** (resets 00:00 UTC). The countdown shows the time left.                                                                                                                            |
+| Win          | Streak +1                                                                                                                                                                                                |
+| Loss         | Streak → 0                                                                                                                                                                                               |
+| Draw         | Throw again, the same day. A draw doesn't use up your Brock.                                                                                                                                             |
+| Missed day   | Streak → 0                                                                                                                                                                                               |
+| Fairness     | The House's throw is committed to before you throw: you see `sha256("<throw>:<salt>")` first, and the throw and salt are revealed afterwards. "Verify fairness" recomputes the hash in your browser.     |
+| Leaderboard  | Named players only. Current streak ↓, then best streak ↓, then handle A→Z. Ties share a rank.                                                                                                            |
+| Identity     | No login. Each browser gets a secret cookie that remembers you. After your first finished Brock you pick a username. On another device, type that username at `/login` to carry on with the same streak. |
+| Brock number | Days since `LAUNCH_DAY` (Brock #1 is launch day)                                                                                                                                                         |
 
 The rules live in `src/lib/` (`game.ts`, `day.ts`, `streak.ts`, `fairness.ts`), so changing them means changing one file each.
 
@@ -53,8 +54,8 @@ There are no secrets to configure beyond the database URL.
 ## How identity works
 
 - The first time a browser opens the game, the server creates an anonymous player and sets an `httpOnly`, `SameSite=Lax` cookie (`brock_id`, about a year) holding a random 256-bit token. Only the token's SHA-256 is stored, so a database leak can't be used to impersonate anyone.
-- A name can only be claimed after a finished Brock, once, and is unique ignoring case. Claiming it returns a recovery code (16 characters, about 78 bits) which is stored only as a hash and shown once.
-- `/recover` swaps in a new token for the player and issues a new recovery code. The old device is signed out and the old code stops working. Wrong handle and wrong code give the same error, and guesses are limited to 5 per handle per 15 minutes.
+- A name can only be claimed after a finished Brock, once, and is unique ignoring case.
+- `/login` logs a browser in as a named player by username alone, with no password. Each browser gets its own token (table `player_session`), so logging in on a new device doesn't log out the old one. Logins are limited to 30 per IP per 15 minutes.
 
 ## Scripts
 
@@ -80,13 +81,14 @@ Everything that matters happens inside one transaction holding a row lock on the
 
 1. Create a Neon project and copy the **pooled** connection string.
 2. Import the repo into Vercel. Set `DATABASE_URL`, `NEXT_PUBLIC_SITE_URL` (the production `https://` URL) and `LAUNCH_DAY`. **Don't** set `TEST_DATABASE_URL`.
-3. Run the migrations against Neon: `DATABASE_URL='<neon url>' pnpm db:migrate`
-4. Deploy. That's it: no OAuth apps or secrets are needed.
+3. Deploy. Vercel runs the `vercel-build` script, which applies any new database migrations and then builds, so schema changes go live with the deploy. No OAuth apps or secrets are needed.
+
+Preview deployments get `DATABASE_URL` too, so they migrate the same database as production. That's fine for a game this size; give previews their own Neon branch if you ever need to try a risky migration.
 
 ## Project layout
 
 ```
-src/app/          pages and API routes (/, /leaderboard, /recover, /u/[handle], /api/*)
+src/app/          pages and API routes (/, /leaderboard, /login, /u/[handle], /api/*)
 src/components/   UI (BrockGame is the main client component)
 src/lib/          game rules, services, identity, validation
 src/db/           Drizzle schema and client
@@ -96,6 +98,7 @@ tests/            unit, integration, e2e
 
 ## Known limitations
 
-- **Identity is a cookie.** Clearing site data, switching browser or device, or using a private window starts a new anonymous player. Named players can get their streak back with their recovery code. Unnamed players can't, but they have nothing on the leaderboard to lose. A lost recovery code can't be re-issued.
+- **Anyone can play as anyone.** Logging in needs only a username, by design: it's a casual game and convenience wins. Someone who knows your name can play your Brock for you. If that ever matters, a passkey or a PIN per player would be the next step.
+- **Identity is a cookie.** Clearing site data, switching browser or using a private window starts a new anonymous player until you log in with your username. Unnamed players can't get their Brock back, but they have nothing on the leaderboard to lose.
 - **One person can play as many players** by using several browsers, and could farm streaks that way. Fine for a friends game. Handle claims need a finished Brock and new players are limited per IP, which slows it down but doesn't stop it.
-- **Rate limits are in memory**, so on serverless hosting each instance counts separately. They slow abuse down; they're not a hard guarantee. Recovery codes are ~78 bits, so guessing isn't feasible regardless.
+- **Rate limits are in memory**, so on serverless hosting each instance counts separately. They slow abuse down; they're not a hard guarantee.

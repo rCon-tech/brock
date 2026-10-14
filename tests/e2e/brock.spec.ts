@@ -28,17 +28,11 @@ async function playUntilDecided(page: Page): Promise<'won' | 'lost'> {
   throw new Error('25 draws in a row, which should be (1/3)^25 unlikely');
 }
 
-/** Names the player and acknowledges the recovery code. Returns the code. */
-async function nameAndSave(page: Page, handle: string): Promise<string> {
+/** Names the player after a finished Brock. */
+async function nameMe(page: Page, handle: string) {
   await page.getByLabel('Add your name to the leaderboard').fill(handle);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  const code = (await page.getByTestId('recovery-code').textContent()) ?? '';
-  expect(code).toMatch(/^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/);
-  const proceed = page.getByRole('button', { name: 'Continue' });
-  await expect(proceed).toBeDisabled();
-  await page.getByLabel('I’ve saved my recovery code').check();
-  await proceed.click();
-  return code;
+  await expect(navHandle(page, handle)).toBeVisible();
 }
 
 /** A named player who has finished today's Brock. */
@@ -48,9 +42,8 @@ async function namedPlayer(browser: Browser, label: string) {
   await open(page);
   const result = await playUntilDecided(page);
   const handle = unique(label);
-  const code = await nameAndSave(page, handle);
-  await expect(navHandle(page, handle)).toBeVisible();
-  return { context, page, handle, code, result };
+  await nameMe(page, handle);
+  return { context, page, handle, result };
 }
 
 test('a first-time visitor can play immediately with no login', async ({ page }) => {
@@ -58,8 +51,11 @@ test('a first-time visitor can play immediately with no login', async ({ page })
   await expect(page.getByText('No sign-up: just play.')).toBeVisible();
   await expect(page.getByText('The House has chosen.')).toBeVisible();
   await expect(page.getByRole('group', { name: 'Choose your throw' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Restore' })).toBeVisible();
-  await expect(page.getByText(/sign in|log in/i)).toHaveCount(0);
+  await expect(
+    page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Log in' }),
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Played before? Log in' })).toBeVisible();
+  await expect(page.getByText(/password|recovery code/i)).toHaveCount(0);
 });
 
 test('play, name yourself afterwards, and the browser remembers you', async ({ page, context }) => {
@@ -72,12 +68,14 @@ test('play, name yourself afterwards, and the browser remembers you', async ({ p
   await expect(page.getByText(/Next Brock in/)).toBeVisible();
 
   const handle = unique('rich');
-  await nameAndSave(page, handle);
+  await nameMe(page, handle);
 
   // Named: prompt gone, header shows the handle, and the streak is still there.
   await expect(page.getByLabel('Add your name to the leaderboard')).toHaveCount(0);
   await expect(navHandle(page, handle)).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Restore' })).toHaveCount(0);
+  await expect(
+    page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Log in' }),
+  ).toHaveCount(0);
   await expect(
     page.getByText(result === 'won' ? 'Brocked! Streak: 🔥 1' : 'Streak over. Back to 0.'),
   ).toBeVisible();
@@ -114,68 +112,43 @@ test('play, name yourself afterwards, and the browser remembers you', async ({ p
   );
 });
 
-test('a lost device can be restored with the recovery code, and the old one is signed out', async ({
+test('on a new device you just type your username, and the old device stays logged in', async ({
   browser,
 }) => {
   const original = await namedPlayer(browser, 'back');
 
-  // New phone: no cookies, so they start as a fresh anonymous player.
+  // New phone: no cookies. The home page points returning players at the login.
   const fresh = await browser.newContext();
   const page = await fresh.newPage();
-  await page.goto('/recover');
+  await open(page);
+  await page.getByRole('link', { name: 'Played before? Log in' }).click();
+  await expect(page).toHaveURL(/\/login$/);
 
-  await page.getByLabel('Handle').fill(original.handle);
-  await page.getByLabel('Recovery code').fill(original.code.toLowerCase().replaceAll('-', ' '));
-  await page.getByRole('button', { name: 'Restore my streak' }).click();
+  await page.getByLabel('Your username').fill(original.handle.toUpperCase());
+  await page.getByRole('button', { name: 'Log in' }).click();
 
-  // They're handed a *new* code, since each code works once.
-  await expect(
-    page.getByRole('heading', { name: `Welcome back, @${original.handle}` }),
-  ).toBeVisible();
-  const newCode = (await page.getByTestId('recovery-code').textContent()) ?? '';
-  expect(newCode).toMatch(/^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/);
-  expect(newCode).not.toBe(original.code);
-  await page.getByLabel('I’ve saved my recovery code').check();
-  await page.getByRole('button', { name: 'Continue' }).click();
-
-  // Same player: already Brocked today, same handle.
+  // Same player: same handle, and today's Brock is already played.
   await expect(page).toHaveURL(/\/$/);
   await expect(navHandle(page, original.handle)).toBeVisible();
   await expect(page.getByText(/Next Brock in/)).toBeVisible();
   await expect(page.getByRole('group', { name: 'Choose your throw' })).toHaveCount(0);
 
-  // The old code is spent.
-  const retry = await browser.newContext();
-  const retryRes = await retry.request.post('/api/player/recover', {
-    data: { handle: original.handle, code: original.code },
-  });
-  expect(retryRes.status()).toBe(403);
-
-  // The old device lost its identity: it's a brand-new player with a fresh picker.
+  // The first device is still logged in.
   await original.page.reload();
-  await expect(original.page.getByRole('link', { name: 'Restore' })).toBeVisible();
-  await expect(original.page.getByRole('group', { name: 'Choose your throw' })).toBeVisible();
+  await expect(navHandle(original.page, original.handle)).toBeVisible();
+  await expect(original.page.getByText(/Next Brock in/)).toBeVisible();
 
-  await Promise.all([original.context.close(), fresh.close(), retry.close()]);
+  await Promise.all([original.context.close(), fresh.close()]);
 });
 
-test('restoring with the wrong code is refused without revealing why', async ({
-  browser,
-  page,
-}) => {
-  const player = await namedPlayer(browser, 'wrong');
-
-  await page.goto('/recover');
-  await page.getByLabel('Handle').fill(player.handle);
-  await page.getByLabel('Recovery code').fill('AAAA-BBBB-CCCC-DDDD');
-  await page.getByRole('button', { name: 'Restore my streak' }).click();
-  await expect(page.getByRole('alert').filter({ hasText: 'don’t match' })).toBeVisible();
-
-  await page.getByLabel('Handle').fill(unique('ghost'));
-  await page.getByRole('button', { name: 'Restore my streak' }).click();
-  await expect(page.getByRole('alert').filter({ hasText: 'don’t match' })).toBeVisible();
-
-  await player.context.close();
+test('logging in with a name nobody has explains what to do', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Your username').fill(unique('ghost'));
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'No player with that name' }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
 });
 
 test('a handle can only be taken once, case-insensitively', async ({ browser }) => {
@@ -188,7 +161,6 @@ test('a handle can only be taken once, case-insensitively', async ({ browser }) 
   await page.getByLabel('Add your name to the leaderboard').fill(first.handle.toUpperCase());
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'Handle taken' })).toBeVisible();
-  await expect(page.getByTestId('recovery-code')).toHaveCount(0);
 
   await Promise.all([first.context.close(), context.close()]);
 });
@@ -218,14 +190,14 @@ test('the API enforces the rules the UI relies on', async ({ browser }) => {
   expect(Object.keys(open).sort()).toEqual(['commitHash', 'roundNo']);
 
   // A cross-site HTML form can't change state: only JSON bodies are accepted.
-  const formPost = await api.post('/api/player/recover', { form: { handle: 'x', code: 'y' } });
+  const formPost = await api.post('/api/player/login', { form: { handle: 'x' } });
   expect(formPost.status()).toBe(400);
 
   // Bad input is rejected.
   expect(
     (await api.post('/api/brock/throw', { data: { roundNo: 1, throw: 'lizard' } })).status(),
   ).toBe(400);
-  expect((await api.post('/api/player/recover', { data: {} })).status()).toBe(400);
+  expect((await api.post('/api/player/login', { data: {} })).status()).toBe(400);
 
   await context.close();
 });

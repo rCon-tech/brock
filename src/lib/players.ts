@@ -3,35 +3,28 @@ import { getDb, schema } from '@/db';
 import type { Player } from '@/db/schema';
 import { addDays, type Day } from './day';
 import { DomainError } from './errors';
-import {
-  hashRecoveryCode,
-  hashToken,
-  isWellFormedRecoveryCode,
-  newRecoveryCode,
-  newToken,
-  normalizeRecoveryCode,
-  sameHash,
-} from './identity';
-import { allow } from './rate-limit';
+import { hashToken, newToken } from './identity';
 import { HandleInput } from './validation';
 
-const { player, brock } = schema;
+const { player, playerSession, brock } = schema;
 
-const RECOVERY_ATTEMPTS = 5;
-const RECOVERY_WINDOW_MS = 15 * 60_000;
-
+/** Creates an unnamed player and logs `token`'s browser in as them. */
 export async function createAnonymousPlayer(tokenHash: string): Promise<Player> {
-  const [row] = await getDb().insert(player).values({ tokenHash }).returning();
-  return row;
+  return getDb().transaction(async (tx) => {
+    const [row] = await tx.insert(player).values({}).returning();
+    await tx.insert(playerSession).values({ tokenHash, playerId: row.id });
+    return row;
+  });
 }
 
 export async function getPlayerByToken(token: string): Promise<Player | null> {
   const [row] = await getDb()
-    .select()
-    .from(player)
-    .where(eq(player.tokenHash, hashToken(token)))
+    .select({ player })
+    .from(playerSession)
+    .innerJoin(player, eq(player.id, playerSession.playerId))
+    .where(eq(playerSession.tokenHash, hashToken(token)))
     .limit(1);
-  return row ?? null;
+  return row?.player ?? null;
 }
 
 export async function getPlayerById(id: string): Promise<Player | null> {
@@ -55,12 +48,9 @@ function pgError(err: unknown): { code?: string } {
 
 /**
  * Names an anonymous player. Allowed once, and only after they've finished a Brock, so a name
- * can't be squatted by something that never played. Returns the one-time recovery code.
+ * can't be squatted by something that never played.
  */
-export async function claimHandle(
-  playerId: string,
-  rawHandle: string,
-): Promise<{ player: Player; recoveryCode: string }> {
+export async function claimHandle(playerId: string, rawHandle: string): Promise<Player> {
   const parsed = HandleInput.safeParse(rawHandle);
   if (!parsed.success) {
     throw new DomainError('invalid_request', parsed.error.issues[0]?.message);
@@ -77,16 +67,15 @@ export async function claimHandle(
     .limit(1);
   if (!decided) throw new DomainError('play_first');
 
-  const recoveryCode = newRecoveryCode();
   try {
     const [row] = await getDb()
       .update(player)
-      .set({ handle: parsed.data, recoveryHash: hashRecoveryCode(recoveryCode) })
+      .set({ handle: parsed.data })
       // Guards a concurrent double-submit: only an unnamed player can be named.
       .where(and(eq(player.id, playerId), sql`${player.handle} IS NULL`))
       .returning();
     if (!row) throw new DomainError('already_named');
-    return { player: row, recoveryCode };
+    return row;
   } catch (err) {
     if (pgError(err).code === '23505') throw new DomainError('handle_taken', 'Handle taken');
     throw err;
@@ -94,37 +83,19 @@ export async function claimHandle(
 }
 
 /**
- * Restores a named player on a new browser. The code is single-use: success rotates both the
- * browser token (the old device is signed out) and the recovery code.
- * Wrong handle and wrong code are indistinguishable to the caller.
+ * Logs a browser in as the player with this handle, by name alone. Brock is a casual game, so
+ * there's deliberately no password: anyone who knows a handle can play as it. Other devices
+ * already logged in as that player stay logged in.
  */
-export async function recoverPlayer(
-  rawHandle: string,
-  rawCode: string,
-): Promise<{ player: Player; token: string; recoveryCode: string }> {
-  const handle = rawHandle.trim().toLowerCase();
-  if (!allow(`recover:${handle}`, RECOVERY_ATTEMPTS, RECOVERY_WINDOW_MS)) {
-    throw new DomainError('rate_limited');
-  }
-
-  const found = await getPlayerByHandle(handle);
-  const normalized = normalizeRecoveryCode(rawCode);
-  const supplied = hashRecoveryCode(normalized);
-  // Compare even when there's no match so timing doesn't reveal whether the handle exists.
-  const valid =
-    isWellFormedRecoveryCode(normalized) && sameHash(found?.recoveryHash ?? '00', supplied);
-  if (!found || !valid) throw new DomainError('invalid_recovery');
+export async function logInAs(rawHandle: string): Promise<{ player: Player; token: string }> {
+  const found = await getPlayerByHandle(rawHandle.trim());
+  if (!found) throw new DomainError('not_found');
 
   const token = newToken();
-  const recoveryCode = newRecoveryCode();
-  const [row] = await getDb()
-    .update(player)
-    .set({ tokenHash: hashToken(token), recoveryHash: hashRecoveryCode(recoveryCode) })
-    // Re-check the old code in the write so two simultaneous recoveries can't both succeed.
-    .where(and(eq(player.id, found.id), eq(player.recoveryHash, supplied)))
-    .returning();
-  if (!row) throw new DomainError('invalid_recovery');
-  return { player: row, token, recoveryCode };
+  await getDb()
+    .insert(playerSession)
+    .values({ tokenHash: hashToken(token), playerId: found.id });
+  return { player: found, token };
 }
 
 export type ProfileDay = { day: Day; status: 'won' | 'lost' | 'pending' | null };

@@ -18,10 +18,7 @@ export type ThrowBody = z.infer<typeof ThrowBody>;
 
 export const ClaimHandleBody = z.object({ handle: HandleInput });
 
-export const RecoverBody = z.object({
-  handle: z.string().trim().min(1).max(40),
-  code: z.string().trim().min(1).max(64),
-});
+export const LoginBody = z.object({ handle: z.string().trim().min(1).max(40) });
 
 export const MAX_LEADERBOARD_LIMIT = 100;
 
@@ -32,7 +29,7 @@ export function clampLimit(limit: number): number {
 /**
  * Parses a JSON request body, refusing anything not sent as `application/json`. Cross-site HTML
  * forms can only send form encodings, so this stops them from triggering state changes
- * (notably the cookie-setting recovery route) on a visitor's behalf.
+ * (notably the cookie-setting login route) on a visitor's behalf.
  */
 export async function readJson(request: Request): Promise<unknown> {
   const type = request.headers.get('content-type') ?? '';

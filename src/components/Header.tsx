@@ -29,8 +29,8 @@ export async function Header() {
               @{player.handle}
             </Link>
           ) : (
-            <Link href="/recover" className={navLink}>
-              Restore
+            <Link href="/login" className={navLink}>
+              Log in
             </Link>
           )}
         </nav>

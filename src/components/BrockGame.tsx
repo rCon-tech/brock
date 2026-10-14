@@ -7,7 +7,6 @@ import type { RevealedRound, TodayState } from '@/lib/brock-service';
 import { THROW_EMOJI, type Throw } from '@/lib/game';
 import { Countdown } from './Countdown';
 import { HandleForm } from './HandleForm';
-import { RecoveryCode } from './RecoveryCode';
 import { RoundReveal } from './RoundReveal';
 import { ShareButton } from './ShareButton';
 import { StreakBadge } from './StreakBadge';
@@ -29,7 +28,6 @@ export function BrockGame() {
   const [picked, setPicked] = useState<Throw | null>(null);
   const [message, setMessage] = useState('');
   const [announce, setAnnounce] = useState('');
-  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -120,7 +118,10 @@ export function BrockGame() {
       {state.rounds.length === 0 && state.handle === null && phase === 'ready' && (
         <p className="text-brock-muted">
           One rock paper scissors a day against the House. Win and your streak grows. Lose, or skip
-          a day, and it resets. No sign-up: just play.
+          a day, and it resets. No sign-up: just play.{' '}
+          <Link href="/login" className="font-semibold text-brock-accent hover:underline">
+            Played before? Log in
+          </Link>
         </p>
       )}
 
@@ -174,26 +175,15 @@ export function BrockGame() {
       {phase === 'done' && decided && finalRound && (
         <>
           <RoundReveal round={finalRound} />
-          {recoveryCode ? (
-            <RecoveryCode
-              heading="You’re on the board! Save your recovery code"
-              code={recoveryCode}
-              onDone={() => {
-                setRecoveryCode(null);
-                void load();
-              }}
-            />
-          ) : (
-            state.handle === null && (
-              <div className="rounded-2xl border border-brock-line bg-brock-card p-5">
-                <HandleForm
-                  onNamed={(_handle, code) => {
-                    setRecoveryCode(code);
-                    router.refresh();
-                  }}
-                />
-              </div>
-            )
+          {state.handle === null && (
+            <div className="rounded-2xl border border-brock-line bg-brock-card p-5">
+              <HandleForm
+                onNamed={() => {
+                  router.refresh();
+                  void load();
+                }}
+              />
+            </div>
           )}
           <div className="rounded-2xl border border-brock-line bg-brock-card p-5">
             <p className="text-xl font-extrabold">

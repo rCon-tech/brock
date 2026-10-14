@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 interface Props {
-  onNamed: (handle: string, recoveryCode: string) => void;
+  onNamed: (handle: string) => void;
 }
 
 const MESSAGES: Record<string, string> = {
@@ -33,7 +33,7 @@ export function HandleForm({ onNamed }: Props) {
         setError(MESSAGES[data.error] ?? 'Something went wrong. Please try again.');
         return;
       }
-      onNamed(data.handle, data.recoveryCode);
+      onNamed(data.handle);
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -69,7 +69,8 @@ export function HandleForm({ onNamed }: Props) {
         </button>
       </div>
       <p id="handle-help" className="text-sm text-brock-muted">
-        3–20 letters, numbers or underscores. No account needed. This browser remembers you.
+        3–20 letters, numbers or underscores. No account needed: this browser remembers you, and on
+        another device you just log in with this name.
       </p>
       <p id="handle-error" role="alert" className="min-h-5 text-sm text-brock-loss">
         {error}

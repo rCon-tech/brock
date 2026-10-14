@@ -1,14 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  cookieOptions,
-  hashRecoveryCode,
-  hashToken,
-  isWellFormedRecoveryCode,
-  newRecoveryCode,
-  newToken,
-  normalizeRecoveryCode,
-  sameHash,
-} from '@/lib/identity';
+import { cookieOptions, hashToken, newToken } from '@/lib/identity';
 
 describe('tokens', () => {
   it('are long, URL-safe and never repeat', () => {
@@ -24,46 +15,6 @@ describe('tokens', () => {
     );
     expect(hashToken('abc')).toBe(hashToken('abc'));
     expect(hashToken('abd')).not.toBe(hashToken('abc'));
-  });
-});
-
-describe('sameHash', () => {
-  it('compares equal hashes, and rejects different, empty or malformed ones', () => {
-    const h = hashToken('x');
-    expect(sameHash(h, h)).toBe(true);
-    expect(sameHash(h, hashToken('y'))).toBe(false);
-    expect(sameHash(h, '')).toBe(false);
-    expect(sameHash('', '')).toBe(false);
-    expect(sameHash(h, '00')).toBe(false);
-  });
-});
-
-describe('recovery codes', () => {
-  it('look like XXXX-XXXX-XXXX-XXXX with an unambiguous alphabet', () => {
-    for (let i = 0; i < 500; i++) {
-      const code = newRecoveryCode();
-      expect(code).toMatch(/^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/);
-      expect(code).not.toMatch(/[01ILOU]/);
-    }
-  });
-
-  it('never repeat', () => {
-    expect(new Set(Array.from({ length: 2000 }, newRecoveryCode)).size).toBe(2000);
-  });
-
-  it('normalise casing and separators, so a hand-typed code still works', () => {
-    const code = newRecoveryCode();
-    const sloppy = ` ${code.toLowerCase().replaceAll('-', ' · ')}\n`;
-    expect(normalizeRecoveryCode(sloppy)).toBe(code.replaceAll('-', ''));
-    expect(hashRecoveryCode(sloppy)).toBe(hashRecoveryCode(code));
-  });
-
-  it('validate shape', () => {
-    expect(isWellFormedRecoveryCode(normalizeRecoveryCode(newRecoveryCode()))).toBe(true);
-    expect(isWellFormedRecoveryCode('')).toBe(false);
-    expect(isWellFormedRecoveryCode('ABCD')).toBe(false);
-    expect(isWellFormedRecoveryCode('A'.repeat(17))).toBe(false);
-    expect(isWellFormedRecoveryCode('0'.repeat(16))).toBe(false); // 0 isn't in the alphabet
   });
 });
 
