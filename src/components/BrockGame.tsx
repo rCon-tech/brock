@@ -8,6 +8,7 @@ import type { Throw } from '@/lib/game';
 import { Arena, type ArenaMode } from './Arena';
 import { Countdown } from './Countdown';
 import { HandleForm } from './HandleForm';
+import { Lifeline } from './Lifeline';
 import { RoundReveal } from './RoundReveal';
 import { ShareButton } from './ShareButton';
 import { StreakBadge } from './StreakBadge';
@@ -58,22 +59,26 @@ export function BrockGame() {
   const [message, setMessage] = useState('');
   const [announce, setAnnounce] = useState('');
 
+  /** Shows a state fetched from the server: a fresh round if one is open, else how the day ended. */
+  const show = useCallback((data: TodayState) => {
+    setState(data);
+    setLastRound(null);
+    const final = data.rounds.at(-1);
+    // Coming back to a finished Brock shows how it ended, without replaying the action.
+    setArena(data.status !== 'pending' && final ? revealedArena(final, true) : IDLE);
+    setPhase(data.status === 'pending' ? 'ready' : 'done');
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/brock/today', { cache: 'no-store' });
       if (!res.ok) throw new Error(String(res.status));
-      const data: TodayState = await res.json();
-      setState(data);
-      setLastRound(null);
-      const final = data.rounds.at(-1);
-      // Coming back to a finished Brock shows how it ended, without replaying the action.
-      setArena(data.status !== 'pending' && final ? revealedArena(final, true) : IDLE);
-      setPhase(data.status === 'pending' ? 'ready' : 'done');
+      show(await res.json());
     } catch {
       setMessage('Couldn’t load today’s Brock.');
       setPhase('error');
     }
-  }, []);
+  }, [show]);
 
   useEffect(() => {
     // Initial fetch on mount; `load` only sets state after the request resolves.
@@ -123,6 +128,19 @@ export function BrockGame() {
     }
   }
 
+  /** After the lifeline question is shown or answered. A right answer reopens the Brock. */
+  function onRescue(next: TodayState) {
+    if (next.status === 'pending') {
+      show(next);
+      setAnnounce(`Correct! Your streak of ${next.streak.current} is back. Brock again.`);
+    } else {
+      setState(next);
+      if (next.rescue?.status === 'failed') {
+        setAnnounce('Wrong answer. Your streak is over. Come back tomorrow.');
+      }
+    }
+  }
+
   function brockAgain() {
     setArena(IDLE);
     setPhase('ready');
@@ -139,6 +157,20 @@ export function BrockGame() {
   }
 
   const finalRound = state.rounds.at(-1) ?? null;
+  // While the lifeline is on offer or being answered, the day isn't settled yet.
+  const lifelineOpen =
+    state.status === 'lost' &&
+    (state.rescue?.status === 'offered' || state.rescue?.status === 'asked');
+  // While the clock runs, the question gets the screen to itself: no scrolling past the arena.
+  const asking = state.status === 'lost' && state.rescue?.status === 'asked';
+  const lifeline = state.rescue && (
+    <Lifeline
+      rescue={state.rescue}
+      brockStatus={state.status}
+      onUpdate={onRescue}
+      onStale={() => void load()}
+    />
+  );
 
   return (
     <section className="flex w-full flex-col items-center gap-5" aria-label="Today’s Brock">
@@ -166,10 +198,11 @@ export function BrockGame() {
 
       {phase === 'error' && <ErrorPanel message={message} onRetry={() => void load()} />}
 
-      <Arena {...arena} />
+      {!asking && <Arena {...arena} />}
 
       {phase === 'ready' && state.openRound && (
         <>
+          {lifeline}
           <HouseCommit hash={state.openRound.commitHash} round={state.openRound.roundNo} />
           <ThrowPicker onPick={onPick} />
         </>
@@ -195,8 +228,9 @@ export function BrockGame() {
 
       {phase === 'done' && finalRound && (
         <>
-          <RoundReveal round={finalRound} streak={state.streak.current} />
-          {state.handle === null && (
+          {!asking && <RoundReveal round={finalRound} streak={state.streak.current} />}
+          {lifeline}
+          {!lifelineOpen && state.handle === null && (
             <div className="panel w-full max-w-md p-4">
               <HandleForm
                 onNamed={() => {
@@ -206,23 +240,27 @@ export function BrockGame() {
               />
             </div>
           )}
-          <div className="panel flex w-full max-w-md -rotate-1 flex-col items-center gap-2 px-4 pt-3 pb-4 text-center">
-            <p className="font-display text-2xl leading-tight tracking-wide text-rust">
-              See you tomorrow!
-            </p>
-            <p className="text-[15px]">
-              {state.status === 'won'
-                ? 'Come back tomorrow to keep your streak going.'
-                : 'Come back tomorrow to start a new streak.'}
-            </p>
-            <Countdown msUntilReset={state.msUntilReset} onZero={() => void load()} />
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <ShareButton state={state} />
-            <Link href="/leaderboard" className="caps text-xs underline underline-offset-4">
-              See the leaderboard
-            </Link>
-          </div>
+          {!lifelineOpen && (
+            <>
+              <div className="panel flex w-full max-w-md -rotate-1 flex-col items-center gap-2 px-4 pt-3 pb-4 text-center">
+                <p className="font-display text-2xl leading-tight tracking-wide text-rust">
+                  See you tomorrow!
+                </p>
+                <p className="text-[15px]">
+                  {state.status === 'won'
+                    ? 'Come back tomorrow to keep your streak going.'
+                    : 'Come back tomorrow to start a new streak.'}
+                </p>
+                <Countdown msUntilReset={state.msUntilReset} onZero={() => void load()} />
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                <ShareButton state={state} />
+                <Link href="/leaderboard" className="caps text-xs underline underline-offset-4">
+                  See the leaderboard
+                </Link>
+              </div>
+            </>
+          )}
         </>
       )}
     </section>

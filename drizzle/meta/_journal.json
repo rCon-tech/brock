@@ -15,6 +15,13 @@
       "when": 1792016388324,
       "tag": "0001_player_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792089083022,
+      "tag": "0002_trivia_rescue",
+      "breakpoints": true
     }
   ]
 }

@@ -6,18 +6,19 @@ The full design is in [`PLAN.md`](./PLAN.md). This README covers running, testin
 
 ## The rules
 
-|              |                                                                                                                                                                                                          |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Opponent     | **The House**: a server-side pick, uniformly random (`crypto.randomInt`)                                                                                                                                 |
-| A "day"      | A **UTC calendar day** (resets 00:00 UTC). The countdown shows the time left.                                                                                                                            |
-| Win          | Streak +1                                                                                                                                                                                                |
-| Loss         | Streak → 0                                                                                                                                                                                               |
-| Draw         | Throw again, the same day. A draw doesn't use up your Brock.                                                                                                                                             |
-| Missed day   | Streak → 0                                                                                                                                                                                               |
-| Fairness     | The House's throw is committed to before you throw: you see `sha256("<throw>:<salt>")` first, and the throw and salt are revealed afterwards. "Verify fairness" recomputes the hash in your browser.     |
-| Leaderboard  | Named players only. Current streak ↓, then best streak ↓, then handle A→Z. Ties share a rank.                                                                                                            |
-| Identity     | No login. Each browser gets a secret cookie that remembers you. After your first finished Brock you pick a username. On another device, type that username at `/login` to carry on with the same streak. |
-| Brock number | Days since `LAUNCH_DAY` (Brock #1 is launch day)                                                                                                                                                         |
+|              |                                                                                                                                                                                                                                                                                                          |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Opponent     | **The House**: a server-side pick, uniformly random (`crypto.randomInt`)                                                                                                                                                                                                                                 |
+| A "day"      | A **UTC calendar day** (resets 00:00 UTC). The countdown shows the time left.                                                                                                                                                                                                                            |
+| Win          | Streak +1                                                                                                                                                                                                                                                                                                |
+| Loss         | Streak → 0                                                                                                                                                                                                                                                                                               |
+| Draw         | Throw again, the same day. A draw doesn't use up your Brock.                                                                                                                                                                                                                                             |
+| Missed day   | Streak → 0                                                                                                                                                                                                                                                                                               |
+| Lifeline     | Lose while on a streak and you get one tough multiple-choice trivia question, once per day. Answer correctly within 15 seconds (enforced by the server) and your streak is restored for one more Brock. Win it and the streak continues; lose it, answer wrongly or run out of time and the streak ends. |
+| Fairness     | The House's throw is committed to before you throw: you see `sha256("<throw>:<salt>")` first, and the throw and salt are revealed afterwards. "Verify fairness" recomputes the hash in your browser.                                                                                                     |
+| Leaderboard  | Named players only. Current streak ↓, then best streak ↓, then handle A→Z. Ties share a rank.                                                                                                                                                                                                            |
+| Identity     | No login. Each browser gets a secret cookie that remembers you. After your first finished Brock you pick a username. On another device, type that username at `/login` to carry on with the same streak.                                                                                                 |
+| Brock number | Days since `LAUNCH_DAY` (Brock #1 is launch day)                                                                                                                                                                                                                                                         |
 
 The rules live in `src/lib/` (`game.ts`, `day.ts`, `streak.ts`, `fairness.ts`), so changing them means changing one file each.
 
@@ -95,6 +96,13 @@ src/db/           Drizzle schema and client
 drizzle/          generated migrations (never hand-edit)
 tests/            unit, integration, e2e
 ```
+
+## The trivia lifeline
+
+- **Questions** live in `src/lib/trivia/questions.ts` (about 150, hard general knowledge). Each has a stable `id`, one answer and three wrong options. Add questions with new ids and never reuse an old one; players never see the same question twice until they've seen them all.
+- **Fairness:** the options are shuffled on the server and the correct answer never reaches the browser until the question is answered. Asking again (for example after a reload) returns the same question with the time that's left, so it can't be rerolled.
+- **Timer:** 15 seconds plus a 1.5-second network grace, checked on the server. An abandoned question is closed as wrong on the next visit.
+- **Data:** one `brock_rescue` row per lost Brock that earned a lifeline (migration `0002_trivia_rescue`).
 
 ## Known limitations
 
