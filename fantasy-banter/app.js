@@ -2,12 +2,22 @@
   'use strict';
   const { managers, seasons, bets } = window.FFB_DATA;
   const COLORS = { Con: '#e5383b', Davs: '#4cc9f0', Cuffe: '#f8961e', Steve: '#c77dff', Joyce: '#80ed99' };
-  const NUMBER = Object.fromEntries(managers.map((m, i) => [m, i + 1]));
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = (n) => n == null ? '–' : Math.round(n).toLocaleString('en-GB');
   const fmtRank = (n) => n == null ? '–' : n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'k' : fmt(n);
-  const kit = (m) => `<span class="kit" style="background:${COLORS[m]}">${NUMBER[m]}</span>`;
+  // A manager's photo. crown: a winner's crown drops on; wasp: a loser gets buzzed and stung.
+  // Con's sheet used a different photo for the wooden spoon, so we do too.
+  let avN = 0;
+  function av(m, { size = 40, crown = false, wasp = false } = {}) {
+    const src = wasp && m === 'Con' ? 'img/Con-stung.webp' : `img/${m}.webp`;
+    const delay = ((avN++ * 0.73) % 3.5).toFixed(2);
+    return `<span class="av${crown ? ' crowned' : ''}${wasp ? ' stung' : ''}${size >= 60 ? ' big' : ''}" style="--s:${size}px;--d:${delay}s">` +
+      `<img class="face" src="${src}" alt="${esc(m)}" width="${size}" height="${size}" loading="lazy">` +
+      (crown ? '<span class="crown"><img src="img/crown.png" alt="Crown"></span>' : '') +
+      (wasp ? '<span class="wasp"><img src="img/wasp.png" alt="Wasp"></span>' : '') + '</span>';
+  }
+  const kit = (m, o) => av(m, { size: 36, ...o });
 
   /* ---------- derived data ---------- */
   // Table for one season, positions by points, ties broken by better overall rank.
@@ -47,8 +57,9 @@
   const hideTip = () => (tip.hidden = true);
 
   /* ---------- hero scoreboard ---------- */
+  const maxTitles = Math.max(...stats.map((s) => s.titles)), maxSpoons = Math.max(...stats.map((s) => s.spoons));
   $('#scoreboard').innerHTML = [...stats].sort((a, b) => b.titles - a.titles || b.avg - a.avg).map((s) =>
-    `<div class="sb-cell"><div class="n">${s.titles}</div><div class="l">${esc(s.m)}</div><div class="s">${s.titles === 1 ? 'title' : 'titles'} · ${s.seasons} seasons</div></div>`).join('');
+    `<div class="sb-cell">${av(s.m, { size: 76, crown: s.titles === maxTitles, wasp: s.spoons === maxSpoons })}<div class="n">${s.titles}</div><div class="l">${esc(s.m)}</div><div class="s">${s.titles === 1 ? 'title' : 'titles'} · ${s.seasons} seasons</div></div>`).join('');
 
   /* ---------- season table ---------- */
   let current = tables.length - 1;
@@ -62,7 +73,7 @@
     $('#seasonTable').innerHTML = `<thead><tr><th>Pos</th><th>Manager</th><th>Pts</th><th>Gap</th><th>Overall rank</th></tr></thead><tbody>` +
       rows.map((r) => `<tr class="${r.pos === 1 ? 'p1' : r.pos === 2 ? 'p2' : r.pos === 3 ? 'p3' : ''} ${off && r.pos === rows.length && rows.length > 1 ? 'last' : ''}">
         <td class="pos">${r.pos}</td>
-        <td class="mgr">${kit(r.m)}${esc(r.m)}${off && r.pos === 1 ? '<span class="trophy" title="Champion">🏆</span>' : ''}${off && r.pos === rows.length && rows.length > 1 ? '<span class="card-y" title="Wooden spoon"></span>' : ''}</td>
+        <td class="mgr">${av(r.m, { size: 44, crown: off && r.pos === 1, wasp: off && r.pos === rows.length && rows.length > 1 })}${esc(r.m)}</td>
         <td class="pts">${fmt(r.pts)}</td>
         <td class="gap">${r.pos === 1 ? '—' : '−' + (lead - r.pts)}</td>
         <td>${fmt(r.rank)}</td></tr>`).join('') + '</tbody>';
@@ -186,7 +197,7 @@
     const wa = res.filter((r) => r > 0).length, wb = res.filter((r) => r < 0).length;
     const diff = games.reduce((t, g) => t + g.pa - g.pb, 0);
     const bigA = [...games].sort((x, y) => (y.pa - y.pb) - (x.pa - x.pb))[0], bigB = [...games].sort((x, y) => (x.pa - x.pb) - (y.pa - y.pb))[0];
-    const side = (m, w) => `<div><div class="who">${kit(m)}${esc(m)}</div><div class="big" style="color:${w ? COLORS[m] : 'var(--chalk)'}">${w ? wa : wb}</div></div>`;
+    const side = (m, w) => `<div class="h2h-side">${av(m, { size: 84, crown: w ? wa > wb : wb > wa, wasp: w ? wa < wb : wb < wa })}<div class="who">${esc(m)}</div><div class="big" style="color:${w ? COLORS[m] : 'var(--chalk)'}">${w ? wa : wb}</div></div>`;
     out.innerHTML = `<div class="h2h-score">${side(a, 1)}<div class="dash">–</div>${side(b, 0)}</div>
       <div class="h2h-stats"><span>Seasons together: <b>${games.length}</b></span>
       <span>${esc(diff >= 0 ? a : b)} leads on points by <b>${fmt(Math.abs(diff))}</b> (avg ${(Math.abs(diff) / games.length).toFixed(0)}/season)</span>
@@ -208,8 +219,8 @@
   $('#fameGrid').innerHTML = tables.filter((t) => isOfficial(t.season)).reverse().map((t) => {
     const w = t.rows[0], l = t.rows[t.rows.length - 1];
     const bestRank = [...t.rows].sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity))[0];
-    const row = (ic, tt, r, v) => `<div class="frow"><span class="ic">${ic}</span><div><div class="t">${tt}</div><div class="n">${kit(r.m)}${esc(r.m)}</div></div><span class="p">${v}</span></div>`;
-    return `<div class="fcard"><div class="s">${esc(t.season)}</div>${row('🏆', 'Champion', w, fmt(w.pts))}${t.rows.length > 1 ? row('🥄', 'Wooden spoon', l, fmt(l.pts)) : ''}${row('🌍', 'Best world rank', bestRank, fmtRank(bestRank.rank))}</div>`;
+    const row = (ic, tt, r, v, o) => `<div class="frow">${av(r.m, { size: 46, ...o })}<div><div class="t">${tt}</div><div class="n">${esc(r.m)}</div></div><span class="p">${v}</span></div>`;
+    return `<div class="fcard"><div class="s">${esc(t.season)}</div>${row('🏆', 'Champion', w, fmt(w.pts), { crown: true })}${t.rows.length > 1 ? row('🥄', 'Wooden spoon', l, fmt(l.pts), { wasp: true }) : ''}${row('🌍', 'Best world rank', bestRank, fmtRank(bestRank.rank))}</div>`;
   }).join('');
 
   /* ---------- bets ---------- */
