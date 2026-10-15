@@ -10,6 +10,7 @@ const eslintConfig = [
       'coverage/**',
       'playwright-report/**',
       'next-env.d.ts',
+      'fantasy-banter/**',
     ],
   },
   ...nextCoreWebVitals,
