@@ -8,3 +8,5 @@ No build step: open `index.html`, or serve the folder with any static host (`npx
 - `style.css`: the pitch theme.
 
 Season positions are by points; ties are broken by better overall FPL rank.
+
+Titles and wooden spoons count from 2017/18, the first official season. Earlier seasons appear in the tables and charts only.

@@ -20,8 +20,11 @@
     return rows;
   }
   const tables = seasons.map((s) => ({ season: s.season, rows: table(s) }));
-  const champs = tables.map((t) => t.rows[0]?.m);
-  const spoons = tables.map((t) => (t.rows.length > 1 ? t.rows[t.rows.length - 1].m : null));
+  // Titles and wooden spoons only count from the first official season; earlier years are shown for the record.
+  const FIRST_OFFICIAL = '2017/2018';
+  const isOfficial = (season) => season >= FIRST_OFFICIAL;
+  const champs = tables.map((t) => (isOfficial(t.season) ? t.rows[0]?.m : null));
+  const spoons = tables.map((t) => (isOfficial(t.season) && t.rows.length > 1 ? t.rows[t.rows.length - 1].m : null));
 
   const stats = managers.map((m) => {
     const rec = tables.map((t) => t.rows.find((r) => r.m === m)).filter(Boolean);
@@ -54,11 +57,12 @@
   tabs.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { current = +b.dataset.i; renderSeason(); } });
   function renderSeason() {
     tabs.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', +b.dataset.i === current));
-    const rows = tables[current].rows, lead = rows[0]?.pts;
+    const rows = tables[current].rows, lead = rows[0]?.pts, off = isOfficial(tables[current].season);
+    $('#seasonNote').hidden = off;
     $('#seasonTable').innerHTML = `<thead><tr><th>Pos</th><th>Manager</th><th>Pts</th><th>Gap</th><th>Overall rank</th></tr></thead><tbody>` +
-      rows.map((r) => `<tr class="${r.pos === 1 ? 'p1' : r.pos === 2 ? 'p2' : r.pos === 3 ? 'p3' : ''} ${r.pos === rows.length && rows.length > 1 ? 'last' : ''}">
+      rows.map((r) => `<tr class="${r.pos === 1 ? 'p1' : r.pos === 2 ? 'p2' : r.pos === 3 ? 'p3' : ''} ${off && r.pos === rows.length && rows.length > 1 ? 'last' : ''}">
         <td class="pos">${r.pos}</td>
-        <td class="mgr">${kit(r.m)}${esc(r.m)}${r.pos === 1 ? '<span class="trophy" title="Champion">🏆</span>' : ''}${r.pos === rows.length && rows.length > 1 ? '<span class="card-y" title="Wooden spoon"></span>' : ''}</td>
+        <td class="mgr">${kit(r.m)}${esc(r.m)}${off && r.pos === 1 ? '<span class="trophy" title="Champion">🏆</span>' : ''}${off && r.pos === rows.length && rows.length > 1 ? '<span class="card-y" title="Wooden spoon"></span>' : ''}</td>
         <td class="pts">${fmt(r.pts)}</td>
         <td class="gap">${r.pos === 1 ? '—' : '−' + (lead - r.pts)}</td>
         <td>${fmt(r.rank)}</td></tr>`).join('') + '</tbody>';
@@ -85,7 +89,7 @@
     return '<span class="form">' + tables.slice(-6).map((t) => {
       const r = t.rows.find((x) => x.m === m);
       if (!r) return '<i class="x" title="Did not play"></i>';
-      const c = r.pos === 1 ? 'w' : r.pos === t.rows.length && t.rows.length > 1 ? 'l' : 'm';
+      const c = !isOfficial(t.season) ? '' : r.pos === 1 ? 'w' : r.pos === t.rows.length && t.rows.length > 1 ? 'l' : 'm';
       return `<i class="${c}" title="${esc(t.season)}: ${r.pos}${['st', 'nd', 'rd'][r.pos - 1] || 'th'}"></i>`;
     }).join('') + '</span>';
   }
@@ -108,7 +112,7 @@
   /* ---------- records ---------- */
   const flat = tables.flatMap((t) => t.rows.map((r) => ({ ...r, season: t.season })));
   const by = (f, dir = 1) => flat.filter((r) => f(r) != null).sort((a, b) => dir * (f(a) - f(b)))[0];
-  const margins = tables.filter((t) => t.rows.length > 1).map((t) => ({ season: t.season, m: t.rows[0].m, gap: t.rows[0].pts - t.rows[1].pts, second: t.rows[1].m }));
+  const margins = tables.filter((t) => isOfficial(t.season) && t.rows.length > 1).map((t) => ({ season: t.season, m: t.rows[0].m, gap: t.rows[0].pts - t.rows[1].pts, second: t.rows[1].m }));
   const widest = [...margins].sort((a, b) => b.gap - a.gap)[0], tightest = [...margins].sort((a, b) => a.gap - b.gap)[0];
   const steady = [...stats].filter((s) => s.seasons >= 8).sort((a, b) => a.sd - b.sd)[0];
   const hi = by((r) => r.pts, -1), lo = by((r) => r.pts), br = by((r) => r.rank), wr = by((r) => r.rank, -1);
@@ -201,8 +205,8 @@
   renderH2H();
 
   /* ---------- hall of fame ---------- */
-  $('#fameGrid').innerHTML = [...tables].reverse().map((t, idx) => {
-    const i = tables.length - 1 - idx, w = t.rows[0], l = t.rows[t.rows.length - 1];
+  $('#fameGrid').innerHTML = tables.filter((t) => isOfficial(t.season)).reverse().map((t) => {
+    const w = t.rows[0], l = t.rows[t.rows.length - 1];
     const bestRank = [...t.rows].sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity))[0];
     const row = (ic, tt, r, v) => `<div class="frow"><span class="ic">${ic}</span><div><div class="t">${tt}</div><div class="n">${kit(r.m)}${esc(r.m)}</div></div><span class="p">${v}</span></div>`;
     return `<div class="fcard"><div class="s">${esc(t.season)}</div>${row('🏆', 'Champion', w, fmt(w.pts))}${t.rows.length > 1 ? row('🥄', 'Wooden spoon', l, fmt(l.pts)) : ''}${row('🌍', 'Best world rank', bestRank, fmtRank(bestRank.rank))}</div>`;
