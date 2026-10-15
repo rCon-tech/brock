@@ -41,7 +41,7 @@ export function LoginForm() {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
-      <label htmlFor="handle" className="text-sm font-semibold">
+      <label htmlFor="handle" className="caps text-xs">
         Your username
       </label>
       <input
@@ -51,17 +51,13 @@ export function LoginForm() {
         autoComplete="username"
         autoCapitalize="none"
         spellCheck={false}
-        className="rounded-xl border border-brock-line bg-brock-card px-4 py-3 text-base outline-none focus:border-brock-accent"
+        className="field"
       />
-      <p role="alert" className="min-h-5 text-sm text-brock-loss">
+      <p role="alert" className="min-h-5 text-sm font-bold text-rust">
         {error}
       </p>
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-xl bg-brock-accent px-4 py-3 font-bold text-black transition hover:brightness-110 disabled:opacity-60"
-      >
-        {pending ? 'Logging in…' : 'Log in'}
+      <button type="submit" disabled={pending} className="btn-ink">
+        {pending ? 'LOGGING IN…' : 'LOG IN'}
       </button>
     </form>
   );

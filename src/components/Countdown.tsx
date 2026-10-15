@@ -38,9 +38,9 @@ export function Countdown({ msUntilReset, onZero }: Props) {
   }, [msUntilReset, onZero]);
 
   return (
-    <p className="text-sm text-brock-muted">
+    <p className="caps text-xs">
       Next Brock in{' '}
-      <time className="font-mono text-base text-brock-text tabular-nums">
+      <time className="font-display text-xl tracking-wider tabular-nums">
         {remaining === null ? '--:--:--' : format(remaining)}
       </time>
     </p>

@@ -43,7 +43,7 @@ export function HandleForm({ onNamed }: Props) {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
-      <label htmlFor="handle" className="text-sm font-semibold">
+      <label htmlFor="handle" className="font-display text-2xl tracking-wide text-rust">
         Add your name to the leaderboard
       </label>
       <div className="flex gap-2">
@@ -58,21 +58,17 @@ export function HandleForm({ onNamed }: Props) {
           autoCapitalize="none"
           spellCheck={false}
           aria-describedby="handle-help handle-error"
-          className="min-w-0 flex-1 rounded-xl border border-brock-line bg-brock-bg px-4 py-3 text-base outline-none focus:border-brock-accent"
+          className="field flex-1"
         />
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-xl bg-brock-accent px-4 py-3 font-bold text-black transition hover:brightness-110 disabled:opacity-60"
-        >
-          {pending ? 'Saving…' : 'Save'}
+        <button type="submit" disabled={pending} className="btn-ink">
+          {pending ? 'SAVING…' : 'SAVE'}
         </button>
       </div>
-      <p id="handle-help" className="text-sm text-brock-muted">
+      <p id="handle-help" className="text-sm">
         3–20 letters, numbers or underscores. No account needed: this browser remembers you, and on
         another device you just log in with this name.
       </p>
-      <p id="handle-error" role="alert" className="min-h-5 text-sm text-brock-loss">
+      <p id="handle-error" role="alert" className="min-h-5 text-sm font-bold text-rust">
         {error}
       </p>
     </form>
