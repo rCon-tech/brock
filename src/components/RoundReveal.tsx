@@ -5,18 +5,19 @@ import type { RevealedRound } from '@/lib/brock-service';
 
 interface Props {
   round: RevealedRound;
-  /** The player's streak after this round. */
-  streak: number;
+  /** The run's score after this round. */
+  score: number;
 }
 
 const STAMP = { win: 'YOU WIN!', loss: 'THE HOUSE WINS', draw: 'TIE!' } as const;
 
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 
-function verdict(round: RevealedRound, streak: number): string {
-  if (round.result === 'win') return `${cap(round.player)} beats ${round.house}. Streak ${streak}.`;
+function verdict(round: RevealedRound, score: number): string {
+  if (round.result === 'win')
+    return `${cap(round.player)} beats ${round.house}. ${score === 1 ? 'First win' : `That’s ${score} in a row`}. Keep going!`;
   if (round.result === 'loss')
-    return `${cap(round.house)} beats ${round.player}. Streak back to 0.`;
+    return `${cap(round.house)} beats ${round.player}. Your run ends at ${score}.`;
   return `You both threw ${round.player}. A tie doesn’t count, so Brock again.`;
 }
 
@@ -63,7 +64,7 @@ function FairnessPanel({ round }: { round: RevealedRound }) {
 }
 
 /** The outcome stamp, what beat what, and the fairness proof for the round. */
-export function RoundReveal({ round, streak }: Props) {
+export function RoundReveal({ round, score }: Props) {
   const [showProof, setShowProof] = useState(false);
 
   return (
@@ -71,7 +72,7 @@ export function RoundReveal({ round, streak }: Props) {
       <div className="stamp" data-outcome={round.result} data-testid="outcome">
         {STAMP[round.result]}
       </div>
-      <p className="font-slab text-[15px] tracking-wide">{verdict(round, streak)}</p>
+      <p className="font-slab text-[15px] tracking-wide">{verdict(round, score)}</p>
       <button
         type="button"
         onClick={() => setShowProof((v) => !v)}

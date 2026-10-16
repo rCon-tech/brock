@@ -12,12 +12,10 @@ export function ShareButton({ state }: Props) {
   const [note, setNote] = useState('');
 
   async function share() {
-    if (state.status === 'pending') return;
     const text = buildShareText({
       brockNumber: state.brockNumber,
-      rounds: state.rounds.map((r) => ({ player: r.player, house: r.house })),
-      status: state.status,
-      streak: state.streak.current,
+      results: state.rounds.map((r) => r.result),
+      score: state.score,
       url: process.env.NEXT_PUBLIC_SITE_URL || window.location.origin,
     });
 

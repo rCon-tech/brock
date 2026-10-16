@@ -1,62 +1,31 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, isNull } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { getDb, schema } from '@/db';
 import { getToday, submitThrow } from '@/lib/brock-service';
 import { DomainError } from '@/lib/errors';
 import * as fairness from '@/lib/fairness';
-import { utcDay } from '@/lib/day';
-import type { Throw } from '@/lib/game';
 import { createPlayer } from './setup';
+import { at, BEATS, brockRow, draw, lose, play, playerRow, win } from './helpers';
 
-const D1 = new Date('2026-11-01T10:00:00Z');
-const D2 = new Date('2026-11-02T10:00:00Z');
-const D3 = new Date('2026-11-03T10:00:00Z');
-const D5 = new Date('2026-11-05T10:00:00Z');
+const D1 = at('2026-11-01');
+const D2 = at('2026-11-02');
 
-const { brock, brockRound, player } = schema;
-
-async function playerRow(playerId: string) {
-  const [row] = await getDb().select().from(player).where(eq(player.id, playerId));
-  return row;
-}
-
-/**
- * Plays `mine` against the open round after fixing the House's throw to `house` (and re-committing
- * to it), so outcomes are deterministic even for rounds that were created earlier.
- */
-async function play(playerId: string, now: Date, mine: Throw, house: Throw) {
-  const state = await getToday(playerId, now);
-  const open = state.openRound!;
-  const [brockRow] = await getDb()
-    .select()
-    .from(brock)
-    .where(and(eq(brock.playerId, playerId), eq(brock.day, utcDay(now))));
-  const [row] = await getDb()
-    .select()
-    .from(brockRound)
-    .where(and(eq(brockRound.brockId, brockRow.id), isNull(brockRound.playerThrow)));
-  await getDb()
-    .update(brockRound)
-    .set({ houseThrow: house, commitHash: fairness.commit(house, row.salt) })
-    .where(eq(brockRound.id, row.id));
-  return submitThrow(playerId, { roundNo: open.roundNo, throw: mine }, now);
-}
-
-/** The throw that beats each House throw. */
-const BEATS_HOUSE: Record<Throw, Throw> = { rock: 'paper', paper: 'scissors', scissors: 'rock' };
+const { brock, brockRound } = schema;
 
 describe('getToday', () => {
-  it('creates today’s Brock with one committed round', async () => {
+  it('creates today’s run with one committed round', async () => {
     const playerId = await createPlayer('rich');
     const state = await getToday(playerId, D1);
 
     expect(state).toMatchObject({
       day: '2026-11-01',
       brockNumber: 1,
-      status: 'pending',
-      streak: { current: 0, best: 0 },
+      status: 'playing',
+      score: 0,
+      best: 0,
       rounds: [],
+      quiz: null,
+      quizAvailable: false,
     });
     expect(state.openRound).toEqual({
       roundNo: 1,
@@ -65,7 +34,7 @@ describe('getToday', () => {
     expect(state.msUntilReset).toBe(14 * 3600_000);
   });
 
-  it('is idempotent: calling it twice creates one Brock and one round', async () => {
+  it('is idempotent: calling it twice creates one run and one round', async () => {
     const playerId = await createPlayer('rich');
     const a = await getToday(playerId, D1);
     const b = await getToday(playerId, D1);
@@ -84,19 +53,19 @@ describe('getToday', () => {
     expect(await getDb().select().from(brockRound)).toHaveLength(1);
   });
 
-  it('gives each day its own Brock', async () => {
+  it('gives each day its own run, starting from 0', async () => {
     const playerId = await createPlayer('rich');
-    const a = await getToday(playerId, D1);
+    await win(playerId, D1);
+    await win(playerId, D1);
     const b = await getToday(playerId, D2);
 
-    expect(b.brockNumber).toBe(2);
-    expect(b.openRound!.commitHash).not.toBe(a.openRound!.commitHash);
+    expect(b).toMatchObject({ brockNumber: 2, status: 'playing', score: 0, best: 2, rounds: [] });
     expect(await getDb().select().from(brock)).toHaveLength(2);
   });
 
   it('works for a player who has not chosen a handle yet', async () => {
     const playerId = await createPlayer(null);
-    expect(await getToday(playerId, D1)).toMatchObject({ handle: null, status: 'pending' });
+    expect(await getToday(playerId, D1)).toMatchObject({ handle: null, status: 'playing' });
   });
 
   it('reports the handle once the player has one', async () => {
@@ -106,6 +75,18 @@ describe('getToday', () => {
 
   it('rejects an unknown player', async () => {
     await expect(getToday(randomUUID(), D1)).rejects.toMatchObject({ code: 'unauthorized' });
+  });
+
+  it('treats a Brock won under the old one-a-day rules as finished, with no quiz', async () => {
+    const playerId = await createPlayer('rich');
+    await getToday(playerId, D1);
+    await getDb().update(brock).set({ status: 'won', decidedAt: D1 });
+
+    expect(await getToday(playerId, D1)).toMatchObject({
+      status: 'over',
+      openRound: null,
+      quizAvailable: false,
+    });
   });
 });
 
@@ -119,6 +100,16 @@ describe('house throw secrecy', () => {
     const json = JSON.stringify(state);
     expect(json).not.toContain(row.salt);
     expect(json).not.toContain('houseThrow');
+  });
+
+  it('keeps the next round secret after a win too', async () => {
+    const playerId = await createPlayer('rich');
+    const result = await win(playerId, D1);
+    const rounds = await getDb().select().from(brockRound);
+    const next = rounds.find((r) => r.roundNo === 2)!;
+
+    expect(result.openRound).toEqual({ roundNo: 2, commitHash: next.commitHash });
+    expect(JSON.stringify(result)).not.toContain(next.salt);
   });
 
   it('reveals throw and salt only after the player throws, and the hash verifies', async () => {
@@ -136,100 +127,90 @@ describe('house throw secrecy', () => {
 });
 
 describe('submitThrow', () => {
-  it('a draw opens a new round and keeps the Brock pending', async () => {
+  it('a draw opens a new round and leaves the score alone', async () => {
     const playerId = await createPlayer('rich');
     const first = await getToday(playerId, D1);
-    const result = await play(playerId, D1, 'rock', 'rock');
+    const result = await draw(playerId, D1);
 
     expect(result.round).toMatchObject({ player: 'rock', house: 'rock', result: 'draw' });
-    expect(result.status).toBe('pending');
+    expect(result).toMatchObject({ status: 'playing', score: 0, best: 0 });
     expect(result.rounds).toHaveLength(1);
     expect(result.openRound).toMatchObject({ roundNo: 2 });
     expect(result.openRound!.commitHash).not.toBe(first.openRound!.commitHash);
-    expect(result.streak).toEqual({ current: 0, best: 0 });
     expect((await playerRow(playerId)).totalWins).toBe(0);
   });
 
-  it('a win decides the Brock and starts a streak', async () => {
+  it('a win adds 1 and the run keeps going with a fresh round', async () => {
     const playerId = await createPlayer('rich');
-    const result = await play(playerId, D1, 'rock', 'scissors');
+    const result = await win(playerId, D1);
 
-    expect(result.status).toBe('won');
-    expect(result.openRound).toBeNull();
-    expect(result.streak).toEqual({ current: 1, best: 1 });
-    expect(await playerRow(playerId)).toMatchObject({
-      currentStreak: 1,
-      bestStreak: 1,
-      lastWinDay: '2026-11-01',
-      totalWins: 1,
-      totalLosses: 0,
+    expect(result).toMatchObject({ status: 'playing', score: 1, best: 1, quizAvailable: false });
+    expect(result.openRound).toMatchObject({ roundNo: 2 });
+    expect(await playerRow(playerId)).toMatchObject({ bestScore: 1, totalWins: 1 });
+    expect((await brockRow(playerId, D1)).decidedAt).toBeNull();
+  });
+
+  it('wins, draws and wins again: draws never count', async () => {
+    const playerId = await createPlayer('rich');
+    await win(playerId, D1);
+    await draw(playerId, D1);
+    await win(playerId, D1);
+    const result = await win(playerId, D1);
+
+    expect(result.score).toBe(3);
+    expect(result.rounds.map((r) => r.result)).toEqual(['win', 'draw', 'win', 'win']);
+    expect(result.openRound).toMatchObject({ roundNo: 5 });
+  });
+
+  it('a loss ends the run at its score and offers the quiz', async () => {
+    const playerId = await createPlayer('rich');
+    await win(playerId, D1);
+    await win(playerId, D1);
+    const result = await lose(playerId, D1);
+
+    expect(result).toMatchObject({
+      status: 'over',
+      score: 2,
+      best: 2,
+      openRound: null,
+      quiz: null,
+      quizAvailable: true,
     });
-    const [b] = await getDb().select().from(brock);
-    expect(b.status).toBe('won');
-    expect(b.decidedAt).not.toBeNull();
-  });
-
-  it('a win the next day extends the streak', async () => {
-    const playerId = await createPlayer('rich');
-    await play(playerId, D1, 'rock', 'scissors');
-    const result = await play(playerId, D2, 'paper', 'rock');
-
-    expect(result.streak).toEqual({ current: 2, best: 2 });
-    expect((await playerRow(playerId)).totalWins).toBe(2);
-  });
-
-  it('a draw then a win on the same day still adds just 1', async () => {
-    const playerId = await createPlayer('rich');
-    await play(playerId, D1, 'rock', 'rock');
-    const result = await play(playerId, D1, 'rock', 'scissors');
-
-    expect(result.status).toBe('won');
-    expect(result.rounds.map((r) => r.result)).toEqual(['draw', 'win']);
-    expect(result.streak.current).toBe(1);
-  });
-
-  it('a loss resets the streak but keeps the best', async () => {
-    const playerId = await createPlayer('rich');
-    await play(playerId, D1, 'rock', 'scissors');
-    await play(playerId, D2, 'rock', 'scissors');
-    const result = await play(playerId, D3, 'rock', 'paper');
-
-    expect(result.status).toBe('lost');
-    expect(result.streak).toEqual({ current: 0, best: 2 });
     expect(await playerRow(playerId)).toMatchObject({
-      currentStreak: 0,
-      bestStreak: 2,
+      bestScore: 2,
       totalWins: 2,
       totalLosses: 1,
     });
+    const b = await brockRow(playerId, D1);
+    expect(b).toMatchObject({ status: 'lost', score: 2 });
+    expect(b.decidedAt).not.toBeNull();
   });
 
-  it('a missed day lapses the streak, and the next win restarts at 1', async () => {
+  it('losing straight away scores 0, and the quiz is still on offer', async () => {
     const playerId = await createPlayer('rich');
-    await play(playerId, D1, 'rock', 'scissors');
-    await play(playerId, D2, 'rock', 'scissors');
-
-    // D3 skipped. By D5 the streak is no longer shown...
-    expect((await getToday(playerId, D5)).streak).toEqual({ current: 0, best: 2 });
-    // ...and winning again starts over.
-    const result = await play(playerId, D5, 'rock', 'scissors');
-    expect(result.streak).toEqual({ current: 1, best: 2 });
+    expect(await lose(playerId, D1)).toMatchObject({ score: 0, quizAvailable: true });
   });
 
-  it('a streak is still shown the day after the last win', async () => {
+  it('a shorter run keeps the best from an earlier day', async () => {
     const playerId = await createPlayer('rich');
-    await play(playerId, D1, 'rock', 'scissors');
-    expect((await getToday(playerId, D2)).streak.current).toBe(1);
+    await win(playerId, D1);
+    await win(playerId, D1);
+    await win(playerId, D1);
+    await lose(playerId, D1);
+    await win(playerId, D2);
+    const result = await lose(playerId, D2);
+
+    expect(result).toMatchObject({ score: 1, best: 3 });
+    expect((await playerRow(playerId)).bestScore).toBe(3);
   });
 
-  it('rejects a second throw once the Brock is decided (already_played)', async () => {
+  it('rejects a throw once the run is over (already_played)', async () => {
     const playerId = await createPlayer('rich');
-    await play(playerId, D1, 'rock', 'scissors');
+    await lose(playerId, D1);
 
-    await expect(submitThrow(playerId, { roundNo: 1, throw: 'rock' }, D1)).rejects.toMatchObject({
+    await expect(submitThrow(playerId, { roundNo: 2, throw: 'rock' }, D1)).rejects.toMatchObject({
       code: 'already_played',
     });
-    expect((await getToday(playerId, D1)).status).toBe('won');
     expect(await getDb().select().from(brockRound)).toHaveLength(1);
   });
 
@@ -242,16 +223,17 @@ describe('submitThrow', () => {
     });
   });
 
-  it('rejects replaying a round that was already thrown (stale_round)', async () => {
+  it('rejects replaying a round that was already won (stale_round)', async () => {
     const playerId = await createPlayer('rich');
-    await play(playerId, D1, 'rock', 'rock'); // draw, round 2 is now open
+    await win(playerId, D1); // round 2 is now open
 
     await expect(submitThrow(playerId, { roundNo: 1, throw: 'paper' }, D1)).rejects.toMatchObject({
       code: 'stale_round',
     });
+    expect((await getToday(playerId, D1)).score).toBe(1);
   });
 
-  it('rejects a throw when today’s Brock was never opened (new_day)', async () => {
+  it('rejects a throw when today’s run was never opened (new_day)', async () => {
     const playerId = await createPlayer('rich');
     await getToday(playerId, D1);
 
@@ -281,19 +263,23 @@ describe('submitThrow', () => {
     expect(rounds.filter((r) => r.playerThrow !== null)).toHaveLength(1);
     const p = await playerRow(playerId);
     expect(p.totalWins + p.totalLosses).toBeLessThanOrEqual(1);
+    expect((await brockRow(playerId, D1)).score).toBeLessThanOrEqual(1);
   });
 
   it('works with the House’s real random throw: beating it always wins', async () => {
     const playerId = await createPlayer('rich');
     const state = await getToday(playerId, D1);
     const [row] = await getDb().select().from(brockRound);
+    const beat = (Object.keys(BEATS) as (keyof typeof BEATS)[]).find(
+      (t) => BEATS[t] === row.houseThrow,
+    )!;
 
     const result = await submitThrow(
       playerId,
-      { roundNo: state.openRound!.roundNo, throw: BEATS_HOUSE[row.houseThrow] },
+      { roundNo: state.openRound!.roundNo, throw: beat },
       D1,
     );
-    expect(result.status).toBe('won');
     expect(result.round.result).toBe('win');
+    expect(result.score).toBe(1);
   });
 });

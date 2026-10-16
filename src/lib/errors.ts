@@ -9,8 +9,9 @@ export type DomainErrorCode =
   | 'handle_taken'
   | 'already_named'
   | 'rate_limited'
-  | 'no_rescue'
-  | 'rescue_closed';
+  | 'no_quiz'
+  | 'quiz_closed'
+  | 'stale_question';
 
 const STATUS: Record<DomainErrorCode, number> = {
   invalid_request: 400,
@@ -23,8 +24,9 @@ const STATUS: Record<DomainErrorCode, number> = {
   handle_taken: 409,
   already_named: 409,
   rate_limited: 429,
-  no_rescue: 409,
-  rescue_closed: 409,
+  no_quiz: 409,
+  quiz_closed: 409,
+  stale_question: 409,
 };
 
 export class DomainError extends Error {

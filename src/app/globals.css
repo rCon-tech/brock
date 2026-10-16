@@ -128,6 +128,11 @@ body {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0 var(--color-ink);
 }
+.btn-paper[aria-current='page'] {
+  background: var(--color-ink);
+  color: var(--color-gold);
+  box-shadow: 3px 3px 0 var(--color-olive);
+}
 
 .field {
   background: var(--color-paper);
@@ -182,7 +187,27 @@ body {
   color: var(--color-ink);
 }
 
-/* ---------- trivia lifeline ---------- */
+/* ---------- life quiz ---------- */
+
+.theme-chip {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  border: 3px solid var(--color-ink);
+  padding: 2px 8px 0;
+  transform: rotate(-2deg);
+  background: var(--color-paper);
+}
+.theme-chip[data-theme-name='rock'] {
+  background: var(--color-sun);
+}
+.theme-chip[data-theme-name='paper'] {
+  background: var(--color-paper);
+}
+.theme-chip[data-theme-name='scissors'] {
+  background: var(--color-olive);
+  color: var(--color-paper);
+}
 
 .option {
   appearance: none;

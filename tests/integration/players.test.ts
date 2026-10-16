@@ -2,27 +2,25 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { getDb, schema } from '@/db';
-import { getToday, submitThrow } from '@/lib/brock-service';
+import { getToday } from '@/lib/brock-service';
 import { hashToken, newToken } from '@/lib/identity';
 import {
   claimHandle,
   createAnonymousPlayer,
   getPlayerById,
   getPlayerByToken,
+  getProfile,
   logInAs,
 } from '@/lib/players';
 import { createPlayer } from './setup';
+import { lose, win } from './helpers';
 
 const NOW = new Date('2026-11-01T10:00:00Z');
 
-/** Finishes today's Brock (win or loss, whichever the House allows) so the player may name themselves. */
+/** Ends today's run (one win, then a loss) so the player may name themselves. */
 async function finishBrock(playerId: string) {
-  for (let i = 0; i < 50; i++) {
-    const state = await getToday(playerId, NOW);
-    if (state.status !== 'pending') return;
-    await submitThrow(playerId, { roundNo: state.openRound!.roundNo, throw: 'rock' }, NOW);
-  }
-  throw new Error('50 draws in a row');
+  await win(playerId, NOW);
+  await lose(playerId, NOW);
 }
 
 /** A named player logged in on one browser. */
@@ -56,11 +54,12 @@ describe('anonymous players', () => {
 });
 
 describe('claimHandle', () => {
-  it('requires a finished Brock first', async () => {
+  it('requires a finished run first', async () => {
     const id = await createPlayer(null);
     await expect(claimHandle(id, 'rich')).rejects.toMatchObject({ code: 'play_first' });
 
-    await getToday(id, NOW); // a Brock that is open but not finished doesn't count
+    await getToday(id, NOW); // a run that is still going doesn't count, even after a win
+    await win(id, NOW);
     await expect(claimHandle(id, 'rich')).rejects.toMatchObject({ code: 'play_first' });
   });
 
@@ -72,14 +71,14 @@ describe('claimHandle', () => {
     expect((await getPlayerById(id))?.handle).toBe('Rich_B');
   });
 
-  it('keeps the streak that was earned before naming', async () => {
+  it('keeps the scores earned before naming', async () => {
     const id = await createPlayer(null);
     await finishBrock(id);
     const before = await getPlayerById(id);
 
     await claimHandle(id, 'rich');
     expect(await getPlayerById(id)).toMatchObject({
-      currentStreak: before!.currentStreak,
+      bestScore: 1,
       totalWins: before!.totalWins,
       totalLosses: before!.totalLosses,
     });
@@ -157,7 +156,7 @@ describe('logInAs', () => {
     expect((await logInAs('  richb ')).player.id).toBe(id);
   });
 
-  it('shares one streak across devices', async () => {
+  it('shares one player across devices', async () => {
     const { id } = await namedPlayer();
     const { token } = await logInAs('rich');
     const viaLogin = await getPlayerByToken(token);
@@ -169,6 +168,26 @@ describe('logInAs', () => {
     await createPlayer(null); // unnamed players can never be logged into
     await expect(logInAs('nobody')).rejects.toMatchObject({ code: 'not_found' });
     await expect(logInAs('')).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('getProfile', () => {
+  it('lists 30 days, oldest first, with each run’s score', async () => {
+    const { id } = await namedPlayer(); // a run of 1 on NOW
+    await win(id, new Date('2026-11-03T10:00:00Z')); // still going on the 3rd
+
+    const profile = await getProfile('RICH', '2026-11-03');
+    expect(profile?.player.id).toBe(id);
+    expect(profile!.days).toHaveLength(30);
+    expect(profile!.days.slice(-3)).toEqual([
+      { day: '2026-11-01', score: 1, playing: false },
+      { day: '2026-11-02', score: null, playing: false },
+      { day: '2026-11-03', score: 1, playing: true },
+    ]);
+  });
+
+  it('is null for an unknown handle', async () => {
+    expect(await getProfile('nobody', '2026-11-03')).toBeNull();
   });
 });
 

@@ -20,8 +20,14 @@ export const ClaimHandleBody = z.object({ handle: HandleInput });
 
 export const LoginBody = z.object({ handle: z.string().trim().min(1).max(40) });
 
-/** A lifeline answer: the option's index, or null when the clock ran out. */
-export const RescueAnswerBody = z.object({ choice: z.number().int().min(0).max(3).nullable() });
+/** A quiz answer: which question, and the option's index (null when the clock ran out). */
+export const QuizAnswerBody = z.object({
+  index: z.number().int().min(0).max(9),
+  choice: z.number().int().min(0).max(3).nullable(),
+});
+
+export const LeaderboardBoard = z.enum(['today', 'all']).catch('today');
+export type LeaderboardBoard = z.infer<typeof LeaderboardBoard>;
 
 export const MAX_LEADERBOARD_LIMIT = 100;
 

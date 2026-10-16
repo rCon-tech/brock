@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
 import { utcDay } from '@/lib/day';
-import { effectiveStreak } from '@/lib/streak';
 import { getProfile, type ProfileDay } from '@/lib/players';
 
 export const dynamic = 'force-dynamic';
@@ -12,23 +11,24 @@ export async function generateMetadata({ params }: Props) {
   return { title: `@${handle}` };
 }
 
-const MARK: Record<string, { symbol: string; label: string; className: string }> = {
-  won: { symbol: 'W', label: 'won', className: 'bg-olive text-paper' },
-  lost: { symbol: 'L', label: 'lost', className: 'bg-rust text-paper' },
-  pending: { symbol: '…', label: 'in progress', className: 'bg-gold' },
-  none: { symbol: '·', label: 'no Brock', className: 'bg-paper/60' },
-};
+function mark(day: ProfileDay): { symbol: string; label: string; className: string } {
+  if (day.score === null) return { symbol: '·', label: 'no run', className: 'bg-paper/60' };
+  const label = `run of ${day.score}${day.playing ? ', still going' : ''}`;
+  if (day.playing) return { symbol: String(day.score), label, className: 'bg-gold' };
+  if (day.score === 0) return { symbol: '0', label, className: 'bg-rust text-paper' };
+  return { symbol: String(day.score), label, className: 'bg-olive text-paper' };
+}
 
 function DayCell({ day }: { day: ProfileDay }) {
-  const mark = MARK[day.status ?? 'none'];
+  const { symbol, label, className } = mark(day);
   return (
     <li
-      className={`flex aspect-square items-center justify-center border-2 border-ink font-display text-lg ${mark.className}`}
-      title={`${day.day}: ${mark.label}`}
+      className={`flex aspect-square items-center justify-center border-2 border-ink font-display text-lg ${className}`}
+      title={`${day.day}: ${label}`}
     >
-      <span aria-hidden>{mark.symbol}</span>
+      <span aria-hidden>{symbol}</span>
       <span className="sr-only">
-        {day.day}: {mark.label}
+        {day.day}: {label}
       </span>
     </li>
   );
@@ -50,7 +50,7 @@ export default async function ProfilePage({ params }: Props) {
   if (!profile) notFound();
 
   const { player, days } = profile;
-  const current = effectiveStreak(player, today);
+  const todayRun = days.at(-1)?.score ?? null;
 
   return (
     <section className="flex w-full flex-col gap-6">
@@ -59,8 +59,8 @@ export default async function ProfilePage({ params }: Props) {
       </h1>
 
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Streak" value={current} />
-        <Stat label="Best" value={player.bestStreak} />
+        <Stat label="Today" value={todayRun ?? '–'} />
+        <Stat label="Best run" value={player.bestScore} />
         <Stat label="Wins" value={player.totalWins} />
         <Stat label="Losses" value={player.totalLosses} />
       </dl>

@@ -1,5 +1,7 @@
 # Brock — Build Plan
 
+> **Revision 5 (supersedes streaks and the lifeline).** One *run* a day instead of one Brock: every win adds 1 to today's score and you throw again; the first loss ends the run. Today's score ranks on a **Today** board (resets at midnight UTC) and each player's best run on an **All-time** board. After the run ends you can try once a day to **win another life**: 5 hard multiple-choice questions themed on rocks, paper and scissors, 15 seconds each (server-enforced), right/wrong revealed only at the end; 5/5 reopens the run with its score kept. Migration `0003_daily_runs` is additive (`brock.score`, `player.best_score`, `brock_quiz`); the old streak columns and `brock_rescue` are unused. Rules R3, R4, R6 and R8 below are replaced; see `README.md`.
+
 > **Revision 4.** Adds the trivia lifeline: losing a live streak offers one hard multiple-choice question per day, with a 15-second server-enforced timer; a correct answer restores the streak and reopens the day's Brock for one more throw. See `README.md` (“The trivia lifeline”).
 
 > **Revision 3 (supersedes the recovery codes in Revision 2).** Recovery codes are gone. A returning player on a new device types their username on `/login` and carries on, with no password. Browser tokens moved from `player.token_hash` to a `player_session` table so one player can be logged in on several devices; migration `0001_player_sessions` copies existing tokens across so nobody is logged out. Vercel's `vercel-build` script now applies migrations on deploy.

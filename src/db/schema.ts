@@ -18,6 +18,7 @@ export const throwEnum = pgEnum('throw', ['rock', 'paper', 'scissors']);
 export const roundResultEnum = pgEnum('round_result', ['win', 'loss', 'draw']);
 export const brockStatusEnum = pgEnum('brock_status', ['pending', 'won', 'lost']);
 export const rescueStatusEnum = pgEnum('rescue_status', ['offered', 'asked', 'passed', 'failed']);
+export const quizStatusEnum = pgEnum('quiz_status', ['active', 'passed', 'failed']);
 
 /**
  * A player. There are no accounts: each browser holds a secret cookie that maps to a player
@@ -29,8 +30,13 @@ export const player = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     handle: varchar('handle', { length: 20 }),
+    /** Highest score of any single day's run: the all-time leaderboard. */
+    bestScore: integer('best_score').notNull().default(0),
+    /** Legacy (day-to-day streaks, before daily runs). Kept so history isn't destroyed; unused. */
     currentStreak: integer('current_streak').notNull().default(0),
+    /** Legacy, unused. */
     bestStreak: integer('best_streak').notNull().default(0),
+    /** Legacy, unused. */
     lastWinDay: date('last_win_day', { mode: 'string' }),
     totalWins: integer('total_wins').notNull().default(0),
     totalLosses: integer('total_losses').notNull().default(0),
@@ -64,12 +70,19 @@ export const brock = pgTable(
       .notNull()
       .references(() => player.id, { onDelete: 'cascade' }),
     day: date('day', { mode: 'string' }).notNull(),
+    /** 'pending' while the run is in play, 'lost' once it has ended. ('won' is legacy.) */
     status: brockStatusEnum('status').notNull().default('pending'),
+    /** Rounds won in today's run: the day's score. */
+    score: integer('score').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     decidedAt: timestamp('decided_at', { withTimezone: true }),
   },
   // One Brock per player per day, enforced by the database itself.
-  (t) => [unique('brock_player_day_unique').on(t.playerId, t.day)],
+  (t) => [
+    unique('brock_player_day_unique').on(t.playerId, t.day),
+    // Today's leaderboard: the day's runs by score.
+    index('brock_day_score_idx').on(t.day, sql`${t.score} DESC`),
+  ],
 );
 
 export const brockRound = pgTable(
@@ -92,6 +105,9 @@ export const brockRound = pgTable(
 );
 
 /**
+ * Legacy: the one-question lifeline from before daily runs. Kept so its rows aren't destroyed;
+ * replaced by brock_quiz.
+ *
  * The trivia lifeline, offered when a Brock is lost while on a streak. At most one per Brock, so
  * at most one per player per day. The correct answer never leaves the server until it's answered.
  */
@@ -112,7 +128,35 @@ export const brockRescue = pgTable('brock_rescue', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** One question in a day's quiz, in the order shown. The answer stays on the server. */
+export interface QuizItem {
+  questionId: string;
+  options: string[];
+  answerIndex: number;
+  /** The option chosen, or null if the clock ran out. Undefined until answered. */
+  chosenIndex?: number | null;
+}
+
+/**
+ * "Win another life": five themed questions, one try per day, taken after a run ends.
+ * All five right reopens the run with its score intact.
+ */
+export const brockQuiz = pgTable('brock_quiz', {
+  brockId: uuid('brock_id')
+    .primaryKey()
+    .references(() => brock.id, { onDelete: 'cascade' }),
+  status: quizStatusEnum('status').notNull().default('active'),
+  items: jsonb('items').$type<QuizItem[]>().notNull(),
+  /** Index of the question on screen (equals items.length once all are answered). */
+  currentIndex: integer('current_index').notNull().default(0),
+  /** When the current question was shown; its 15-second clock starts here. */
+  questionStartedAt: timestamp('question_started_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+});
+
 export type Player = typeof player.$inferSelect;
 export type BrockRow = typeof brock.$inferSelect;
 export type BrockRoundRow = typeof brockRound.$inferSelect;
 export type BrockRescueRow = typeof brockRescue.$inferSelect;
+export type BrockQuizRow = typeof brockQuiz.$inferSelect;

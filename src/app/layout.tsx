@@ -9,10 +9,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: { default: 'Brock: one rock paper scissors a day', template: '%s · Brock' },
   description:
-    'Brock once a day. Win and your streak grows. Lose and it resets. How long can you last?',
+    'Rock paper scissors against the House, one run a day. Keep winning to keep going. How long can you last?',
   openGraph: {
     title: 'Brock',
-    description: 'One rock paper scissors a day. How long can your streak last?',
+    description: 'One run of rock paper scissors a day. How long can you last?',
     images: ['/og.png'],
   },
   twitter: { card: 'summary_large_image' },
@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </main>
         <footer className="border-t-4 border-ink bg-rust">
           <p className="gutter mx-auto max-w-2xl py-2.5 text-center font-slab text-xs tracking-[0.18em] [font-variant:small-caps]">
-            One throw a day · Win and your streak grows · Miss a day and it’s gone
+            One run a day · Win and you keep going · Lose and it’s over
           </p>
         </footer>
       </body>

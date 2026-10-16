@@ -8,13 +8,14 @@ import type { Throw } from '@/lib/game';
 import { Arena, type ArenaMode } from './Arena';
 import { Countdown } from './Countdown';
 import { HandleForm } from './HandleForm';
-import { Lifeline } from './Lifeline';
+import { Quiz } from './Quiz';
 import { RoundReveal } from './RoundReveal';
+import { ScoreBadge } from './ScoreBadge';
 import { ShareButton } from './ShareButton';
-import { StreakBadge } from './StreakBadge';
 import { ThrowPicker } from './ThrowPicker';
 
-type Phase = 'loading' | 'ready' | 'throwing' | 'drawn' | 'done' | 'error';
+/** `revealed`: a win or a tie is on screen and the run goes on. `done`: the run is over. */
+type Phase = 'loading' | 'ready' | 'throwing' | 'revealed' | 'done' | 'error';
 
 interface ArenaState {
   mode: ArenaMode;
@@ -59,14 +60,14 @@ export function BrockGame() {
   const [message, setMessage] = useState('');
   const [announce, setAnnounce] = useState('');
 
-  /** Shows a state fetched from the server: a fresh round if one is open, else how the day ended. */
+  /** Shows a state fetched from the server: a fresh round if the run goes on, else how it ended. */
   const show = useCallback((data: TodayState) => {
     setState(data);
     setLastRound(null);
     const final = data.rounds.at(-1);
-    // Coming back to a finished Brock shows how it ended, without replaying the action.
-    setArena(data.status !== 'pending' && final ? revealedArena(final, true) : IDLE);
-    setPhase(data.status === 'pending' ? 'ready' : 'done');
+    // Coming back to a finished run shows how it ended, without replaying the action.
+    setArena(data.status === 'over' && final ? revealedArena(final, true) : IDLE);
+    setPhase(data.status === 'playing' ? 'ready' : 'done');
   }, []);
 
   const load = useCallback(async () => {
@@ -113,12 +114,12 @@ export function BrockGame() {
       setLastRound(next.round);
       setState(next);
       setArena(revealedArena(next.round, false));
-      setPhase(next.status === 'pending' ? 'drawn' : 'done');
+      setPhase(next.status === 'playing' ? 'revealed' : 'done');
       setAnnounce(
-        next.status === 'won'
-          ? `You win! The House threw ${next.round.house}. Your streak is ${next.streak.current}.`
-          : next.status === 'lost'
-            ? `The House wins with ${next.round.house}. Your streak is reset.`
+        next.round.result === 'win'
+          ? `You win! The House threw ${next.round.house}. That’s ${next.score} in a row.`
+          : next.round.result === 'loss'
+            ? `The House wins with ${next.round.house}. Your run ends at ${next.score}.`
             : `It’s a tie. The House threw ${next.round.house} too. Brock again.`,
       );
     } catch {
@@ -128,15 +129,20 @@ export function BrockGame() {
     }
   }
 
-  /** After the lifeline question is shown or answered. A right answer reopens the Brock. */
-  function onRescue(next: TodayState) {
-    if (next.status === 'pending') {
+  /** After the quiz starts or a question is answered. Five out of five revives the run. */
+  function onQuiz(next: TodayState) {
+    if (next.status === 'playing') {
       show(next);
-      setAnnounce(`Correct! Your streak of ${next.streak.current} is back. Brock again.`);
+      setAnnounce(`Five out of five! Another life. Your run carries on from ${next.score}.`);
     } else {
       setState(next);
-      if (next.rescue?.status === 'failed') {
-        setAnnounce('Wrong answer. Your streak is over. Come back tomorrow.');
+      // The arena comes back once the questions are done: show it settled, not replaying.
+      const final = next.rounds.at(-1);
+      if (final) setArena(revealedArena(final, true));
+      if (next.quiz?.status === 'failed') {
+        setAnnounce(
+          `${next.quiz.correctCount} out of ${next.quiz.total}. No extra life today. Come back tomorrow.`,
+        );
       }
     }
   }
@@ -157,17 +163,17 @@ export function BrockGame() {
   }
 
   const finalRound = state.rounds.at(-1) ?? null;
-  // While the lifeline is on offer or being answered, the day isn't settled yet.
-  const lifelineOpen =
-    state.status === 'lost' &&
-    (state.rescue?.status === 'offered' || state.rescue?.status === 'asked');
   // While the clock runs, the question gets the screen to itself: no scrolling past the arena.
-  const asking = state.status === 'lost' && state.rescue?.status === 'asked';
-  const lifeline = state.rescue && (
-    <Lifeline
-      rescue={state.rescue}
-      brockStatus={state.status}
-      onUpdate={onRescue}
+  const asking = state.quiz?.status === 'active';
+  // While a life is still to be won, the day isn't settled yet.
+  const settled = !asking && !state.quizAvailable;
+  const quiz = (
+    <Quiz
+      quiz={state.quiz}
+      quizAvailable={state.quizAvailable}
+      status={state.status}
+      score={state.score}
+      onUpdate={onQuiz}
       onStale={() => void load()}
     />
   );
@@ -178,12 +184,12 @@ export function BrockGame() {
         {announce}
       </p>
 
-      <StreakBadge current={state.streak.current} best={state.streak.best} />
+      <ScoreBadge score={state.score} best={state.best} />
 
       {state.rounds.length === 0 && state.handle === null && phase === 'ready' && (
         <p className="panel max-w-[46ch] -rotate-1 px-4 py-3 text-center text-[15px] leading-relaxed">
-          One rock paper scissors a day against the House. Win and your streak grows. Lose, or skip
-          a day, and it resets. No sign-up: just play.{' '}
+          Rock paper scissors against the House. Win and you keep going; lose and your run is over
+          until tomorrow. Your longest run makes the leaderboard. No sign-up: just play.{' '}
           <Link href="/login" className="font-bold text-rust underline underline-offset-2">
             Played before? Log in
           </Link>
@@ -202,7 +208,7 @@ export function BrockGame() {
 
       {phase === 'ready' && state.openRound && (
         <>
-          {lifeline}
+          {quiz}
           <HouseCommit hash={state.openRound.commitHash} round={state.openRound.roundNo} />
           <ThrowPicker onPick={onPick} />
         </>
@@ -217,9 +223,9 @@ export function BrockGame() {
         </>
       )}
 
-      {phase === 'drawn' && lastRound && (
+      {phase === 'revealed' && lastRound && (
         <>
-          <RoundReveal round={lastRound} streak={state.streak.current} />
+          <RoundReveal round={lastRound} score={state.score} />
           <button type="button" onClick={brockAgain} className="btn-ink">
             BROCK
           </button>
@@ -228,9 +234,9 @@ export function BrockGame() {
 
       {phase === 'done' && finalRound && (
         <>
-          {!asking && <RoundReveal round={finalRound} streak={state.streak.current} />}
-          {lifeline}
-          {!lifelineOpen && state.handle === null && (
+          {!asking && <RoundReveal round={finalRound} score={state.score} />}
+          {quiz}
+          {!asking && state.handle === null && (
             <div className="panel w-full max-w-md p-4">
               <HandleForm
                 onNamed={() => {
@@ -240,26 +246,24 @@ export function BrockGame() {
               />
             </div>
           )}
-          {!lifelineOpen && (
-            <>
-              <div className="panel flex w-full max-w-md -rotate-1 flex-col items-center gap-2 px-4 pt-3 pb-4 text-center">
-                <p className="font-display text-2xl leading-tight tracking-wide text-rust">
-                  See you tomorrow!
-                </p>
-                <p className="text-[15px]">
-                  {state.status === 'won'
-                    ? 'Come back tomorrow to keep your streak going.'
-                    : 'Come back tomorrow to start a new streak.'}
-                </p>
-                <Countdown msUntilReset={state.msUntilReset} onZero={() => void load()} />
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-4">
-                <ShareButton state={state} />
-                <Link href="/leaderboard" className="caps text-xs underline underline-offset-4">
-                  See the leaderboard
-                </Link>
-              </div>
-            </>
+          {settled && (
+            <div className="panel flex w-full max-w-md -rotate-1 flex-col items-center gap-2 px-4 pt-3 pb-4 text-center">
+              <p className="font-display text-2xl leading-tight tracking-wide text-rust">
+                See you tomorrow!
+              </p>
+              <p className="text-[15px]">
+                Your run today: <strong>{state.score}</strong>. Come back tomorrow for a new run.
+              </p>
+              <Countdown msUntilReset={state.msUntilReset} onZero={() => void load()} />
+            </div>
+          )}
+          {!asking && (
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              <ShareButton state={state} />
+              <Link href="/leaderboard" className="caps text-xs underline underline-offset-4">
+                See the leaderboard
+              </Link>
+            </div>
           )}
         </>
       )}
