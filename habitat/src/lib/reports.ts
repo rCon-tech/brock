@@ -23,13 +23,25 @@ export async function createReport(
     const [c] = await db
       .select({ id: comment.id })
       .from(comment)
-      .where(and(eq(comment.id, input.targetId), eq(comment.habitatId, ctx.habitatId), isNull(comment.deletedAt)));
+      .where(
+        and(
+          eq(comment.id, input.targetId),
+          eq(comment.habitatId, ctx.habitatId),
+          isNull(comment.deletedAt),
+        ),
+      );
     if (!c) throw notFound();
   } else {
     const [m] = await db
       .select({ id: membership.userId })
       .from(membership)
-      .where(and(eq(membership.habitatId, ctx.habitatId), eq(membership.userId, input.targetId), isNull(membership.leftAt)));
+      .where(
+        and(
+          eq(membership.habitatId, ctx.habitatId),
+          eq(membership.userId, input.targetId),
+          isNull(membership.leftAt),
+        ),
+      );
     if (!m) throw notFound();
   }
   const [r] = await db

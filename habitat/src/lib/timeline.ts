@@ -32,7 +32,9 @@ export async function getTimeline(
   const pairs = timelinePairs(active);
   if (!pairs.length) return { pinned: [], items: [], nextCursor: null };
 
-  const inPairs = or(...pairs.map((p) => and(eq(record.moduleId, p.module), eq(record.collection, p.collection))))!;
+  const inPairs = or(
+    ...pairs.map((p) => and(eq(record.moduleId, p.module), eq(record.collection, p.collection))),
+  )!;
   const hidden = hiddenFilter(
     ctx.userId,
     hiddenCollections(active.map((a) => a.manifest)).filter((h) =>
@@ -44,7 +46,10 @@ export async function getTimeline(
   let cursorCond: SQL | undefined;
   if (opts.cursor) {
     try {
-      const [ts, id] = JSON.parse(Buffer.from(opts.cursor, 'base64url').toString('utf8')) as [string, string];
+      const [ts, id] = JSON.parse(Buffer.from(opts.cursor, 'base64url').toString('utf8')) as [
+        string,
+        string,
+      ];
       if (Number.isNaN(Date.parse(ts)) || !/^[0-9a-f-]{36}$/i.test(id)) throw new Error();
       cursorCond = sql`("record"."created_at", "record"."id") < (${new Date(ts).toISOString()}::timestamptz, ${id}::uuid)`;
     } catch {
@@ -54,7 +59,12 @@ export async function getTimeline(
 
   const pinnedRows = opts.cursor
     ? []
-    : await db.select().from(record).where(and(base, isNotNull(record.pinnedAt))).orderBy(desc(record.pinnedAt)).limit(10);
+    : await db
+        .select()
+        .from(record)
+        .where(and(base, isNotNull(record.pinnedAt)))
+        .orderBy(desc(record.pinnedAt))
+        .limit(10);
 
   const rows = await db
     .select()
@@ -70,5 +80,9 @@ export async function getTimeline(
       : null;
 
   const dtos = await toDTOs(db, ctx, [...pinnedRows, ...page]);
-  return { pinned: dtos.slice(0, pinnedRows.length), items: dtos.slice(pinnedRows.length), nextCursor };
+  return {
+    pinned: dtos.slice(0, pinnedRows.length),
+    items: dtos.slice(pinnedRows.length),
+    nextCursor,
+  };
 }

@@ -9,7 +9,10 @@ import type { RecordDTO } from './types';
 export interface RecordsParams {
   module: string;
   collection: string;
-  where?: Record<string, Partial<Record<'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in', string>>>;
+  where?: Record<
+    string,
+    Partial<Record<'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in', string>>
+  >;
   parentId?: string;
   authorId?: string;
   order?: string;
@@ -27,13 +30,16 @@ function toQuery(p: RecordsParams, cursor?: string) {
   if (p.limit) q.set('limit', String(p.limit));
   if (cursor) q.set('cursor', cursor);
   for (const [field, ops] of Object.entries(p.where ?? {})) {
-    for (const [op, v] of Object.entries(ops)) if (v !== undefined) q.set(`where[${field}][${op}]`, v);
+    for (const [op, v] of Object.entries(ops))
+      if (v !== undefined) q.set(`where[${field}][${op}]`, v);
   }
   return q.toString();
 }
 
 const recordsKey = (habitatId: string, module: string, collection?: string) =>
-  collection ? ['habitat', habitatId, 'records', module, collection] : ['habitat', habitatId, 'records', module];
+  collection
+    ? ['habitat', habitatId, 'records', module, collection]
+    : ['habitat', habitatId, 'records', module];
 
 /** Records of one collection, newest first by default, with "load more" paging. */
 export function useRecords<T extends object = Record<string, unknown>>(p: RecordsParams) {
@@ -57,7 +63,12 @@ export function useRecord<T extends object = Record<string, unknown>>(id: string
   const { habitatId } = useHabitat();
   return useQuery({
     queryKey: ['habitat', habitatId, 'record', id],
-    queryFn: async () => (await apiFetch<{ record: RecordDTO & { data: T } }>(`/api/habitats/${habitatId}/records/${id}`)).record,
+    queryFn: async () =>
+      (
+        await apiFetch<{ record: RecordDTO & { data: T } }>(
+          `/api/habitats/${habitatId}/records/${id}`,
+        )
+      ).record,
     enabled: !!id,
   });
 }
@@ -77,10 +88,12 @@ export function useCreateRecord(module: string, collection: string) {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: async (v: { data: Record<string, unknown>; parentId?: string }) =>
-      (await apiFetch<{ record: RecordDTO }>(`/api/habitats/${habitatId}/records`, {
-        method: 'POST',
-        body: { module, collection, parentId: v.parentId, data: v.data },
-      })).record,
+      (
+        await apiFetch<{ record: RecordDTO }>(`/api/habitats/${habitatId}/records`, {
+          method: 'POST',
+          body: { module, collection, parentId: v.parentId, data: v.data },
+        })
+      ).record,
     onSuccess: () => invalidate(module),
   });
 }
@@ -90,10 +103,12 @@ export function useUpdateRecord(module: string) {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: async (v: { id: string; data: Record<string, unknown> }) =>
-      (await apiFetch<{ record: RecordDTO }>(`/api/habitats/${habitatId}/records/${v.id}`, {
-        method: 'PATCH',
-        body: { data: v.data },
-      })).record,
+      (
+        await apiFetch<{ record: RecordDTO }>(`/api/habitats/${habitatId}/records/${v.id}`, {
+          method: 'PATCH',
+          body: { data: v.data },
+        })
+      ).record,
     onSuccess: () => invalidate(module),
   });
 }
@@ -102,7 +117,8 @@ export function useDeleteRecord(module: string) {
   const { habitatId } = useHabitat();
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/habitats/${habitatId}/records/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) =>
+      apiFetch(`/api/habitats/${habitatId}/records/${id}`, { method: 'DELETE' }),
     onSuccess: () => invalidate(module),
   });
 }

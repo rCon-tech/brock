@@ -40,15 +40,23 @@ export function Page() {
       ) : (
         <Card className="space-y-3">
           <h2 className="font-bold">Settle up</h2>
-          {costs.incomplete && <p className="rounded-lg bg-surface-2 p-2 text-sm">Showing the latest 100 entries. Balances may be incomplete.</p>}
+          {costs.incomplete && (
+            <p className="rounded-lg bg-surface-2 p-2 text-sm">
+              Showing the latest 100 entries. Balances may be incomplete.
+            </p>
+          )}
           {currencies.length === 0 || currencies.every((c) => costs.transfers[c]!.length === 0) ? (
             <p className="text-sm text-ink-soft">Everyone’s even. 🎉</p>
           ) : (
             currencies.map((cur) =>
               costs.transfers[cur]!.map((t) => (
-                <div key={`${cur}-${t.from}-${t.to}`} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-2 p-3">
+                <div
+                  key={`${cur}-${t.from}-${t.to}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-2 p-3"
+                >
                   <span className={t.from === me.id || t.to === me.id ? 'font-semibold' : ''}>
-                    {name(t.from)} {t.from === me.id ? 'owe' : 'owes'} {name(t.to)} <strong>{formatMoney(t.amountMinor, cur)}</strong>
+                    {name(t.from)} {t.from === me.id ? 'owe' : 'owes'} {name(t.to)}{' '}
+                    <strong>{formatMoney(t.amountMinor, cur)}</strong>
                   </span>
                   {(t.from === me.id || t.to === me.id) && (
                     <Button
@@ -56,10 +64,21 @@ export function Page() {
                       variant="outline"
                       disabled={settle.isPending}
                       onClick={() =>
-                        confirm(`Record that ${name(t.from)} paid ${name(t.to)} ${formatMoney(t.amountMinor, cur)}?`) &&
+                        confirm(
+                          `Record that ${name(t.from)} paid ${name(t.to)} ${formatMoney(t.amountMinor, cur)}?`,
+                        ) &&
                         settle.mutate(
-                          { data: { from: t.from, to: t.to, amount: { amountMinor: t.amountMinor, currency: cur } } },
-                          { onSuccess: () => toast.success('Marked as paid'), onError: (e) => toast.error(errorMessage(e)) },
+                          {
+                            data: {
+                              from: t.from,
+                              to: t.to,
+                              amount: { amountMinor: t.amountMinor, currency: cur },
+                            },
+                          },
+                          {
+                            onSuccess: () => toast.success('Marked as paid'),
+                            onError: (e) => toast.error(errorMessage(e)),
+                          },
                         )
                       }
                     >
@@ -76,7 +95,9 @@ export function Page() {
       <section className="space-y-2">
         <h2 className="font-bold">Expenses</h2>
         {costs.expenses.isLoading ? null : costs.expenses.items.length === 0 ? (
-          <EmptyState emoji="🧾" title="No expenses yet">Add the first one and we’ll keep the score.</EmptyState>
+          <EmptyState emoji="🧾" title="No expenses yet">
+            Add the first one and we’ll keep the score.
+          </EmptyState>
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
             {costs.expenses.items.map((e) => (
@@ -84,12 +105,20 @@ export function Page() {
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-semibold">{e.data.description}</div>
                   <div className="text-xs text-ink-soft">
-                    {name(e.data.paidBy)} paid · split {e.data.splitAmong.length} ways · {format(new Date(e.createdAt), 'd MMM')}
+                    {name(e.data.paidBy)} paid · split {e.data.splitAmong.length} ways ·{' '}
+                    {format(new Date(e.createdAt), 'd MMM')}
                   </div>
                 </div>
-                <div className="font-bold">{formatMoney(e.data.amount.amountMinor, e.data.amount.currency)}</div>
+                <div className="font-bold">
+                  {formatMoney(e.data.amount.amountMinor, e.data.amount.currency)}
+                </div>
                 {(e.author?.id === me.id || isAdmin(me.role)) && (
-                  <Button variant="ghost" size="icon" aria-label={`Delete ${e.data.description}`} onClick={() => confirm('Delete this expense?') && remove.mutate(e.id)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Delete ${e.data.description}`}
+                    onClick={() => confirm('Delete this expense?') && remove.mutate(e.id)}
+                  >
                     <Trash2 size={16} />
                   </Button>
                 )}
@@ -106,10 +135,16 @@ export function Page() {
             {costs.settlements.items.map((s) => (
               <li key={s.id} className="flex items-center justify-between gap-2">
                 <span>
-                  {name(s.data.from)} paid {name(s.data.to)} <Badge>{formatMoney(s.data.amount.amountMinor, s.data.amount.currency)}</Badge>
+                  {name(s.data.from)} paid {name(s.data.to)}{' '}
+                  <Badge>{formatMoney(s.data.amount.amountMinor, s.data.amount.currency)}</Badge>
                 </span>
                 {isAdmin(me.role) && (
-                  <Button variant="ghost" size="sm" aria-label="Undo payment" onClick={() => remove.mutate(s.id)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Undo payment"
+                    onClick={() => remove.mutate(s.id)}
+                  >
                     Undo
                   </Button>
                 )}

@@ -21,8 +21,20 @@ export const POST = habitatRoute<P>(async ({ req, member, user }) => {
   const url = `${env().NEXT_PUBLIC_APP_URL}/join/${code}`;
   if (email) {
     const [h] = await getDb().select().from(habitat).where(eq(habitat.id, member.habitatId));
-    const body = await renderEmail(InviteEmail({ inviter: user.name, habitat: h!.name, emoji: h!.emoji, url }));
-    await sendEmail({ to: email, subject: `${user.name} invited you to ${h!.name} on Habitat`, ...body });
+    const body = await renderEmail(
+      InviteEmail({ inviter: user.name, habitat: h!.name, emoji: h!.emoji, url }),
+    );
+    await sendEmail({
+      to: email,
+      subject: `${user.name} invited you to ${h!.name} on Habitat`,
+      ...body,
+    });
   }
-  return created({ id: invite.id, code, url, expiresAt: invite.expiresAt.toISOString(), emailed: !!email });
+  return created({
+    id: invite.id,
+    code,
+    url,
+    expiresAt: invite.expiresAt.toISOString(),
+    emailed: !!email,
+  });
 });

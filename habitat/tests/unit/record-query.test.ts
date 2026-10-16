@@ -17,7 +17,9 @@ const uuid = '8f14e45f-ceea-467a-9575-1f1a2a6e0a11';
 const dialect = new PgDialect();
 const render = (q: ReturnType<typeof parseQuery>) => {
   const { conditions, orderBy } = toSql(q);
-  return dialect.sqlToQuery(sql`${sql.join([...conditions, sql`true`], sql` AND `)} ORDER BY ${orderBy}`);
+  return dialect.sqlToQuery(
+    sql`${sql.join([...conditions, sql`true`], sql` AND `)} ORDER BY ${orderBy}`,
+  );
 };
 
 describe('parseQuery', () => {
@@ -34,8 +36,12 @@ describe('parseQuery', () => {
     expect(() => parseQuery({ where: { title: { like: '%' } as never } }, def)).toThrow(/operator/);
   });
   it('rejects values of the wrong type', () => {
-    expect(() => parseQuery({ where: { seats: { eq: '1; DROP TABLE record' } } }, def)).toThrow(BadQueryError);
-    expect(() => parseQuery({ where: { startsAt: { gte: 'tomorrow' } } }, def)).toThrow(BadQueryError);
+    expect(() => parseQuery({ where: { seats: { eq: '1; DROP TABLE record' } } }, def)).toThrow(
+      BadQueryError,
+    );
+    expect(() => parseQuery({ where: { startsAt: { gte: 'tomorrow' } } }, def)).toThrow(
+      BadQueryError,
+    );
     expect(() => parseQuery({ where: { done: { eq: 'maybe' } } }, def)).toThrow(BadQueryError);
   });
   it('cannot filter or sort on a money field', () => {
@@ -63,7 +69,7 @@ describe('toSql', () => {
   });
   it('binds the field name too', () => {
     const { sql: text, params } = render(parseQuery({ where: { title: { eq: 'a' } } }, def));
-    expect(text).toContain("->>$");
+    expect(text).toContain('->>$');
     expect(params).toContain('title');
   });
   it('casts by field type', () => {

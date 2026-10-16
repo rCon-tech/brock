@@ -6,7 +6,11 @@ import { DomainError } from '@/lib/errors';
 import { requireInstalled } from '@/lib/installed-modules';
 import { requireMemberBySlug } from '@/lib/session';
 
-export default async function ModulePage({ params }: { params: Promise<{ slug: string; moduleId: string; path?: string[] }> }) {
+export default async function ModulePage({
+  params,
+}: {
+  params: Promise<{ slug: string; moduleId: string; path?: string[] }>;
+}) {
   const { slug, moduleId, path = [] } = await params;
   const user = await requireUser({ next: `/h/${slug}/m/${moduleId}` });
   const db = getDb();

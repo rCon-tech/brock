@@ -48,17 +48,39 @@ export function Lightbox({
           }}
         >
           <D.Title className="sr-only">Photo viewer</D.Title>
-          <D.Description className="sr-only">Use the arrow keys or swipe to move between photos.</D.Description>
-          {index !== null && <MediaImage id={ids[index]!} variant="full" alt={alt(index)} className="max-h-dvh max-w-full object-contain" />}
-          <D.Close aria-label="Close" className="absolute right-3 top-3 rounded-full bg-black/50 p-2 text-white">
+          <D.Description className="sr-only">
+            Use the arrow keys or swipe to move between photos.
+          </D.Description>
+          {index !== null && (
+            <MediaImage
+              id={ids[index]!}
+              variant="full"
+              alt={alt(index)}
+              className="max-h-dvh max-w-full object-contain"
+            />
+          )}
+          <D.Close
+            aria-label="Close"
+            className="absolute right-3 top-3 rounded-full bg-black/50 p-2 text-white"
+          >
             <X size={22} />
           </D.Close>
           {ids.length > 1 && (
             <>
-              <button type="button" aria-label="Previous photo" onClick={() => go(-1)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white">
+              <button
+                type="button"
+                aria-label="Previous photo"
+                onClick={() => go(-1)}
+                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white"
+              >
                 <ChevronLeft size={26} />
               </button>
-              <button type="button" aria-label="Next photo" onClick={() => go(1)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white">
+              <button
+                type="button"
+                aria-label="Next photo"
+                onClick={() => go(1)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white"
+              >
                 <ChevronRight size={26} />
               </button>
             </>

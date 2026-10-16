@@ -24,8 +24,22 @@ function EventList() {
   const [creating, setCreating] = useState(false);
   const nowMs = useNow(60_000);
   const now = new Date(nowMs).toISOString();
-  const upcoming = useRecords<EventData>({ module: 'events', collection: 'event', where: { startsAt: { gte: now } }, order: 'startsAt:asc', limit: 30, enabled: nowMs > 0 });
-  const past = useRecords<EventData>({ module: 'events', collection: 'event', where: { startsAt: { lt: now } }, order: 'startsAt:desc', limit: 30, enabled: nowMs > 0 });
+  const upcoming = useRecords<EventData>({
+    module: 'events',
+    collection: 'event',
+    where: { startsAt: { gte: now } },
+    order: 'startsAt:asc',
+    limit: 30,
+    enabled: nowMs > 0,
+  });
+  const past = useRecords<EventData>({
+    module: 'events',
+    collection: 'event',
+    where: { startsAt: { lt: now } },
+    order: 'startsAt:desc',
+    limit: 30,
+    enabled: nowMs > 0,
+  });
 
   return (
     <div className="space-y-4">
@@ -41,7 +55,15 @@ function EventList() {
           <TabsTrigger value="past">Past</TabsTrigger>
         </TabsList>
         <TabsContent value="upcoming">
-          <List q={upcoming} empty={<EmptyState emoji="📅" title="Nothing planned">Be the one to suggest something.</EmptyState>} showRsvp />
+          <List
+            q={upcoming}
+            empty={
+              <EmptyState emoji="📅" title="Nothing planned">
+                Be the one to suggest something.
+              </EmptyState>
+            }
+            showRsvp
+          />
         </TabsContent>
         <TabsContent value="past">
           <List q={past} empty={<EmptyState emoji="🕰️" title="No past events yet" />} />
@@ -52,7 +74,15 @@ function EventList() {
   );
 }
 
-function List({ q, empty, showRsvp }: { q: ReturnType<typeof useRecords<EventData>>; empty: React.ReactNode; showRsvp?: boolean }) {
+function List({
+  q,
+  empty,
+  showRsvp,
+}: {
+  q: ReturnType<typeof useRecords<EventData>>;
+  empty: React.ReactNode;
+  showRsvp?: boolean;
+}) {
   const { slug } = useHabitat();
   if (q.isLoading) return <Skeleton className="h-28" />;
   if (!q.items.length) return <>{empty}</>;
@@ -63,7 +93,9 @@ function List({ q, empty, showRsvp }: { q: ReturnType<typeof useRecords<EventDat
           <Card className="space-y-3">
             <Link href={`/h/${slug}/m/events/${e.id}`} className="block">
               <div className="font-bold">{e.data.title}</div>
-              <div className="text-sm text-accent">{formatWhen(e.data.startsAt, e.data.endsAt)}</div>
+              <div className="text-sm text-accent">
+                {formatWhen(e.data.startsAt, e.data.endsAt)}
+              </div>
               {e.data.location && <div className="text-sm text-ink-soft">{e.data.location}</div>}
             </Link>
             {showRsvp && <RsvpButtons eventId={e.id} size="sm" />}

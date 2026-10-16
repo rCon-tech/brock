@@ -28,7 +28,12 @@ export function WishCard({ wish, claim }: { wish: RecordDTO; claim?: RecordDTO }
         <div className="min-w-0 flex-1">
           <div className="font-bold">
             {d.link ? (
-              <a href={d.link} target="_blank" rel="noopener noreferrer nofollow" className="text-accent underline underline-offset-2">
+              <a
+                href={d.link}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="text-accent underline underline-offset-2"
+              >
                 {d.title}
               </a>
             ) : (
@@ -39,7 +44,12 @@ export function WishCard({ wish, claim }: { wish: RecordDTO; claim?: RecordDTO }
           {d.note && <RichText text={d.note} className="text-sm text-ink-soft" />}
         </div>
         {mine && (
-          <Button variant="ghost" size="icon" aria-label={`Delete ${d.title}`} onClick={() => confirm('Remove this wish?') && del.mutate(wish.id)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Delete ${d.title}`}
+            onClick={() => confirm('Remove this wish?') && del.mutate(wish.id)}
+          >
             <Trash2 size={16} />
           </Button>
         )}
@@ -49,7 +59,8 @@ export function WishCard({ wish, claim }: { wish: RecordDTO; claim?: RecordDTO }
           {claim ? (
             <>
               <Badge tone="ok" className="gap-1">
-                <MemberAvatar member={claim.author} size="xs" /> Claimed by {claim.author?.id === me.id ? 'you' : displayName(claim.author)}
+                <MemberAvatar member={claim.author} size="xs" /> Claimed by{' '}
+                {claim.author?.id === me.id ? 'you' : displayName(claim.author)}
               </Badge>
               {claim.author?.id === me.id && (
                 <Button variant="ghost" size="sm" onClick={() => unclaim.mutate(claim.id)}>
@@ -62,14 +73,21 @@ export function WishCard({ wish, claim }: { wish: RecordDTO; claim?: RecordDTO }
               size="sm"
               variant="outline"
               disabled={claimIt.isPending}
-              onClick={() => claimIt.mutate({ parentId: wish.id, data: {} }, { onError: (e) => toast.error(errorMessage(e)) })}
+              onClick={() =>
+                claimIt.mutate(
+                  { parentId: wish.id, data: {} },
+                  { onError: (e) => toast.error(errorMessage(e)) },
+                )
+              }
             >
               I’ll get this
             </Button>
           )}
         </div>
       )}
-      {mine && <p className="text-xs text-ink-soft">Friends can claim this. You won’t see who. 🤫</p>}
+      {mine && (
+        <p className="text-xs text-ink-soft">Friends can claim this. You won’t see who. 🤫</p>
+      )}
     </Card>
   );
 }

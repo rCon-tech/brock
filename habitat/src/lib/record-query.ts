@@ -77,17 +77,21 @@ function coerce(raw: string, cast: Cast, field: string): Value {
     }
     case 'numeric': {
       const n = Number(raw);
-      if (raw.trim() === '' || !Number.isFinite(n)) throw new BadQueryError(`"${field}" expects a number`);
+      if (raw.trim() === '' || !Number.isFinite(n))
+        throw new BadQueryError(`"${field}" expects a number`);
       return n;
     }
     case 'boolean':
-      if (raw !== 'true' && raw !== 'false') throw new BadQueryError(`"${field}" expects true or false`);
+      if (raw !== 'true' && raw !== 'false')
+        throw new BadQueryError(`"${field}" expects true or false`);
       return raw === 'true';
     case 'date':
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new BadQueryError(`"${field}" expects YYYY-MM-DD`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(raw))
+        throw new BadQueryError(`"${field}" expects YYYY-MM-DD`);
       return raw;
     case 'timestamptz': {
-      if (Number.isNaN(Date.parse(raw))) throw new BadQueryError(`"${field}" expects an ISO date-time`);
+      if (Number.isNaN(Date.parse(raw)))
+        throw new BadQueryError(`"${field}" expects an ISO date-time`);
       return new Date(raw).toISOString();
     }
     default:
@@ -103,21 +107,28 @@ export function parseQuery(spec: QuerySpec, def: CollectionDef): ParsedQuery {
     if (!f) throw new BadQueryError(`"${field}" is not a field of this collection`);
     const cast = castFor(f);
     for (const [op, raw] of Object.entries(ops ?? {})) {
-      if (!(OPERATORS as readonly string[]).includes(op)) throw new BadQueryError(`Unknown operator "${op}"`);
+      if (!(OPERATORS as readonly string[]).includes(op))
+        throw new BadQueryError(`Unknown operator "${op}"`);
       if (typeof raw !== 'string') throw new BadQueryError(`"${field}.${op}" must be a string`);
       const value =
         op === 'in'
-          ? raw.split(',').slice(0, 100).map((v) => coerce(v, cast, field))
+          ? raw
+              .split(',')
+              .slice(0, 100)
+              .map((v) => coerce(v, cast, field))
           : coerce(raw, cast, field);
       filters.push({ field, op: op as Operator, cast, value });
     }
   }
 
-  if (spec.parentId !== undefined && !UUID.test(spec.parentId)) throw new BadQueryError('parentId must be a uuid');
-  if (spec.authorId !== undefined && !UUID.test(spec.authorId)) throw new BadQueryError('authorId must be a uuid');
+  if (spec.parentId !== undefined && !UUID.test(spec.parentId))
+    throw new BadQueryError('parentId must be a uuid');
+  if (spec.authorId !== undefined && !UUID.test(spec.authorId))
+    throw new BadQueryError('authorId must be a uuid');
 
   const [orderField = 'createdAt', dirRaw = 'desc'] = (spec.order ?? 'createdAt:desc').split(':');
-  if (dirRaw !== 'asc' && dirRaw !== 'desc') throw new BadQueryError('Order direction must be asc or desc');
+  if (dirRaw !== 'asc' && dirRaw !== 'desc')
+    throw new BadQueryError('Order direction must be asc or desc');
   let orderCast: Cast | null = null;
   if (orderField !== 'createdAt') {
     const f = def.fields[orderField];
@@ -130,8 +141,12 @@ export function parseQuery(spec: QuerySpec, def: CollectionDef): ParsedQuery {
   let cursor: ParsedQuery['cursor'];
   if (spec.cursor) {
     try {
-      const [value, id] = JSON.parse(Buffer.from(spec.cursor, 'base64url').toString('utf8')) as [Value, string];
-      if (!UUID.test(id) || !['string', 'number', 'boolean'].includes(typeof value)) throw new Error();
+      const [value, id] = JSON.parse(Buffer.from(spec.cursor, 'base64url').toString('utf8')) as [
+        Value,
+        string,
+      ];
+      if (!UUID.test(id) || !['string', 'number', 'boolean'].includes(typeof value))
+        throw new Error();
       cursor = { value, id };
     } catch {
       throw new BadQueryError('Invalid cursor');
@@ -177,9 +192,13 @@ export function toSql(q: ParsedQuery): { conditions: SQL[]; orderBy: SQL; sortEx
   for (const f of q.filters) {
     if (f.op === 'in') {
       const list = (f.value as Value[]).map((v) => bind(v, f.cast));
-      conditions.push(list.length ? sql`${col(f.field, f.cast)} IN (${sql.join(list, sql`, `)})` : sql`false`);
+      conditions.push(
+        list.length ? sql`${col(f.field, f.cast)} IN (${sql.join(list, sql`, `)})` : sql`false`,
+      );
     } else {
-      conditions.push(sql`${col(f.field, f.cast)} ${sql.raw(SQL_OP[f.op])} ${bind(f.value as Value, f.cast)}`);
+      conditions.push(
+        sql`${col(f.field, f.cast)} ${sql.raw(SQL_OP[f.op])} ${bind(f.value as Value, f.cast)}`,
+      );
     }
   }
   if (q.parentId) conditions.push(sql`"record"."parent_id" = ${q.parentId}::uuid`);
@@ -193,7 +212,9 @@ export function toSql(q: ParsedQuery): { conditions: SQL[]; orderBy: SQL; sortEx
   const cmp = q.order.dir === 'asc' ? sql`>` : sql`<`;
 
   if (q.cursor) {
-    conditions.push(sql`(${sortExpr}, "record"."id") ${cmp} (${bind(q.cursor.value, sortCast)}, ${q.cursor.id}::uuid)`);
+    conditions.push(
+      sql`(${sortExpr}, "record"."id") ${cmp} (${bind(q.cursor.value, sortCast)}, ${q.cursor.id}::uuid)`,
+    );
   }
   return { conditions, orderBy: sql`${sortExpr} ${dir}, "record"."id" ${dir}`, sortExpr };
 }

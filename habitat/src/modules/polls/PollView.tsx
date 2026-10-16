@@ -22,7 +22,13 @@ export interface PollData {
 export function PollView({ poll }: { poll: RecordDTO & { data: PollData } }) {
   const { me } = useHabitat();
   const { question, options, multiple, closesAt } = poll.data;
-  const votes = useRecords<{ choices: string[] }>({ module: 'polls', collection: 'vote', parentId: poll.id, limit: 100, pollMs: 20_000 });
+  const votes = useRecords<{ choices: string[] }>({
+    module: 'polls',
+    collection: 'vote',
+    parentId: poll.id,
+    limit: 100,
+    pollMs: 20_000,
+  });
   const cast = useCreateRecord('polls', 'vote');
   const mine = votes.items.find((v) => v.author?.id === me.id);
   const nowMs = useNow(30_000);
@@ -30,11 +36,17 @@ export function PollView({ poll }: { poll: RecordDTO & { data: PollData } }) {
   const [picked, setPicked] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
   const showResults = (!!mine && !editing) || closed;
-  const rows = tally(options, votes.items.map((v) => v.data), { multiple });
+  const rows = tally(
+    options,
+    votes.items.map((v) => v.data),
+    { multiple },
+  );
 
   const selection = editing || !mine ? picked : (mine.data.choices ?? []);
   function toggle(o: string) {
-    setPicked(multiple ? (picked.includes(o) ? picked.filter((x) => x !== o) : [...picked, o]) : [o]);
+    setPicked(
+      multiple ? (picked.includes(o) ? picked.filter((x) => x !== o) : [...picked, o]) : [o],
+    );
   }
   function submit() {
     cast.mutate(
@@ -51,7 +63,15 @@ export function PollView({ poll }: { poll: RecordDTO & { data: PollData } }) {
       <h3 className="text-lg font-bold">{question}</h3>
       <p className="flex items-center gap-1 text-xs text-ink-soft">
         {multiple ? 'Pick as many as you like' : 'Pick one'}
-        {closesAt && (closed ? <> · <Lock size={12} /> closed</> : <> · closes {new Date(closesAt).toLocaleString()}</>)}
+        {closesAt &&
+          (closed ? (
+            <>
+              {' '}
+              · <Lock size={12} /> closed
+            </>
+          ) : (
+            <> · closes {new Date(closesAt).toLocaleString()}</>
+          ))}
       </p>
 
       {showResults ? (
@@ -66,8 +86,15 @@ export function PollView({ poll }: { poll: RecordDTO & { data: PollData } }) {
                   {r.count} · {r.percent}%
                 </span>
               </div>
-              <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={`${r.option}: ${r.percent}%`}>
-                <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${r.percent}%` }} />
+              <div
+                className="mt-1 h-2.5 overflow-hidden rounded-full bg-surface-2"
+                role="img"
+                aria-label={`${r.option}: ${r.percent}%`}
+              >
+                <div
+                  className="h-full rounded-full bg-accent transition-all"
+                  style={{ width: `${r.percent}%` }}
+                />
               </div>
             </li>
           ))}
@@ -81,8 +108,20 @@ export function PollView({ poll }: { poll: RecordDTO & { data: PollData } }) {
           {options.map((o) => {
             const on = selection.includes(o);
             return (
-              <label key={o} className={cn('flex cursor-pointer items-center gap-3 rounded-xl border p-3', on ? 'border-accent bg-accent/10' : 'border-line hover:bg-surface-2')}>
-                <input type={multiple ? 'checkbox' : 'radio'} name={`poll-${poll.id}`} checked={on} onChange={() => toggle(o)} className="h-4 w-4 accent-[var(--accent)]" />
+              <label
+                key={o}
+                className={cn(
+                  'flex cursor-pointer items-center gap-3 rounded-xl border p-3',
+                  on ? 'border-accent bg-accent/10' : 'border-line hover:bg-surface-2',
+                )}
+              >
+                <input
+                  type={multiple ? 'checkbox' : 'radio'}
+                  name={`poll-${poll.id}`}
+                  checked={on}
+                  onChange={() => toggle(o)}
+                  className="h-4 w-4 accent-[var(--accent)]"
+                />
                 <span>{o}</span>
               </label>
             );
@@ -107,7 +146,9 @@ export function PollView({ poll }: { poll: RecordDTO & { data: PollData } }) {
           Change my vote
         </Button>
       )}
-      {!closed && !mine && !showResults && votes.items.length > 0 && <p className="text-xs text-ink-soft">Results show once you’ve voted.</p>}
+      {!closed && !mine && !showResults && votes.items.length > 0 && (
+        <p className="text-xs text-ink-soft">Results show once you’ve voted.</p>
+      )}
     </div>
   );
 }

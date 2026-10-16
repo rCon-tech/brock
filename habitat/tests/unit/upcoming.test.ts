@@ -23,19 +23,35 @@ describe('birthdays', () => {
       d('2026-03-01'),
       3,
     );
-    expect(list.map((b) => [b.userId, b.inDays])).toEqual([['c', 0], ['a', 9], ['b', 310]]);
+    expect(list.map((b) => [b.userId, b.inDays])).toEqual([
+      ['c', 0],
+      ['a', 9],
+      ['b', 310],
+    ]);
     expect(list[0]!.turning).toBe(36);
     expect(list[2]!.date).toBe('2027-01-05');
   });
 
   it('wraps over the new year and honours n', () => {
-    const list = upcoming([{ userId: 'a', month: 1, day: 2 }, { userId: 'b', month: 12, day: 30 }], d('2026-12-29'), 1);
+    const list = upcoming(
+      [
+        { userId: 'a', month: 1, day: 2 },
+        { userId: 'b', month: 12, day: 30 },
+      ],
+      d('2026-12-29'),
+      1,
+    );
     expect(list.map((b) => b.userId)).toEqual(['b']);
-    expect(upcoming([{ userId: 'a', month: 1, day: 2 }], d('2026-12-29'), 5)[0]).toMatchObject({ date: '2027-01-02', inDays: 4 });
+    expect(upcoming([{ userId: 'a', month: 1, day: 2 }], d('2026-12-29'), 5)[0]).toMatchObject({
+      date: '2027-01-02',
+      inDays: 4,
+    });
   });
 
   it('a Feb 29 birthday upcoming from Jan 2027 is on Feb 28', () => {
-    expect(upcoming([{ userId: 'a', month: 2, day: 29 }], d('2027-01-10'), 1)[0]!.date).toBe('2027-02-28');
+    expect(upcoming([{ userId: 'a', month: 2, day: 29 }], d('2027-01-10'), 1)[0]!.date).toBe(
+      '2027-02-28',
+    );
   });
 
   it('validates month/day combinations', () => {

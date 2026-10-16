@@ -13,7 +13,9 @@ export const metadata = { title: 'Join a Habitat', robots: { index: false } };
 export default async function Join({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const user = await getCurrentUser();
-  const preview = await previewInvite(code).catch((e) => (e instanceof DomainError ? e : Promise.reject(e)));
+  const preview = await previewInvite(code).catch((e) =>
+    e instanceof DomainError ? e : Promise.reject(e),
+  );
 
   if (preview instanceof DomainError) {
     return (
@@ -21,7 +23,9 @@ export default async function Join({ params }: { params: Promise<{ code: string 
         <div aria-hidden className="text-5xl">
           🔒
         </div>
-        <h1 className="text-xl font-bold">{preview.status === 410 ? 'This invite has expired' : 'We can’t find that invite'}</h1>
+        <h1 className="text-xl font-bold">
+          {preview.status === 410 ? 'This invite has expired' : 'We can’t find that invite'}
+        </h1>
         <p className="text-ink-soft">Ask your friend for a fresh link.</p>
         <Button asChild variant="outline">
           <Link href="/">Home</Link>
@@ -35,12 +39,17 @@ export default async function Join({ params }: { params: Promise<{ code: string 
   if (user && !user.onboardedAt) redirect(`/onboarding?next=${encodeURIComponent(next)}`);
   return (
     <Shell>
-      <span className="flex h-20 w-20 items-center justify-center rounded-3xl text-4xl" style={{ background: preview.accent, color: inkFor(preview.accent) }} aria-hidden>
+      <span
+        className="flex h-20 w-20 items-center justify-center rounded-3xl text-4xl"
+        style={{ background: preview.accent, color: inkFor(preview.accent) }}
+        aria-hidden
+      >
         {preview.emoji}
       </span>
       <h1 className="text-2xl font-extrabold">You’re invited to {preview.name}</h1>
       <p className="text-ink-soft">
-        {preview.memberCount} {preview.memberCount === 1 ? 'person is' : 'people are'} in here. It’s private: only members can see anything.
+        {preview.memberCount} {preview.memberCount === 1 ? 'person is' : 'people are'} in here. It’s
+        private: only members can see anything.
       </p>
       {preview.full ? (
         <p className="rounded-xl bg-surface-2 p-3 text-sm">This Habitat is full right now.</p>

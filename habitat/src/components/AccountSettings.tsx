@@ -13,7 +13,15 @@ import { authClient } from '@/lib/auth-client';
 
 type Prefs = { digest: boolean; events: boolean; proposals: boolean };
 
-export function AccountSettings({ name: initialName, email, prefs: initialPrefs }: { name: string; email: string; prefs: Prefs }) {
+export function AccountSettings({
+  name: initialName,
+  email,
+  prefs: initialPrefs,
+}: {
+  name: string;
+  email: string;
+  prefs: Prefs;
+}) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const [prefs, setPrefs] = useState(initialPrefs);
@@ -84,14 +92,20 @@ export function AccountSettings({ name: initialName, email, prefs: initialPrefs 
               <div className="font-medium">{title}</div>
               <div className="text-sm text-ink-soft">{desc}</div>
             </div>
-            <Switch checked={prefs[key]} onCheckedChange={(v) => savePref(key, v)} aria-label={title} />
+            <Switch
+              checked={prefs[key]}
+              onCheckedChange={(v) => savePref(key, v)}
+              aria-label={title}
+            />
           </div>
         ))}
       </Card>
 
       <Card className="space-y-3">
         <h2 className="font-bold">Your data</h2>
-        <p className="text-sm text-ink-soft">Download everything you’ve posted, as a file you can keep.</p>
+        <p className="text-sm text-ink-soft">
+          Download everything you’ve posted, as a file you can keep.
+        </p>
         <Button asChild variant="outline">
           <a href="/api/me/export" download>
             Download my data
@@ -102,7 +116,8 @@ export function AccountSettings({ name: initialName, email, prefs: initialPrefs 
       <Card className="space-y-3 border-danger/40">
         <h2 className="font-bold text-danger">Delete account</h2>
         <p className="text-sm text-ink-soft">
-          This removes your account and takes you out of every Habitat. If you own a Habitat with other people in it, hand it over first.
+          This removes your account and takes you out of every Habitat. If you own a Habitat with
+          other people in it, hand it over first.
         </p>
         <Dialog>
           <DialogTrigger asChild>
@@ -110,9 +125,15 @@ export function AccountSettings({ name: initialName, email, prefs: initialPrefs 
           </DialogTrigger>
           <DialogContent title="Delete your account?" description="This can’t be undone.">
             <label className="flex items-start gap-3 rounded-xl bg-surface-2 p-3 text-sm">
-              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[var(--accent)]" checked={deleteContent} onChange={(e) => setDeleteContent(e.target.checked)} />
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
+                checked={deleteContent}
+                onChange={(e) => setDeleteContent(e.target.checked)}
+              />
               <span>
-                Also delete everything I’ve posted. Otherwise your posts stay in your friends’ Habitats, shown as from a “former member”.
+                Also delete everything I’ve posted. Otherwise your posts stay in your friends’
+                Habitats, shown as from a “former member”.
               </span>
             </label>
             <div className="mt-4 flex justify-end gap-2">

@@ -37,7 +37,10 @@ export function ProposalCard({ p }: { p: ProposalDTO }) {
   };
   const cast = useMutation({
     mutationFn: (vote: 'yes' | 'no') =>
-      apiFetch<{ proposal: ProposalDTO }>(`/api/habitats/${habitatId}/proposals/${p.id}/vote`, { method: 'PUT', body: { vote } }),
+      apiFetch<{ proposal: ProposalDTO }>(`/api/habitats/${habitatId}/proposals/${p.id}/vote`, {
+        method: 'PUT',
+        body: { vote },
+      }),
     onSuccess: ({ proposal }) => {
       if (proposal.status === 'passed') toast.success('It passed! 🎉');
       else if (proposal.status === 'rejected') toast('That vote didn’t pass.');
@@ -49,7 +52,8 @@ export function ProposalCard({ p }: { p: ProposalDTO }) {
     },
   });
   const withdraw = useMutation({
-    mutationFn: () => apiFetch(`/api/habitats/${habitatId}/proposals/${p.id}`, { method: 'DELETE' }),
+    mutationFn: () =>
+      apiFetch(`/api/habitats/${habitatId}/proposals/${p.id}`, { method: 'DELETE' }),
     onSuccess: refresh,
     onError: (e) => toast.error(errorMessage(e)),
   });
@@ -64,7 +68,8 @@ export function ProposalCard({ p }: { p: ProposalDTO }) {
         <div>
           <h3 className="font-bold">{proposalTitle(p)}</h3>
           <p className="text-sm text-ink-soft">
-            Proposed by {p.proposedBy?.name ?? 'a former member'} · <RelativeTime iso={p.createdAt} />
+            Proposed by {p.proposedBy?.name ?? 'a former member'} ·{' '}
+            <RelativeTime iso={p.createdAt} />
           </p>
         </div>
         <Badge tone={tone}>{open ? 'Open' : p.status}</Badge>
@@ -72,7 +77,11 @@ export function ProposalCard({ p }: { p: ProposalDTO }) {
       {p.reason && <p className="rounded-xl bg-surface-2 p-3 text-sm">“{p.reason}”</p>}
 
       <div>
-        <div className="flex h-3 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={`${p.yes} yes, ${p.no} no, of ${p.memberCount} members`}>
+        <div
+          className="flex h-3 overflow-hidden rounded-full bg-surface-2"
+          role="img"
+          aria-label={`${p.yes} yes, ${p.no} no, of ${p.memberCount} members`}
+        >
           <div className="bg-ok" style={{ width: `${yesPct}%` }} />
           <div className="bg-danger" style={{ width: `${noPct}%` }} />
         </div>
@@ -91,10 +100,20 @@ export function ProposalCard({ p }: { p: ProposalDTO }) {
 
       {open && (
         <div className="flex flex-wrap gap-2">
-          <Button variant={p.myVote === 'yes' ? 'primary' : 'outline'} onClick={() => cast.mutate('yes')} disabled={cast.isPending} aria-pressed={p.myVote === 'yes'}>
+          <Button
+            variant={p.myVote === 'yes' ? 'primary' : 'outline'}
+            onClick={() => cast.mutate('yes')}
+            disabled={cast.isPending}
+            aria-pressed={p.myVote === 'yes'}
+          >
             <Check size={16} /> Yes
           </Button>
-          <Button variant={p.myVote === 'no' ? 'danger' : 'outline'} onClick={() => cast.mutate('no')} disabled={cast.isPending} aria-pressed={p.myVote === 'no'}>
+          <Button
+            variant={p.myVote === 'no' ? 'danger' : 'outline'}
+            onClick={() => cast.mutate('no')}
+            disabled={cast.isPending}
+            aria-pressed={p.myVote === 'no'}
+          >
             <X size={16} /> No
           </Button>
           {(p.proposedBy?.id === me.id || me.role !== 'member') && (

@@ -31,11 +31,18 @@ export function ProposeDialog({
 
   const propose = useMutation({
     mutationFn: () =>
-      apiFetch<{ proposal: ProposalDTO }>(`/api/habitats/${habitatId}/proposals`, { method: 'POST', body: { kind, moduleId, reason: reason.trim() || undefined } }),
+      apiFetch<{ proposal: ProposalDTO }>(`/api/habitats/${habitatId}/proposals`, {
+        method: 'POST',
+        body: { kind, moduleId, reason: reason.trim() || undefined },
+      }),
     onSuccess: ({ proposal }) => {
       setOpen(false);
       setReason('');
-      toast.success(proposal.status === 'passed' ? `${moduleName} ${kind === 'install' ? 'added' : 'removed'}` : 'Vote started. Your friends have been told.');
+      toast.success(
+        proposal.status === 'passed'
+          ? `${moduleName} ${kind === 'install' ? 'added' : 'removed'}`
+          : 'Vote started. Your friends have been told.',
+      );
       qc.invalidateQueries({ queryKey: ['habitat', habitatId] });
       router.refresh();
       window.dispatchEvent(new Event('habitat:modules-changed'));
@@ -55,7 +62,13 @@ export function ProposeDialog({
         }
       >
         <Label htmlFor="reason">Why should we {verb} it? (optional)</Label>
-        <Textarea id="reason" value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="So we can finally settle where to eat…" />
+        <Textarea
+          id="reason"
+          value={reason}
+          maxLength={500}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="So we can finally settle where to eat…"
+        />
         <div className="mt-4 flex justify-end gap-2">
           <DialogClose asChild>
             <Button variant="outline">Cancel</Button>

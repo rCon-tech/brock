@@ -28,7 +28,11 @@ export async function notify(db: Executor, rows: NewNotification[]): Promise<voi
   );
 }
 
-export async function activeMemberIds(db: Executor, habitatId: string, except?: string): Promise<string[]> {
+export async function activeMemberIds(
+  db: Executor,
+  habitatId: string,
+  except?: string,
+): Promise<string[]> {
   const rows = await db
     .select({ userId: membership.userId })
     .from(membership)
@@ -68,7 +72,9 @@ export async function listNotifications(
       and(
         eq(notification.userId, userId),
         isNull(habitat.deletedAt),
-        cursorDate && !Number.isNaN(cursorDate.getTime()) ? lt(notification.createdAt, cursorDate) : undefined,
+        cursorDate && !Number.isNaN(cursorDate.getTime())
+          ? lt(notification.createdAt, cursorDate)
+          : undefined,
       ),
     )
     .orderBy(desc(notification.createdAt))

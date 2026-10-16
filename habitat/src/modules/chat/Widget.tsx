@@ -18,7 +18,8 @@ export function Widget() {
         <ul className="space-y-1 text-sm">
           {[...q.items].reverse().map((m) => (
             <li key={m.id} className="truncate">
-              <span className="font-semibold">{displayName(m.author).split(' ')[0]}:</span> {String(m.data.text || '📷')}
+              <span className="font-semibold">{displayName(m.author).split(' ')[0]}:</span>{' '}
+              {String(m.data.text || '📷')}
             </li>
           ))}
         </ul>

@@ -10,7 +10,15 @@ export interface DigestSection {
   openVotes: number;
 }
 
-export function DigestEmail({ name, sections, settingsUrl }: { name: string; sections: DigestSection[]; settingsUrl: string }) {
+export function DigestEmail({
+  name,
+  sections,
+  settingsUrl,
+}: {
+  name: string;
+  sections: DigestSection[];
+  settingsUrl: string;
+}) {
   return (
     <Layout
       preview="What’s been happening in your Habitats"
@@ -27,7 +35,11 @@ export function DigestEmail({ name, sections, settingsUrl }: { name: string; sec
           <Text style={{ ...p, fontWeight: 600, margin: '8px 0 6px' }}>
             {s.emoji} {s.habitat}
           </Text>
-          {s.newPosts > 0 && <Text style={{ ...p, margin: '0 0 4px' }}>• {s.newPosts} new {s.newPosts === 1 ? 'post' : 'posts'}</Text>}
+          {s.newPosts > 0 && (
+            <Text style={{ ...p, margin: '0 0 4px' }}>
+              • {s.newPosts} new {s.newPosts === 1 ? 'post' : 'posts'}
+            </Text>
+          )}
           {s.events.map((e) => (
             <Text key={e.title + e.when} style={{ ...p, margin: '0 0 4px' }}>
               • {e.title} — {e.when}

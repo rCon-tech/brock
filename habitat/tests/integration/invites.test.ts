@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import * as s from '@/db/schema';
-import { acceptInvite, createInvite, listInvites, previewInvite, revokeInvite } from '@/lib/invites';
+import {
+  acceptInvite,
+  createInvite,
+  listInvites,
+  previewInvite,
+  revokeInvite,
+} from '@/lib/invites';
 import { updateHabitat } from '@/lib/habitats';
 import { removeMember } from '@/lib/members';
 import { makeHabitat, makeUser } from './factories';
@@ -16,7 +22,10 @@ describe('invites', () => {
     const u = await makeUser();
     const r = await acceptInvite(u.id, code);
     expect(r.slug).toBe(h.slug);
-    await expect(acceptInvite(u.id, code)).rejects.toMatchObject({ status: 409, code: 'already_member' });
+    await expect(acceptInvite(u.id, code)).rejects.toMatchObject({
+      status: 409,
+      code: 'already_member',
+    });
     const [inv] = await getDb().select().from(s.invite);
     expect(inv!.uses).toBe(1);
   });
@@ -42,7 +51,9 @@ describe('invites', () => {
     const h = await makeHabitat();
     const { code } = await createInvite(h.members[0]!, { expiresInDays: 1 });
     const later = new Date(Date.now() + 2 * DAY);
-    await expect(acceptInvite((await makeUser()).id, code, later)).rejects.toMatchObject({ status: 410 });
+    await expect(acceptInvite((await makeUser()).id, code, later)).rejects.toMatchObject({
+      status: 410,
+    });
     await expect(previewInvite(code, later)).rejects.toMatchObject({ status: 410 });
   });
 
@@ -61,8 +72,12 @@ describe('invites', () => {
   });
 
   it('unknown or malformed codes are 404', async () => {
-    await expect(acceptInvite((await makeUser()).id, 'ABCDEFGHJK')).rejects.toMatchObject({ status: 404 });
-    await expect(acceptInvite((await makeUser()).id, 'short')).rejects.toMatchObject({ status: 404 });
+    await expect(acceptInvite((await makeUser()).id, 'ABCDEFGHJK')).rejects.toMatchObject({
+      status: 404,
+    });
+    await expect(acceptInvite((await makeUser()).id, 'short')).rejects.toMatchObject({
+      status: 404,
+    });
   });
 
   it('concurrency: 5 parallel accepts with 1 seat left give exactly 1 success', async () => {
@@ -88,7 +103,10 @@ describe('invites', () => {
     await removeMember(h.members[1]!, h.members[1]!.userId);
     const { code } = await createInvite(h.members[0]!);
     await acceptInvite(h.members[1]!.userId, code);
-    const [m] = await getDb().select().from(s.membership).where(eq(s.membership.userId, h.members[1]!.userId));
+    const [m] = await getDb()
+      .select()
+      .from(s.membership)
+      .where(eq(s.membership.userId, h.members[1]!.userId));
     expect(m).toMatchObject({ leftAt: null, role: 'member' });
   });
 

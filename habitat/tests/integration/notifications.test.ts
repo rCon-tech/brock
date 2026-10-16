@@ -38,7 +38,8 @@ describe('notifications', () => {
     const h = await makeHabitat({ members: 2 });
     const [a, b] = h.members;
     const p = await createRecord(a!, { module: 'feed', collection: 'post', data: { text: 'hi' } });
-    for (let i = 0; i < 3; i++) await addComment(b!, p.id, { body: `c${i}` }, new Date(Date.UTC(2026, 4, 1 + i)));
+    for (let i = 0; i < 3; i++)
+      await addComment(b!, p.id, { body: `c${i}` }, new Date(Date.UTC(2026, 4, 1 + i)));
     const first = await listNotifications(a!.userId, { limit: 2 });
     expect(first.items).toHaveLength(2);
     const second = await listNotifications(a!.userId, { limit: 2, cursor: first.nextCursor! });

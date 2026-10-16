@@ -27,7 +27,11 @@ function requireStorage() {
   try {
     getStorage();
   } catch {
-    throw new DomainError('photos_unavailable', 503, 'Photo uploads aren’t set up on this server yet.');
+    throw new DomainError(
+      'photos_unavailable',
+      503,
+      'Photo uploads aren’t set up on this server yet.',
+    );
   }
 }
 
@@ -44,7 +48,8 @@ export async function createUploads(ctx: MemberCtx, files: UploadRequest[], now 
       throw invalid('That photo’s dimensions aren’t supported.');
     }
   }
-  for (let i = 0; i < files.length; i++) await rateLimit(`up:${ctx.userId}`, UPLOADS_PER_HOUR, 3600, now);
+  for (let i = 0; i < files.length; i++)
+    await rateLimit(`up:${ctx.userId}`, UPLOADS_PER_HOUR, 3600, now);
 
   const storage = getStorage();
   const out = [];
@@ -53,18 +58,20 @@ export async function createUploads(ctx: MemberCtx, files: UploadRequest[], now 
     const ext = EXT[f.mime as Mime];
     const keyFull = `${ctx.habitatId}/${id}/full.${ext}`;
     const keyThumb = `${ctx.habitatId}/${id}/thumb.${ext}`;
-    await getDb().insert(media).values({
-      id,
-      habitatId: ctx.habitatId,
-      uploaderId: ctx.userId,
-      keyFull,
-      keyThumb,
-      mime: f.mime as Mime,
-      bytes: f.bytes,
-      width: f.width,
-      height: f.height,
-      createdAt: now,
-    });
+    await getDb()
+      .insert(media)
+      .values({
+        id,
+        habitatId: ctx.habitatId,
+        uploaderId: ctx.userId,
+        keyFull,
+        keyThumb,
+        mime: f.mime as Mime,
+        bytes: f.bytes,
+        width: f.width,
+        height: f.height,
+        createdAt: now,
+      });
     out.push({
       mediaId: id,
       putFull: await storage.presignPut(keyFull, f.mime, f.bytes),
@@ -88,8 +95,10 @@ export async function completeUpload(ctx: MemberCtx, mediaId: string) {
   const storage = getStorage();
   const [full, thumb] = await Promise.all([storage.head(m.keyFull), storage.head(m.keyThumb)]);
   if (!full || !thumb) throw invalid('The upload didn’t finish. Try again.');
-  if (full.mime !== m.mime || thumb.mime !== m.mime) throw invalid('That file isn’t the type it claimed to be.');
-  if (full.bytes > MAX_FULL_BYTES || thumb.bytes > MAX_THUMB_BYTES) throw invalid('That file is too large.');
+  if (full.mime !== m.mime || thumb.mime !== m.mime)
+    throw invalid('That file isn’t the type it claimed to be.');
+  if (full.bytes > MAX_FULL_BYTES || thumb.bytes > MAX_THUMB_BYTES)
+    throw invalid('That file is too large.');
   await db.update(media).set({ status: 'ready', bytes: full.bytes }).where(eq(media.id, mediaId));
 }
 
@@ -109,7 +118,9 @@ export async function purgePendingMedia(now = new Date()): Promise<number> {
   const stale = await db
     .select()
     .from(media)
-    .where(and(eq(media.status, 'pending'), lt(media.createdAt, new Date(now.getTime() - 86400_000))));
+    .where(
+      and(eq(media.status, 'pending'), lt(media.createdAt, new Date(now.getTime() - 86400_000))),
+    );
   for (const m of stale) {
     try {
       const storage = getStorage();

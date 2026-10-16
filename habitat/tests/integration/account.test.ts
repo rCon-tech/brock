@@ -27,7 +27,9 @@ describe('account', () => {
     const h = await makeHabitat({ members: 2 });
     const p = await createRecord(h.members[1]!, post('hello'));
     await deleteAccount(h.members[1]!.userId);
-    expect(await getDb().select().from(s.user).where(eq(s.user.id, h.members[1]!.userId))).toHaveLength(0);
+    expect(
+      await getDb().select().from(s.user).where(eq(s.user.id, h.members[1]!.userId)),
+    ).toHaveLength(0);
     const seen = await getRecord(h.members[0]!, p.id);
     expect(seen.author).toBeNull();
   });
@@ -41,7 +43,10 @@ describe('account', () => {
 
   it('an owner with company must hand over first; a solo owner’s habitat is deleted', async () => {
     const h = await makeHabitat({ members: 2 });
-    await expect(deleteAccount(h.members[0]!.userId)).rejects.toMatchObject({ status: 409, code: 'owns_habitat' });
+    await expect(deleteAccount(h.members[0]!.userId)).rejects.toMatchObject({
+      status: 409,
+      code: 'owns_habitat',
+    });
     await transferOwnership(h.members[0]!, h.members[1]!.userId);
     await deleteAccount(h.members[0]!.userId);
 
@@ -57,8 +62,16 @@ describe('reports', () => {
     const h = await makeHabitat({ members: 3 });
     const other = await makeHabitat();
     const p = await createRecord(h.members[1]!, post('rude'));
-    await createReport(h.members[2]!, { targetType: 'record', targetId: p.id, reason: 'This is rude' });
-    await createReport(h.members[2]!, { targetType: 'member', targetId: h.members[1]!.userId, reason: 'Harassing' });
+    await createReport(h.members[2]!, {
+      targetType: 'record',
+      targetId: p.id,
+      reason: 'This is rude',
+    });
+    await createReport(h.members[2]!, {
+      targetType: 'member',
+      targetId: h.members[1]!.userId,
+      reason: 'Harassing',
+    });
     await expect(
       createReport(h.members[2]!, { targetType: 'record', targetId: 'nope', reason: 'x' }),
     ).rejects.toMatchObject({ status: 404 });
@@ -66,12 +79,16 @@ describe('reports', () => {
     await expect(
       createReport(h.members[2]!, { targetType: 'record', targetId: foreign.id, reason: 'x' }),
     ).rejects.toMatchObject({ status: 404 });
-    await expect(createReport(h.members[2]!, { targetType: 'record', targetId: p.id, reason: '  ' })).rejects.toMatchObject({ status: 422 });
+    await expect(
+      createReport(h.members[2]!, { targetType: 'record', targetId: p.id, reason: '  ' }),
+    ).rejects.toMatchObject({ status: 422 });
 
     await expect(listReports(h.members[2]!)).rejects.toMatchObject({ status: 403 });
     const reports = await listReports(h.members[0]!);
     expect(reports).toHaveLength(2);
     await resolveReport(h.members[0]!, reports[0]!.id);
-    await expect(resolveReport(other.members[0]!, reports[1]!.id)).rejects.toMatchObject({ status: 404 });
+    await expect(resolveReport(other.members[0]!, reports[1]!.id)).rejects.toMatchObject({
+      status: 404,
+    });
   });
 });

@@ -10,7 +10,12 @@ import { RelativeTime } from '@/components/RelativeTime';
 import { ReportButton } from '@/components/ReportButton';
 import { RichText } from '@/components/RichText';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { apiFetch, errorMessage } from '@/lib/api-client';
 import type { CommentDTO } from '@/lib/interactions';
 import { isAdmin, useHabitat } from '@/modules/sdk/context';
@@ -21,7 +26,10 @@ export function CommentThread({ recordId }: { recordId: string }) {
   const key = ['habitat', habitatId, 'comments', recordId];
   const { data, isLoading } = useQuery({
     queryKey: key,
-    queryFn: () => apiFetch<{ comments: CommentDTO[] }>(`/api/habitats/${habitatId}/records/${recordId}/comments`),
+    queryFn: () =>
+      apiFetch<{ comments: CommentDTO[] }>(
+        `/api/habitats/${habitatId}/records/${recordId}/comments`,
+      ),
   });
   const refresh = () => {
     qc.invalidateQueries({ queryKey: key });
@@ -69,7 +77,11 @@ function CommentForm({
   const { habitatId } = useHabitat();
   const [body, setBody] = useState('');
   const send = useMutation({
-    mutationFn: () => apiFetch(`/api/habitats/${habitatId}/records/${recordId}/comments`, { method: 'POST', body: { body, parentCommentId } }),
+    mutationFn: () =>
+      apiFetch(`/api/habitats/${habitatId}/records/${recordId}/comments`, {
+        method: 'POST',
+        body: { body, parentCommentId },
+      }),
     onSuccess: () => {
       setBody('');
       onDone();
@@ -109,7 +121,15 @@ function CommentForm({
   );
 }
 
-function CommentItem({ c, recordId, onChange }: { c: CommentDTO; recordId: string; onChange: () => void }) {
+function CommentItem({
+  c,
+  recordId,
+  onChange,
+}: {
+  c: CommentDTO;
+  recordId: string;
+  onChange: () => void;
+}) {
   const { habitatId, me, members } = useHabitat();
   const [replying, setReplying] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -123,7 +143,11 @@ function CommentItem({ c, recordId, onChange }: { c: CommentDTO; recordId: strin
     onError: (e) => toast.error(errorMessage(e)),
   });
   const save = useMutation({
-    mutationFn: () => apiFetch(`/api/habitats/${habitatId}/comments/${c.id}`, { method: 'PATCH', body: { body: draft } }),
+    mutationFn: () =>
+      apiFetch(`/api/habitats/${habitatId}/comments/${c.id}`, {
+        method: 'PATCH',
+        body: { body: draft },
+      }),
     onSuccess: () => {
       setEditing(false);
       onChange();
@@ -139,13 +163,21 @@ function CommentItem({ c, recordId, onChange }: { c: CommentDTO; recordId: strin
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-semibold">{displayName(c.author)}</span>
             <DropdownMenu>
-              <DropdownMenuTrigger aria-label="Comment actions" className="rounded p-0.5 text-ink-soft hover:bg-surface">
+              <DropdownMenuTrigger
+                aria-label="Comment actions"
+                className="rounded p-0.5 text-ink-soft hover:bg-surface"
+              >
                 <MoreHorizontal size={16} />
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                {mine && <DropdownMenuItem onSelect={() => setEditing(true)}>Edit</DropdownMenuItem>}
+                {mine && (
+                  <DropdownMenuItem onSelect={() => setEditing(true)}>Edit</DropdownMenuItem>
+                )}
                 {(mine || isAdmin(me.role)) && (
-                  <DropdownMenuItem danger onSelect={() => confirm('Delete this comment?') && remove.mutate()}>
+                  <DropdownMenuItem
+                    danger
+                    onSelect={() => confirm('Delete this comment?') && remove.mutate()}
+                  >
                     Delete
                   </DropdownMenuItem>
                 )}
@@ -155,9 +187,19 @@ function CommentItem({ c, recordId, onChange }: { c: CommentDTO; recordId: strin
           </div>
           {editing ? (
             <div className="mt-1 space-y-2">
-              <MentionInput value={draft} onValueChange={setDraft} rows={2} maxLength={2000} aria-label="Edit comment" />
+              <MentionInput
+                value={draft}
+                onValueChange={setDraft}
+                rows={2}
+                maxLength={2000}
+                aria-label="Edit comment"
+              />
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => save.mutate()} disabled={!draft.trim() || save.isPending}>
+                <Button
+                  size="sm"
+                  onClick={() => save.mutate()}
+                  disabled={!draft.trim() || save.isPending}
+                >
                   Save
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
@@ -173,7 +215,11 @@ function CommentItem({ c, recordId, onChange }: { c: CommentDTO; recordId: strin
           <RelativeTime iso={c.createdAt} />
           {c.editedAt && <span>edited</span>}
           {!c.parentCommentId && (
-            <button type="button" className="font-semibold hover:text-ink" onClick={() => setReplying((r) => !r)}>
+            <button
+              type="button"
+              className="font-semibold hover:text-ink"
+              onClick={() => setReplying((r) => !r)}
+            >
               Reply
             </button>
           )}

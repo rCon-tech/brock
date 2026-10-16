@@ -13,8 +13,12 @@ export default async function NewHabitat() {
       <SiteHeader user={user} />
       <main className="mx-auto max-w-lg px-4 py-8">
         <CreateHabitatWizard
-          starters={library.filter((m) => m.isDefault).map((m) => ({ id: m.id, name: m.name, tagline: m.tagline, icon: m.icon }))}
-          later={library.filter((m) => !m.isDefault).map((m) => ({ name: m.name, tagline: m.tagline }))}
+          starters={library
+            .filter((m) => m.isDefault)
+            .map((m) => ({ id: m.id, name: m.name, tagline: m.tagline, icon: m.icon }))}
+          later={library
+            .filter((m) => !m.isDefault)
+            .map((m) => ({ name: m.name, tagline: m.tagline }))}
         />
       </main>
     </>

@@ -15,7 +15,10 @@ export function HomeFeed({ installed }: { installed: string[] }) {
       <div className="min-w-0 space-y-3">
         {installed.includes('feed') && <Composer />}
         {widgets.length > 0 && (
-          <div className="-mx-3 flex snap-x gap-3 overflow-x-auto px-3 pb-1 lg:hidden" aria-label="At a glance">
+          <div
+            className="-mx-3 flex snap-x gap-3 overflow-x-auto px-3 pb-1 lg:hidden"
+            aria-label="At a glance"
+          >
             {widgets.map(({ id, Widget }) => (
               <div key={id} className="w-64 shrink-0 snap-start">
                 <Widget />

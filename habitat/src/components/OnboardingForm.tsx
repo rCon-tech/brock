@@ -32,9 +32,18 @@ export function OnboardingForm({ initialName, next }: { initialName: string; nex
     <form onSubmit={submit} className="space-y-4">
       <div>
         <Label htmlFor="name">What should your friends call you?</Label>
-        <Input id="name" required maxLength={60} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input
+          id="name"
+          required
+          maxLength={60}
+          autoComplete="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
         <FieldError messages={fields.name} />
-        <p className="mt-1 text-xs text-ink-soft">You can set a different nickname in each Habitat later.</p>
+        <p className="mt-1 text-xs text-ink-soft">
+          You can set a different nickname in each Habitat later.
+        </p>
       </div>
       <Button type="submit" size="lg" className="w-full" disabled={busy || !name.trim()}>
         Continue

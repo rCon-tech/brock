@@ -25,14 +25,26 @@ export interface TestHabitat {
 
 /** A Habitat with `members` people (the first is the owner) and the default modules plus `extraModules`. */
 export async function makeHabitat(
-  opts: { members?: number; extraModules?: string[]; name?: string; governance?: 'majority' | 'unanimous' | 'admins' } = {},
+  opts: {
+    members?: number;
+    extraModules?: string[];
+    name?: string;
+    governance?: 'majority' | 'unanimous' | 'admins';
+  } = {},
 ): Promise<TestHabitat> {
   const db = getDb();
   const owner = await makeUser(`Owner ${++counter}`);
-  const h = await createHabitat(owner.id, { name: opts.name ?? `Habitat ${counter}`, emoji: '🌿', accent: '#e8590c' });
-  if (opts.governance) await db.update(s.habitat).set({ governance: opts.governance }).where(eq(s.habitat.id, h.id));
+  const h = await createHabitat(owner.id, {
+    name: opts.name ?? `Habitat ${counter}`,
+    emoji: '🌿',
+    accent: '#e8590c',
+  });
+  if (opts.governance)
+    await db.update(s.habitat).set({ governance: opts.governance }).where(eq(s.habitat.id, h.id));
   for (const m of opts.extraModules ?? []) await install(db, h.id, m);
-  const members: MemberCtx[] = [{ userId: owner.id, habitatId: h.id, role: 'owner', nickname: null }];
+  const members: MemberCtx[] = [
+    { userId: owner.id, habitatId: h.id, role: 'owner', nickname: null },
+  ];
   for (let i = 1; i < (opts.members ?? 1); i++) {
     const u = await makeUser(`Member ${++counter}`);
     await db.insert(s.membership).values({ habitatId: h.id, userId: u.id, role: 'member' });
@@ -41,20 +53,26 @@ export async function makeHabitat(
   return { id: h.id, slug: h.slug, members };
 }
 
-export async function makeMedia(habitatId: string, uploaderId: string, status: 'ready' | 'pending' = 'ready') {
+export async function makeMedia(
+  habitatId: string,
+  uploaderId: string,
+  status: 'ready' | 'pending' = 'ready',
+) {
   const id = randomUUID();
-  await getDb().insert(s.media).values({
-    id,
-    habitatId,
-    uploaderId,
-    keyFull: `${habitatId}/${id}/full.jpg`,
-    keyThumb: `${habitatId}/${id}/thumb.jpg`,
-    mime: 'image/jpeg',
-    bytes: 1000,
-    width: 100,
-    height: 100,
-    status,
-  });
+  await getDb()
+    .insert(s.media)
+    .values({
+      id,
+      habitatId,
+      uploaderId,
+      keyFull: `${habitatId}/${id}/full.jpg`,
+      keyThumb: `${habitatId}/${id}/thumb.jpg`,
+      mime: 'image/jpeg',
+      bytes: 1000,
+      width: 100,
+      height: 100,
+      status,
+    });
   return id;
 }
 

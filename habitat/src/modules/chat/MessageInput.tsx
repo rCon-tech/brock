@@ -60,7 +60,12 @@ export function MessageInput() {
             }
           }}
         />
-        <Button type="submit" size="icon" aria-label="Send" disabled={create.isPending || (!text.trim() && !mediaIds.length)}>
+        <Button
+          type="submit"
+          size="icon"
+          aria-label="Send"
+          disabled={create.isPending || (!text.trim() && !mediaIds.length)}
+        >
           <Send size={18} />
         </Button>
       </div>

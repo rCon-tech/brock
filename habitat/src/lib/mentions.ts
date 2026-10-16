@@ -9,7 +9,11 @@ const WORD = /[\p{L}\p{N}_]/u;
 /** `@Name` matches a member's nickname or name, case-insensitively; the longest match wins. */
 export function extractMentions(text: string, members: Mentionable[]): string[] {
   const candidates = members
-    .flatMap((m) => m.names.filter((n) => n.trim()).map((n) => ({ userId: m.userId, name: n.trim().toLowerCase() })))
+    .flatMap((m) =>
+      m.names
+        .filter((n) => n.trim())
+        .map((n) => ({ userId: m.userId, name: n.trim().toLowerCase() })),
+    )
     .sort((a, b) => b.name.length - a.name.length);
   const lower = text.toLowerCase();
   const found = new Set<string>();

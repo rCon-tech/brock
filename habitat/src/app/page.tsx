@@ -35,7 +35,9 @@ export default async function Home() {
           </Link>
         </div>
         {habitats.length === 0 && (
-          <p className="mt-6 text-sm text-ink-soft">Got an invite link? Open it and you’ll land in your friends’ Habitat.</p>
+          <p className="mt-6 text-sm text-ink-soft">
+            Got an invite link? Open it and you’ll land in your friends’ Habitat.
+          </p>
         )}
       </main>
     </>
@@ -44,9 +46,21 @@ export default async function Home() {
 
 function Landing() {
   const points = [
-    { icon: Lock, title: 'Private by default', text: 'No public profiles, no search, no strangers. Only the people you invite can see anything.' },
-    { icon: Puzzle, title: 'Build it from pieces', text: 'Start with a feed, photos, events and chat. Add polls, birthdays, shared costs and more from the library.' },
-    { icon: Vote, title: 'Decided together', text: 'Anyone can suggest a new piece. The group votes, and it appears for everyone.' },
+    {
+      icon: Lock,
+      title: 'Private by default',
+      text: 'No public profiles, no search, no strangers. Only the people you invite can see anything.',
+    },
+    {
+      icon: Puzzle,
+      title: 'Build it from pieces',
+      text: 'Start with a feed, photos, events and chat. Add polls, birthdays, shared costs and more from the library.',
+    },
+    {
+      icon: Vote,
+      title: 'Decided together',
+      text: 'Anyone can suggest a new piece. The group votes, and it appears for everyone.',
+    },
   ];
   return (
     <main>
@@ -63,7 +77,8 @@ function Landing() {
           <span className="text-accent">Your Habitat.</span>
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-lg text-ink-soft">
-          A small, private social network that belongs to your group. You choose what’s in it, together.
+          A small, private social network that belongs to your group. You choose what’s in it,
+          together.
         </p>
         <div className="mt-8 flex justify-center gap-3">
           <Button asChild size="lg">
@@ -80,7 +95,9 @@ function Landing() {
           </div>
         ))}
       </section>
-      <footer className="border-t border-line py-6 text-center text-sm text-ink-soft">No ads. No algorithm. No selling your friends’ photos.</footer>
+      <footer className="border-t border-line py-6 text-center text-sm text-ink-soft">
+        No ads. No algorithm. No selling your friends’ photos.
+      </footer>
     </main>
   );
 }

@@ -8,7 +8,9 @@ export function assertCronRequest(req: Request) {
   const given = req.headers.get('authorization') ?? '';
   const expected = `Bearer ${secret ?? ''}`;
   const ok =
-    !!secret && given.length === expected.length && timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+    !!secret &&
+    given.length === expected.length &&
+    timingSafeEqual(Buffer.from(given), Buffer.from(expected));
   if (!ok) throw new DomainError('unauthenticated', 401, 'Not allowed.');
 }
 
@@ -18,7 +20,8 @@ export function cronRoute(job: () => Promise<Record<string, unknown>>) {
       assertCronRequest(req);
       return json({ ok: true, ...(await job()) });
     } catch (e) {
-      if (e instanceof DomainError) return json({ error: { code: e.code, message: e.message } }, e.status);
+      if (e instanceof DomainError)
+        return json({ error: { code: e.code, message: e.message } }, e.status);
       console.error('Cron job failed', e);
       return json({ error: { code: 'internal', message: 'Job failed.' } }, 500);
     }

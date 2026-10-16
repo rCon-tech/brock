@@ -29,7 +29,9 @@ export const manifest = defineManifest({
       parent: 'event',
       unique: 'per-member-per-parent',
       fields: { status: { type: 'enum', options: ['going', 'maybe', 'no'], required: true } },
-      notify: [{ on: 'create', to: 'parent-author', text: '{author} replied “{status}” to your event' }],
+      notify: [
+        { on: 'create', to: 'parent-author', text: '{author} replied “{status}” to your event' },
+      ],
     },
   },
 } as const);

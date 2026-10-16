@@ -35,10 +35,18 @@ describe('media', () => {
   it('validates type, size, dimensions and count', async () => {
     setStorage(fakeStorage().storage);
     const m = (await makeHabitat()).members[0]!;
-    await expect(createUploads(m, [{ ...jpeg, mime: 'image/gif' }])).rejects.toMatchObject({ status: 422 });
-    await expect(createUploads(m, [{ ...jpeg, mime: 'image/svg+xml' }])).rejects.toMatchObject({ status: 422 });
-    await expect(createUploads(m, [{ ...jpeg, bytes: 11 * 1024 * 1024 }])).rejects.toMatchObject({ status: 422 });
-    await expect(createUploads(m, [{ ...jpeg, width: 9000 }])).rejects.toMatchObject({ status: 422 });
+    await expect(createUploads(m, [{ ...jpeg, mime: 'image/gif' }])).rejects.toMatchObject({
+      status: 422,
+    });
+    await expect(createUploads(m, [{ ...jpeg, mime: 'image/svg+xml' }])).rejects.toMatchObject({
+      status: 422,
+    });
+    await expect(createUploads(m, [{ ...jpeg, bytes: 11 * 1024 * 1024 }])).rejects.toMatchObject({
+      status: 422,
+    });
+    await expect(createUploads(m, [{ ...jpeg, width: 9000 }])).rejects.toMatchObject({
+      status: 422,
+    });
     await expect(createUploads(m, [])).rejects.toMatchObject({ status: 422 });
     await expect(createUploads(m, Array(11).fill(jpeg))).rejects.toMatchObject({ status: 422 });
   });
@@ -82,13 +90,23 @@ describe('media', () => {
     const other = await makeHabitat();
     const [u] = await createUploads(h.members[0]!, [jpeg]);
     const [row] = await getDb().select().from(s.media);
-    await expect(signedMediaUrl(h.members[0]!.userId, u!.mediaId, 'thumb')).rejects.toMatchObject({ status: 404 }); // pending
+    await expect(signedMediaUrl(h.members[0]!.userId, u!.mediaId, 'thumb')).rejects.toMatchObject({
+      status: 404,
+    }); // pending
     await getDb().update(s.media).set({ status: 'ready' }).where(eq(s.media.id, u!.mediaId));
-    expect(await signedMediaUrl(h.members[0]!.userId, u!.mediaId, 'thumb')).toBe(`https://get.test/${row!.keyThumb}?ttl=3600`);
+    expect(await signedMediaUrl(h.members[0]!.userId, u!.mediaId, 'thumb')).toBe(
+      `https://get.test/${row!.keyThumb}?ttl=3600`,
+    );
     expect(await signedMediaUrl(h.members[0]!.userId, u!.mediaId, 'full')).toContain('full.jpg');
-    await expect(signedMediaUrl(other.members[0]!.userId, u!.mediaId, 'full')).rejects.toMatchObject({ status: 404 });
-    await expect(signedMediaUrl((await makeUser()).id, u!.mediaId, 'full')).rejects.toMatchObject({ status: 404 });
-    await expect(signedMediaUrl(h.members[0]!.userId, 'nope', 'full')).rejects.toMatchObject({ status: 404 });
+    await expect(
+      signedMediaUrl(other.members[0]!.userId, u!.mediaId, 'full'),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(signedMediaUrl((await makeUser()).id, u!.mediaId, 'full')).rejects.toMatchObject({
+      status: 404,
+    });
+    await expect(signedMediaUrl(h.members[0]!.userId, 'nope', 'full')).rejects.toMatchObject({
+      status: 404,
+    });
   });
 
   it('purges abandoned pending uploads after a day', async () => {

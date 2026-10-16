@@ -20,7 +20,12 @@ export async function sendPendingEmails(now = new Date(), limit = 200): Promise<
   const rows = await db
     .select({
       n: notification,
-      u: { email: user.email, name: user.name, prefs: user.emailPrefs, verified: user.emailVerified },
+      u: {
+        email: user.email,
+        name: user.name,
+        prefs: user.emailPrefs,
+        verified: user.emailVerified,
+      },
       h: { slug: habitat.slug, name: habitat.name, emoji: habitat.emoji },
     })
     .from(notification)
@@ -82,7 +87,13 @@ async function build(
   if (!p) return null;
   const name = (p.moduleId && getManifest(p.moduleId)?.name) || 'a setting';
   const what =
-    p.kind === 'install' ? `add ${name}` : p.kind === 'uninstall' ? `remove ${name}` : p.kind === 'governance' ? 'change how votes work' : `change ${name} settings`;
+    p.kind === 'install'
+      ? `add ${name}`
+      : p.kind === 'uninstall'
+        ? `remove ${name}`
+        : p.kind === 'governance'
+          ? 'change how votes work'
+          : `change ${name} settings`;
   if (n.type === 'proposal.opened') {
     const headline = `Vote: ${what}?`;
     const body = await renderEmail(
@@ -99,7 +110,13 @@ async function build(
   const passed = n.payload.status === 'passed';
   const headline = passed ? `Passed: ${what}` : `Didn’t pass: ${what}`;
   const body = await renderEmail(
-    ProposalEmail({ habitat: h.name, headline, detail: 'The vote has finished.', url: `${base}/proposals`, cta: 'See the result' }),
+    ProposalEmail({
+      habitat: h.name,
+      headline,
+      detail: 'The vote has finished.',
+      url: `${base}/proposals`,
+      cta: 'See the result',
+    }),
   );
   return { subject: `${h.emoji} ${h.name}: ${headline}`, ...body };
 }

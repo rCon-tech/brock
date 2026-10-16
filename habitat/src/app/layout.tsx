@@ -5,7 +5,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: { default: 'Habitat', template: '%s · Habitat' },
-  description: 'A private home online for you and your friends, built from the pieces you choose together.',
+  description:
+    'A private home online for you and your friends, built from the pieces you choose together.',
   manifest: '/manifest.webmanifest',
   robots: { index: true, follow: true },
   appleWebApp: { capable: true, title: 'Habitat', statusBarStyle: 'default' },

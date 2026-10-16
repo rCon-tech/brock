@@ -28,7 +28,10 @@ export function Widget() {
           ))}
         </ul>
       )}
-      <Link href={`/h/${slug}/m/birthdays`} className="inline-block text-sm font-semibold text-accent">
+      <Link
+        href={`/h/${slug}/m/birthdays`}
+        className="inline-block text-sm font-semibold text-accent"
+      >
         See all →
       </Link>
     </Card>

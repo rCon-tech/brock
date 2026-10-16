@@ -14,7 +14,10 @@ export interface ModuleCardData {
 
 export function ModuleCard({ m, slug }: { m: ModuleCardData; slug: string }) {
   return (
-    <Link href={`/h/${slug}/library/${m.id}`} className="block rounded-2xl focus-visible:outline-offset-4">
+    <Link
+      href={`/h/${slug}/library/${m.id}`}
+      className="block rounded-2xl focus-visible:outline-offset-4"
+    >
       <Card className="flex h-full items-start gap-3 transition hover:-translate-y-0.5 hover:shadow-md">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
           <ModuleIcon name={m.icon} size={22} />

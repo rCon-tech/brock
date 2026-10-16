@@ -15,7 +15,13 @@ export const KINDS: Record<string, { label: string; emoji: string }> = {
 };
 
 export function RecCard({ record }: FeedCardProps) {
-  const d = record.data as { kind: string; title: string; link?: string; note?: string; rating?: number };
+  const d = record.data as {
+    kind: string;
+    title: string;
+    link?: string;
+    note?: string;
+    rating?: number;
+  };
   const k = KINDS[d.kind] ?? KINDS.other!;
   return (
     <div className="space-y-2">
@@ -27,7 +33,12 @@ export function RecCard({ record }: FeedCardProps) {
         <div className="min-w-0 flex-1">
           <div className="font-bold">
             {d.link ? (
-              <a href={d.link} target="_blank" rel="noopener noreferrer nofollow" className="text-accent underline underline-offset-2">
+              <a
+                href={d.link}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="text-accent underline underline-offset-2"
+              >
                 {d.title}
               </a>
             ) : (
@@ -37,7 +48,11 @@ export function RecCard({ record }: FeedCardProps) {
           {d.rating ? (
             <div className="flex" role="img" aria-label={`${d.rating} out of 5 stars`}>
               {[1, 2, 3, 4, 5].map((n) => (
-                <Star key={n} size={16} className={n <= d.rating! ? 'fill-accent text-accent' : 'text-line'} />
+                <Star
+                  key={n}
+                  size={16}
+                  className={n <= d.rating! ? 'fill-accent text-accent' : 'text-line'}
+                />
               ))}
             </div>
           ) : null}

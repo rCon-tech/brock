@@ -16,10 +16,20 @@ import { upcoming, validMonthDay, type BirthdayEntry } from './upcoming';
 const MONTHS = Array.from({ length: 12 }, (_, i) => format(new Date(2024, i, 1), 'MMMM'));
 
 export function useBirthdays() {
-  const q = useRecords<{ month: number; day: number; year?: number }>({ module: 'birthdays', collection: 'birthday', limit: 100 });
+  const q = useRecords<{ month: number; day: number; year?: number }>({
+    module: 'birthdays',
+    collection: 'birthday',
+    limit: 100,
+  });
   const entries: Array<BirthdayEntry & { recordId: string }> = q.items
     .filter((r) => r.author)
-    .map((r) => ({ recordId: r.id, userId: r.author!.id, month: r.data.month, day: r.data.day, year: r.data.year }));
+    .map((r) => ({
+      recordId: r.id,
+      userId: r.author!.id,
+      month: r.data.month,
+      day: r.data.day,
+      year: r.data.year,
+    }));
   return { ...q, entries };
 }
 
@@ -64,11 +74,26 @@ export function Page() {
           </div>
           <div className="w-24">
             <Label htmlFor="bd">Day</Label>
-            <Input id="bd" type="number" min={1} max={31} value={day} onChange={(e) => setDay(Number(e.target.value))} />
+            <Input
+              id="bd"
+              type="number"
+              min={1}
+              max={31}
+              value={day}
+              onChange={(e) => setDay(Number(e.target.value))}
+            />
           </div>
           <div className="w-28">
             <Label htmlFor="by">Year (optional)</Label>
-            <Input id="by" type="number" min={1900} max={2100} placeholder="1990" value={year} onChange={(e) => setYear(e.target.value)} />
+            <Input
+              id="by"
+              type="number"
+              min={1900}
+              max={2100}
+              placeholder="1990"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+            />
           </div>
           <Button onClick={save} disabled={create.isPending || !validMonthDay(month, day)}>
             {mine ? 'Update' : 'Save'}
@@ -79,14 +104,20 @@ export function Page() {
             </Button>
           )}
         </div>
-        {!validMonthDay(month, day) && <p className="text-sm text-danger">That date doesn’t exist.</p>}
-        <p className="text-xs text-ink-soft">Only this Habitat’s members can see it. Leave the year blank to keep your age private.</p>
+        {!validMonthDay(month, day) && (
+          <p className="text-sm text-danger">That date doesn’t exist.</p>
+        )}
+        <p className="text-xs text-ink-soft">
+          Only this Habitat’s members can see it. Leave the year blank to keep your age private.
+        </p>
       </Card>
 
       {isLoading ? (
         <Skeleton className="h-32" />
       ) : list.length === 0 ? (
-        <EmptyState emoji="🎂" title="No birthdays yet">Add yours so nobody forgets.</EmptyState>
+        <EmptyState emoji="🎂" title="No birthdays yet">
+          Add yours so nobody forgets.
+        </EmptyState>
       ) : (
         <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
           {list.map((b) => {
@@ -101,7 +132,9 @@ export function Page() {
                     {b.turning ? ` · turning ${b.turning}` : ''}
                   </div>
                 </div>
-                <div className={b.inDays === 0 ? 'font-bold text-accent' : 'text-sm text-ink-soft'}>{inDaysLabel(b.inDays)}</div>
+                <div className={b.inDays === 0 ? 'font-bold text-accent' : 'text-sm text-ink-soft'}>
+                  {inDaysLabel(b.inDays)}
+                </div>
               </li>
             );
           })}

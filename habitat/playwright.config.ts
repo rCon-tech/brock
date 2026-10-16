@@ -2,7 +2,10 @@ import { defineConfig, devices } from '@playwright/test';
 import { existsSync } from 'node:fs';
 
 const PORT = 3100;
-const DB = process.env.E2E_DATABASE_URL ?? process.env.TEST_DATABASE_URL ?? 'postgres://habitat:habitat@localhost:5433/habitat_test';
+const DB =
+  process.env.E2E_DATABASE_URL ??
+  process.env.TEST_DATABASE_URL ??
+  'postgres://habitat:habitat@localhost:5433/habitat_test';
 // The sandbox ships its own Chromium; fall back to Playwright's when it isn't there.
 const sandboxChromium = '/opt/pw-browsers/chromium';
 
@@ -31,7 +34,15 @@ export default defineConfig({
     launchOptions: existsSync(sandboxChromium) ? { executablePath: sandboxChromium } : undefined,
   },
   projects: [
-    { name: 'phone', use: { ...devices['Pixel 7'], launchOptions: existsSync(sandboxChromium) ? { executablePath: sandboxChromium } : undefined } },
+    {
+      name: 'phone',
+      use: {
+        ...devices['Pixel 7'],
+        launchOptions: existsSync(sandboxChromium)
+          ? { executablePath: sandboxChromium }
+          : undefined,
+      },
+    },
   ],
   webServer: {
     // Dev mode on purpose: a production server refuses EMAIL_TRANSPORT=outbox, which the tests need.

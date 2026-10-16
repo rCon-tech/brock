@@ -13,7 +13,11 @@ export const GET = habitatRoute<P>(async ({ member }) => {
   const open = await openProposalsByModule(member);
   const installed = new Set(active.map((a) => a.manifest.id));
   return {
-    installed: active.map((a) => ({ id: a.manifest.id, position: a.position, settings: a.settings })),
+    installed: active.map((a) => ({
+      id: a.manifest.id,
+      position: a.position,
+      settings: a.settings,
+    })),
     library: listLibrary().map((m) => ({
       id: m.id,
       name: m.name,

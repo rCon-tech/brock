@@ -18,7 +18,7 @@ export type Field =
 export type FieldSpec = Record<string, Field>;
 
 export type WriteScope = 'member' | 'admin';
-export type OwnerScope = 'author' | 'admin' | 'author-or-admin';
+export type OwnerScope = 'author' | 'admin' | 'author-or-admin' | 'member';
 
 export interface CollectionDef {
   fields: FieldSpec;

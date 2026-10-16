@@ -26,7 +26,8 @@ export interface CommentDTO {
 function cleanBody(body: string) {
   const b = body.trim();
   if (!b) throw invalid('Write something first.', { body: ['Required.'] });
-  if (b.length > COMMENT_MAX) throw invalid('That’s too long.', { body: [`At most ${COMMENT_MAX} characters.`] });
+  if (b.length > COMMENT_MAX)
+    throw invalid('That’s too long.', { body: [`At most ${COMMENT_MAX} characters.`] });
   return b;
 }
 
@@ -123,8 +124,17 @@ export async function listComments(ctx: MemberCtx, recordId: string): Promise<Co
     })
     .from(comment)
     .leftJoin(user, eq(user.id, comment.authorId))
-    .leftJoin(membership, and(eq(membership.userId, comment.authorId), eq(membership.habitatId, ctx.habitatId)))
-    .where(and(eq(comment.recordId, recordId), eq(comment.habitatId, ctx.habitatId), isNull(comment.deletedAt)))
+    .leftJoin(
+      membership,
+      and(eq(membership.userId, comment.authorId), eq(membership.habitatId, ctx.habitatId)),
+    )
+    .where(
+      and(
+        eq(comment.recordId, recordId),
+        eq(comment.habitatId, ctx.habitatId),
+        isNull(comment.deletedAt),
+      ),
+    )
     .orderBy(asc(comment.createdAt), asc(comment.id));
   const dto = (r: (typeof rows)[number]): CommentDTO => ({
     id: r.c.id,
@@ -132,7 +142,12 @@ export async function listComments(ctx: MemberCtx, recordId: string): Promise<Co
     parentCommentId: r.c.parentCommentId,
     author:
       r.c.authorId && !r.leftAt
-        ? { id: r.c.authorId, name: r.name ?? 'Someone', image: r.image ?? null, nickname: r.nickname ?? null }
+        ? {
+            id: r.c.authorId,
+            name: r.name ?? 'Someone',
+            image: r.image ?? null,
+            nickname: r.nickname ?? null,
+          }
         : r.c.authorId
           ? { id: r.c.authorId, name: 'Former member', image: null, nickname: null }
           : null,
@@ -153,15 +168,29 @@ async function loadComment(ctx: MemberCtx, commentId: string) {
   const [c] = await getDb()
     .select()
     .from(comment)
-    .where(and(eq(comment.id, commentId), eq(comment.habitatId, ctx.habitatId), isNull(comment.deletedAt)));
+    .where(
+      and(
+        eq(comment.id, commentId),
+        eq(comment.habitatId, ctx.habitatId),
+        isNull(comment.deletedAt),
+      ),
+    );
   if (!c) throw notFound();
   return c;
 }
 
-export async function editComment(ctx: MemberCtx, commentId: string, body: string, now = new Date()) {
+export async function editComment(
+  ctx: MemberCtx,
+  commentId: string,
+  body: string,
+  now = new Date(),
+) {
   const c = await loadComment(ctx, commentId);
   if (c.authorId !== ctx.userId) throw forbidden();
-  await getDb().update(comment).set({ body: cleanBody(body), editedAt: now }).where(eq(comment.id, c.id));
+  await getDb()
+    .update(comment)
+    .set({ body: cleanBody(body), editedAt: now })
+    .where(eq(comment.id, c.id));
 }
 
 /** Authors delete their own; admins can delete any (H12). Replies go with a deleted parent. */
@@ -201,15 +230,23 @@ export async function removeReaction(ctx: MemberCtx, recordId: string, emoji: st
   await loadVisibleRow(db, ctx, recordId);
   await db
     .delete(reaction)
-    .where(and(eq(reaction.recordId, recordId), eq(reaction.userId, ctx.userId), eq(reaction.emoji, e)));
+    .where(
+      and(eq(reaction.recordId, recordId), eq(reaction.userId, ctx.userId), eq(reaction.emoji, e)),
+    );
 }
 
 /** Admins pin; only records that show in the timeline can be pinned. */
-export async function setPinned(ctx: MemberCtx, recordId: string, pinned: boolean, now = new Date()) {
+export async function setPinned(
+  ctx: MemberCtx,
+  recordId: string,
+  pinned: boolean,
+  now = new Date(),
+) {
   if (!can(ctx.role, 'record.pin')) throw forbidden('Only admins can pin.');
   const db = getDb();
   const { def } = await loadVisibleRow(db, ctx, recordId);
-  if (!def.showInTimeline) throw new DomainError('invalid', 422, 'Only timeline posts can be pinned.');
+  if (!def.showInTimeline)
+    throw new DomainError('invalid', 422, 'Only timeline posts can be pinned.');
   await db
     .update(record)
     .set({ pinnedAt: pinned ? now : null })

@@ -9,7 +9,11 @@ export interface TallyRow {
  * largest-remainder rounding so they add up to exactly 100. For multiple choice each option is the
  * percentage of voters who picked it, so the rows don't sum to 100.
  */
-export function tally(options: string[], votes: Array<{ choices: string[] }>, opts: { multiple?: boolean } = {}): TallyRow[] {
+export function tally(
+  options: string[],
+  votes: Array<{ choices: string[] }>,
+  opts: { multiple?: boolean } = {},
+): TallyRow[] {
   const counts = new Map(options.map((o) => [o, 0]));
   for (const v of votes) {
     for (const c of new Set(v.choices)) if (counts.has(c)) counts.set(c, counts.get(c)! + 1);

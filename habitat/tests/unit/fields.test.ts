@@ -43,7 +43,9 @@ describe('compileFields', () => {
     expect(schema.safeParse({ title: 'a', on: '2026-02-30x' }).success).toBe(false);
     expect(schema.safeParse({ title: 'a', on: '2026-02-03' }).success).toBe(true);
     expect(schema.safeParse({ title: 'a', at: 'tomorrow' }).success).toBe(false);
-    expect(schema.parse({ title: 'a', at: '2026-02-03T10:00:00+01:00' }).at).toBe('2026-02-03T09:00:00.000Z');
+    expect(schema.parse({ title: 'a', at: '2026-02-03T10:00:00+01:00' }).at).toBe(
+      '2026-02-03T09:00:00.000Z',
+    );
     expect(schema.safeParse({ title: 'a', kind: 'c' }).success).toBe(false);
   });
   it('allows only http(s) URLs', () => {
@@ -60,9 +62,15 @@ describe('compileFields', () => {
     expect(schema.safeParse({ title: 'a', tags: ['', 'x'] }).success).toBe(false);
   });
   it('validates money as integer minor units', () => {
-    expect(schema.safeParse({ title: 'a', cost: { amountMinor: 1250, currency: 'GBP' } }).success).toBe(true);
-    expect(schema.safeParse({ title: 'a', cost: { amountMinor: 12.5, currency: 'GBP' } }).success).toBe(false);
-    expect(schema.safeParse({ title: 'a', cost: { amountMinor: 5, currency: 'pounds' } }).success).toBe(false);
+    expect(
+      schema.safeParse({ title: 'a', cost: { amountMinor: 1250, currency: 'GBP' } }).success,
+    ).toBe(true);
+    expect(
+      schema.safeParse({ title: 'a', cost: { amountMinor: 12.5, currency: 'GBP' } }).success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({ title: 'a', cost: { amountMinor: 5, currency: 'pounds' } }).success,
+    ).toBe(false);
   });
   it('strips unknown keys', () => {
     expect(schema.parse({ title: 'a', evil: 1 })).not.toHaveProperty('evil');

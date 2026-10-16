@@ -5,7 +5,10 @@ const uuid = z.string().uuid();
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
 const isoDateTime = z
   .string()
-  .refine((s) => !Number.isNaN(Date.parse(s)) && /^\d{4}-\d{2}-\d{2}T/.test(s), 'Expected an ISO date-time')
+  .refine(
+    (s) => !Number.isNaN(Date.parse(s)) && /^\d{4}-\d{2}-\d{2}T/.test(s),
+    'Expected an ISO date-time',
+  )
   .transform((s) => new Date(s).toISOString());
 
 const money = z.object({
@@ -19,11 +22,19 @@ export function compileField(field: Field): z.ZodType {
   let required = false;
   switch (field.type) {
     case 'text':
-      base = z.string().trim().min(field.required ? 1 : 0).max(field.max);
+      base = z
+        .string()
+        .trim()
+        .min(field.required ? 1 : 0)
+        .max(field.max);
       required = !!field.required;
       break;
     case 'longtext':
-      base = z.string().trim().min(field.required ? 1 : 0).max(field.max);
+      base = z
+        .string()
+        .trim()
+        .min(field.required ? 1 : 0)
+        .max(field.max);
       required = !!field.required;
       break;
     case 'integer':
@@ -76,10 +87,15 @@ export function compileField(field: Field): z.ZodType {
       break;
     case 'member-list':
       return field.min
-        ? z.array(uuid).min(field.min).max(field.max ?? 150)
-        : z.array(uuid).max(field.max ?? 150).default([]);
-    case 'text-list':
-    {
+        ? z
+            .array(uuid)
+            .min(field.min)
+            .max(field.max ?? 150)
+        : z
+            .array(uuid)
+            .max(field.max ?? 150)
+            .default([]);
+    case 'text-list': {
       const list = z.array(z.string().trim().min(1).max(field.maxLength)).max(field.maxItems);
       return field.minItems ? list.min(field.minItems) : list.default([]);
     }

@@ -18,7 +18,13 @@ export interface HabitatContextValue {
 
 const Ctx = createContext<HabitatContextValue | null>(null);
 
-export function HabitatProvider({ value, children }: { value: HabitatContextValue; children: ReactNode }) {
+export function HabitatProvider({
+  value,
+  children,
+}: {
+  value: HabitatContextValue;
+  children: ReactNode;
+}) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

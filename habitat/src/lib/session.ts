@@ -15,7 +15,11 @@ export interface MemberCtx {
  * The one gate every Habitat route goes through. Not a member, or no such Habitat, are the
  * same 404 so outsiders can't tell which Habitats exist.
  */
-export async function requireMember(db: Executor, habitatId: string, userId: string): Promise<MemberCtx> {
+export async function requireMember(
+  db: Executor,
+  habitatId: string,
+  userId: string,
+): Promise<MemberCtx> {
   if (!/^[0-9a-f-]{36}$/i.test(habitatId)) throw notFound();
   const [row] = await db
     .select({ role: membership.role, nickname: membership.nickname })

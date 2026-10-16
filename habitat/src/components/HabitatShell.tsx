@@ -52,7 +52,8 @@ export function HabitatShell({
 
   const { data: open } = useQuery({
     queryKey: ['habitat', habitatId, 'proposals', 'open'],
-    queryFn: () => apiFetch<{ proposals: ProposalDTO[] }>(`/api/habitats/${habitatId}/proposals?status=open`),
+    queryFn: () =>
+      apiFetch<{ proposals: ProposalDTO[] }>(`/api/habitats/${habitatId}/proposals?status=open`),
     refetchInterval: 20_000,
   });
   const waiting = (open?.proposals ?? []).filter((p) => !p.myVote).length;
@@ -78,7 +79,9 @@ export function HabitatShell({
     { href: `${base}/members`, label: 'Members', icon: <Users size={20} /> },
     { href: `${base}/library`, label: 'Library', icon: <Puzzle size={20} /> },
     { href: `${base}/proposals`, label: 'Votes', icon: <Vote size={20} />, badge: waiting },
-    ...(isAdmin(role) ? [{ href: `${base}/settings`, label: 'Settings', icon: <Settings size={20} /> }] : []),
+    ...(isAdmin(role)
+      ? [{ href: `${base}/settings`, label: 'Settings', icon: <Settings size={20} /> }]
+      : []),
   ];
   const active = (i: NavItem) => (i.match ? i.match(path) : path.startsWith(i.href));
   const primary = items.slice(0, 4);
@@ -95,13 +98,24 @@ export function HabitatShell({
         mobile
           ? 'relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold'
           : 'relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold',
-        active(i) ? (mobile ? 'text-accent' : 'bg-accent/15 text-ink') : 'text-ink-soft hover:bg-surface-2',
+        active(i)
+          ? mobile
+            ? 'text-accent'
+            : 'bg-accent/15 text-ink'
+          : 'text-ink-soft hover:bg-surface-2',
       )}
     >
       {i.icon}
       <span>{i.label}</span>
       {!!i.badge && (
-        <span className={cn('rounded-full bg-accent px-1.5 text-[10px] font-bold text-accent-ink', mobile ? 'absolute right-[22%] top-1' : 'ml-auto')}>{i.badge}</span>
+        <span
+          className={cn(
+            'rounded-full bg-accent px-1.5 text-[10px] font-bold text-accent-ink',
+            mobile ? 'absolute right-[22%] top-1' : 'ml-auto',
+          )}
+        >
+          {i.badge}
+        </span>
       )}
     </Link>
   );
@@ -130,17 +144,25 @@ export function HabitatShell({
         <main className="min-w-0 flex-1 px-3 py-4 pb-24 md:px-6 md:pb-8">{children}</main>
       </div>
 
-      <nav aria-label="Habitat" className="safe-bottom fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-background/95 backdrop-blur md:hidden">
+      <nav
+        aria-label="Habitat"
+        className="safe-bottom fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-background/95 backdrop-blur md:hidden"
+      >
         {primary.map((i) => link(i, true))}
         {rest.length > 0 && (
           <button
             type="button"
             onClick={() => setMoreOpen(true)}
-            className={cn('relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold', moreActive ? 'text-accent' : 'text-ink-soft')}
+            className={cn(
+              'relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold',
+              moreActive ? 'text-accent' : 'text-ink-soft',
+            )}
           >
             <Menu size={20} />
             <span>More</span>
-            {waiting > 0 && !primary.some((p) => p.badge) && <span className="absolute right-[22%] top-1 h-2 w-2 rounded-full bg-accent" />}
+            {waiting > 0 && !primary.some((p) => p.badge) && (
+              <span className="absolute right-[22%] top-1 h-2 w-2 rounded-full bg-accent" />
+            )}
           </button>
         )}
       </nav>

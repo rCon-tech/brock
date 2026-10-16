@@ -107,7 +107,11 @@ export async function acceptInvite(userId: string, rawCode: string, now = new Da
   const code = normalise(rawCode);
   if (!isValidCode(code)) throw notFound();
   return getDb().transaction(async (tx) => {
-    const [inv] = await tx.select().from(invite).where(eq(invite.codeHash, hashCode(code))).for('update');
+    const [inv] = await tx
+      .select()
+      .from(invite)
+      .where(eq(invite.codeHash, hashCode(code)))
+      .for('update');
     if (!inv) throw notFound();
     const [h] = await tx.select().from(habitat).where(eq(habitat.id, inv.habitatId)).for('update');
     if (!h || h.deletedAt) throw notFound();
@@ -117,7 +121,8 @@ export async function acceptInvite(userId: string, rawCode: string, now = new Da
       .select()
       .from(membership)
       .where(and(eq(membership.habitatId, h.id), eq(membership.userId, userId)));
-    if (existing && !existing.leftAt) throw conflict('already_member', 'You’re already in this Habitat.');
+    if (existing && !existing.leftAt)
+      throw conflict('already_member', 'You’re already in this Habitat.');
 
     const [{ n }] = await tx
       .select({ n: sql<number>`count(*)::int` })
@@ -131,7 +136,9 @@ export async function acceptInvite(userId: string, rawCode: string, now = new Da
         .set({ leftAt: null, role: 'member', joinedAt: now })
         .where(and(eq(membership.habitatId, h.id), eq(membership.userId, userId)));
     } else {
-      await tx.insert(membership).values({ habitatId: h.id, userId, role: 'member', joinedAt: now });
+      await tx
+        .insert(membership)
+        .values({ habitatId: h.id, userId, role: 'member', joinedAt: now });
     }
     await tx
       .update(invite)

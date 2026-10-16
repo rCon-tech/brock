@@ -6,7 +6,11 @@ type P = { habitatId: string };
 
 export const GET = habitatRoute<P>(async ({ url, member }) => {
   const status = url.searchParams.get('status');
-  return { proposals: await listProposals(member, { status: status === 'open' || status === 'closed' ? status : undefined }) };
+  return {
+    proposals: await listProposals(member, {
+      status: status === 'open' || status === 'closed' ? status : undefined,
+    }),
+  };
 });
 
 export const POST = habitatRoute<P>(async ({ req, member }) =>

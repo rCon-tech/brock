@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { newPerson, signUp } from './fixtures';
 
-
 test('A creates a Habitat, invites B by link, and B joins', async ({ page, browser }) => {
   // A signs up and creates a Habitat
   await signUp(page, 'Alice');

@@ -6,7 +6,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/card';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { MemberAvatar, displayName } from '@/components/MemberAvatar';
 import { ReportButton } from '@/components/ReportButton';
@@ -20,8 +26,16 @@ export function MemberList() {
   const qc = useQueryClient();
 
   const act = useMutation({
-    mutationFn: (v: { userId: string; method: 'PATCH' | 'DELETE' | 'POST'; body?: unknown; url?: string }) =>
-      apiFetch(v.url ?? `/api/habitats/${habitatId}/members/${v.userId}`, { method: v.method, body: v.body }),
+    mutationFn: (v: {
+      userId: string;
+      method: 'PATCH' | 'DELETE' | 'POST';
+      body?: unknown;
+      url?: string;
+    }) =>
+      apiFetch(v.url ?? `/api/habitats/${habitatId}/members/${v.userId}`, {
+        method: v.method,
+        body: v.body,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['habitat', habitatId] });
       router.refresh();
@@ -36,13 +50,19 @@ export function MemberList() {
         const canRemove = !isMe && canRemoveMember(me.role, me.id, m.role, m.id);
         return (
           <li key={m.id} className="flex items-center gap-3 px-4 py-3">
-            <Link href={`/h/${slug}/members/${m.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+            <Link
+              href={`/h/${slug}/members/${m.id}`}
+              className="flex min-w-0 flex-1 items-center gap-3"
+            >
               <MemberAvatar member={m} />
               <span className="min-w-0">
                 <span className="block truncate font-semibold">
-                  {displayName(m)} {isMe && <span className="font-normal text-ink-soft">(you)</span>}
+                  {displayName(m)}{' '}
+                  {isMe && <span className="font-normal text-ink-soft">(you)</span>}
                 </span>
-                {m.nickname && <span className="block truncate text-xs text-ink-soft">{m.name}</span>}
+                {m.nickname && (
+                  <span className="block truncate text-xs text-ink-soft">{m.name}</span>
+                )}
               </span>
             </Link>
             {m.role === 'owner' && (
@@ -64,16 +84,37 @@ export function MemberList() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   {me.role === 'owner' && !isMe && m.role === 'member' && (
-                    <DropdownMenuItem onSelect={() => act.mutate({ userId: m.id, method: 'PATCH', body: { role: 'admin' } })}>Make admin</DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        act.mutate({ userId: m.id, method: 'PATCH', body: { role: 'admin' } })
+                      }
+                    >
+                      Make admin
+                    </DropdownMenuItem>
                   )}
                   {me.role === 'owner' && !isMe && m.role === 'admin' && (
-                    <DropdownMenuItem onSelect={() => act.mutate({ userId: m.id, method: 'PATCH', body: { role: 'member' } })}>Remove admin</DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        act.mutate({ userId: m.id, method: 'PATCH', body: { role: 'member' } })
+                      }
+                    >
+                      Remove admin
+                    </DropdownMenuItem>
                   )}
                   {me.role === 'owner' && !isMe && (
                     <DropdownMenuItem
                       onSelect={() => {
-                        if (confirm(`Hand ${displayName(m)} ownership of this Habitat? You’ll become an admin.`)) {
-                          act.mutate({ userId: m.id, method: 'POST', body: { userId: m.id }, url: `/api/habitats/${habitatId}` });
+                        if (
+                          confirm(
+                            `Hand ${displayName(m)} ownership of this Habitat? You’ll become an admin.`,
+                          )
+                        ) {
+                          act.mutate({
+                            userId: m.id,
+                            method: 'POST',
+                            body: { userId: m.id },
+                            url: `/api/habitats/${habitatId}`,
+                          });
                         }
                       }}
                     >
@@ -87,7 +128,8 @@ export function MemberList() {
                       <DropdownMenuItem
                         danger
                         onSelect={() => {
-                          if (confirm(`Remove ${displayName(m)} from this Habitat?`)) act.mutate({ userId: m.id, method: 'DELETE' });
+                          if (confirm(`Remove ${displayName(m)} from this Habitat?`))
+                            act.mutate({ userId: m.id, method: 'DELETE' });
                         }}
                       >
                         Remove from Habitat
@@ -98,9 +140,16 @@ export function MemberList() {
                     <DropdownMenuItem
                       danger
                       onSelect={async () => {
-                        if (!confirm('Leave this Habitat? Your posts will stay, shown as from a former member.')) return;
+                        if (
+                          !confirm(
+                            'Leave this Habitat? Your posts will stay, shown as from a former member.',
+                          )
+                        )
+                          return;
                         try {
-                          await apiFetch(`/api/habitats/${habitatId}/members/${me.id}`, { method: 'DELETE' });
+                          await apiFetch(`/api/habitats/${habitatId}/members/${me.id}`, {
+                            method: 'DELETE',
+                          });
                           router.push('/');
                         } catch (e) {
                           toast.error(errorMessage(e));

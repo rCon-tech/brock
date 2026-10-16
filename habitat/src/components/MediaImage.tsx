@@ -16,11 +16,24 @@ export function MediaImage({
   className?: string;
   onClick?: () => void;
 }) {
-  // eslint-disable-next-line @next/next/no-img-element
-  const img = <img src={`/api/media/${id}?v=${variant}`} alt={alt} loading="lazy" decoding="async" className={cn('bg-surface-2 object-cover', className)} />;
+  const img = (
+    // eslint-disable-next-line @next/next/no-img-element -- a signed redirect, so next/image can't optimise it
+    <img
+      src={`/api/media/${id}?v=${variant}`}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      className={cn('bg-surface-2 object-cover', className)}
+    />
+  );
   if (!onClick) return img;
   return (
-    <button type="button" onClick={onClick} className="block overflow-hidden rounded-xl" aria-label={`Open photo: ${alt}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className="block overflow-hidden rounded-xl"
+      aria-label={`Open photo: ${alt}`}
+    >
       {img}
     </button>
   );

@@ -15,7 +15,12 @@ export function RelativeTime({ iso, className }: { iso: string; className?: stri
       ? 'just now'
       : `${formatDistanceToNowStrict(d)} ${d.getTime() > now ? 'from now' : 'ago'}`;
   return (
-    <time dateTime={iso} title={known ? d.toLocaleString() : undefined} className={className} suppressHydrationWarning>
+    <time
+      dateTime={iso}
+      title={known ? d.toLocaleString() : undefined}
+      className={className}
+      suppressHydrationWarning
+    >
       {text}
     </time>
   );

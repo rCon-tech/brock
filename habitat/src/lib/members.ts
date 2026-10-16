@@ -39,7 +39,13 @@ export async function changeRole(ctx: MemberCtx, targetId: string, role: 'admin'
     const [target] = await tx
       .select()
       .from(membership)
-      .where(and(eq(membership.habitatId, ctx.habitatId), eq(membership.userId, targetId), isNull(membership.leftAt)));
+      .where(
+        and(
+          eq(membership.habitatId, ctx.habitatId),
+          eq(membership.userId, targetId),
+          isNull(membership.leftAt),
+        ),
+      );
     if (!target) throw notFound();
     if (target.role === 'owner') throw invalid('Hand over ownership first.');
     await tx
@@ -71,7 +77,13 @@ export async function removeMember(
     const [target] = await tx
       .select()
       .from(membership)
-      .where(and(eq(membership.habitatId, ctx.habitatId), eq(membership.userId, targetId), isNull(membership.leftAt)))
+      .where(
+        and(
+          eq(membership.habitatId, ctx.habitatId),
+          eq(membership.userId, targetId),
+          isNull(membership.leftAt),
+        ),
+      )
       .for('update');
     if (!target) throw notFound();
     if (target.role === 'owner' && targetId === ctx.userId) {
@@ -88,17 +100,37 @@ export async function removeMember(
       await tx
         .update(record)
         .set({ deletedAt: now })
-        .where(and(eq(record.habitatId, ctx.habitatId), eq(record.authorId, targetId), isNull(record.deletedAt)));
+        .where(
+          and(
+            eq(record.habitatId, ctx.habitatId),
+            eq(record.authorId, targetId),
+            isNull(record.deletedAt),
+          ),
+        );
       await tx
         .update(comment)
         .set({ deletedAt: now })
-        .where(and(eq(comment.habitatId, ctx.habitatId), eq(comment.authorId, targetId), isNull(comment.deletedAt)));
-      await tx.delete(reaction).where(and(eq(reaction.habitatId, ctx.habitatId), eq(reaction.userId, targetId)));
+        .where(
+          and(
+            eq(comment.habitatId, ctx.habitatId),
+            eq(comment.authorId, targetId),
+            isNull(comment.deletedAt),
+          ),
+        );
+      await tx
+        .delete(reaction)
+        .where(and(eq(reaction.habitatId, ctx.habitatId), eq(reaction.userId, targetId)));
     }
-    await logAudit(tx, ctx.habitatId, ctx.userId, targetId === ctx.userId ? 'member.left' : 'member.removed', {
-      targetId,
-      deleteContent: !!opts.deleteContent,
-    });
+    await logAudit(
+      tx,
+      ctx.habitatId,
+      ctx.userId,
+      targetId === ctx.userId ? 'member.left' : 'member.removed',
+      {
+        targetId,
+        deleteContent: !!opts.deleteContent,
+      },
+    );
     // Fewer members means different thresholds for any vote in progress.
     await reevaluateOpen(tx, ctx.habitatId, now);
   });

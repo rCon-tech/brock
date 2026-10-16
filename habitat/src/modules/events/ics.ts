@@ -7,7 +7,11 @@ export interface IcsEvent {
   details?: string | null;
 }
 
-const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+const stamp = (d: Date) =>
+  d
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '');
 
 /** RFC 5545 text escaping: backslash, semicolon, comma and newlines. */
 export function escapeText(s: string): string {

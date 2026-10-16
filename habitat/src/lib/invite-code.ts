@@ -13,11 +13,7 @@ export function newCode(): string {
 
 /** Uppercase, drop spaces and hyphens, map look-alikes (O→0, I/L→1). */
 export function normalise(input: string): string {
-  return input
-    .toUpperCase()
-    .replace(/[\s-]/g, '')
-    .replace(/O/g, '0')
-    .replace(/[IL]/g, '1');
+  return input.toUpperCase().replace(/[\s-]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
 }
 
 export function isValidCode(code: string): boolean {

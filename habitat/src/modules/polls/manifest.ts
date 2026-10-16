@@ -4,7 +4,8 @@ export const manifest = defineManifest({
   id: 'polls',
   name: 'Polls',
   tagline: 'Settle it with a vote',
-  description: 'Ask the group a question. Single or multiple choice, with an optional closing time.',
+  description:
+    'Ask the group a question. Single or multiple choice, with an optional closing time.',
   icon: 'bar-chart-3',
   category: 'fun',
   version: 1,

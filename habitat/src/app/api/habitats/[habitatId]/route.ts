@@ -26,7 +26,13 @@ export const GET = habitatRoute<P>(async ({ member }) => {
       membersCanInvite: h!.membersCanInvite,
     },
     me: { role: member.role, nickname: member.nickname },
-    modules: modules.map((m) => ({ id: m.manifest.id, name: m.manifest.name, icon: m.manifest.icon, nav: m.manifest.nav, settings: m.settings })),
+    modules: modules.map((m) => ({
+      id: m.manifest.id,
+      name: m.manifest.name,
+      icon: m.manifest.icon,
+      nav: m.manifest.nav,
+      settings: m.settings,
+    })),
   };
 });
 

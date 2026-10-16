@@ -14,7 +14,8 @@ export class DomainError extends Error {
 export const unauthenticated = () => new DomainError('unauthenticated', 401, 'Please sign in.');
 /** Used for "doesn't exist" and "you aren't a member" alike, so outsiders learn nothing. */
 export const notFound = (message = 'Not found.') => new DomainError('not_found', 404, message);
-export const forbidden = (message = 'You can’t do that here.') => new DomainError('forbidden', 403, message);
+export const forbidden = (message = 'You can’t do that here.') =>
+  new DomainError('forbidden', 403, message);
 export const conflict = (code: string, message: string) => new DomainError(code, 409, message);
 export const gone = (code: string, message: string) => new DomainError(code, 410, message);
 export const invalid = (message: string, fields?: Record<string, string[]>) =>

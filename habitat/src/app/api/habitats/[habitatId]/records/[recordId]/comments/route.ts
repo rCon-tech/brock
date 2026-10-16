@@ -9,5 +9,7 @@ export const GET = habitatRoute<P>(async ({ member, params }) => ({
 }));
 
 export const POST = habitatRoute<P>(async ({ req, member, params }) =>
-  created({ comment: await addComment(member, params.recordId, await parseBody(req, CommentBody)) }),
+  created({
+    comment: await addComment(member, params.recordId, await parseBody(req, CommentBody)),
+  }),
 );

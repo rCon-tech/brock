@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RelativeTime } from '@/components/RelativeTime';
 
-export function notificationHref(n: Pick<NotificationDTO, 'type' | 'habitat' | 'recordId' | 'payload'>) {
+export function notificationHref(
+  n: Pick<NotificationDTO, 'type' | 'habitat' | 'recordId' | 'payload'>,
+) {
   const base = `/h/${n.habitat.slug}`;
   if (n.type.startsWith('proposal.')) return `${base}/proposals`;
   const moduleId = typeof n.payload.moduleId === 'string' ? n.payload.moduleId : null;
@@ -22,7 +24,8 @@ export function notificationHref(n: Pick<NotificationDTO, 'type' | 'habitat' | '
 function describe(n: NotificationDTO) {
   if (typeof n.payload.text === 'string') return n.payload.text;
   if (n.type === 'proposal.opened') return `${n.actor?.name ?? 'Someone'} started a vote`;
-  if (n.type === 'proposal.decided') return `A vote has ${n.payload.status === 'passed' ? 'passed' : 'ended'}`;
+  if (n.type === 'proposal.decided')
+    return `A vote has ${n.payload.status === 'passed' ? 'passed' : 'ended'}`;
   return 'Something happened';
 }
 
@@ -31,7 +34,8 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const { data } = useQuery({
     queryKey: ['notifications'],
-    queryFn: () => apiFetch<{ items: NotificationDTO[]; unread: number }>('/api/notifications?limit=20'),
+    queryFn: () =>
+      apiFetch<{ items: NotificationDTO[]; unread: number }>('/api/notifications?limit=20'),
     refetchInterval: 60_000,
   });
   const markAll = useMutation({
@@ -43,7 +47,12 @@ export function NotificationBell() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'} className="relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+          className="relative"
+        >
           <Bell size={20} />
           {unread > 0 && (
             <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-ink">
@@ -62,7 +71,9 @@ export function NotificationBell() {
           )}
         </div>
         <ul className="max-h-96 overflow-y-auto">
-          {(data?.items ?? []).length === 0 && <li className="px-3 py-6 text-center text-sm text-ink-soft">Nothing yet.</li>}
+          {(data?.items ?? []).length === 0 && (
+            <li className="px-3 py-6 text-center text-sm text-ink-soft">Nothing yet.</li>
+          )}
           {data?.items.map((n) => (
             <li key={n.id}>
               <Link

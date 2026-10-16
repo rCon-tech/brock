@@ -16,5 +16,7 @@ export const PATCH = habitatRoute<P>(async ({ req, member, params }) => {
 
 /** Remove a member, or leave when `userId` is you. `?deleteContent=1` when leaving. */
 export const DELETE = habitatRoute<P>(async ({ url, member, params }) => {
-  await removeMember(member, params.userId, { deleteContent: url.searchParams.get('deleteContent') === '1' });
+  await removeMember(member, params.userId, {
+    deleteContent: url.searchParams.get('deleteContent') === '1',
+  });
 });

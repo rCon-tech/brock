@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { and, eq, isNull } from 'drizzle-orm';
 import { getDb } from '@/db';
 import * as s from '@/db/schema';
-import { createHabitat, deleteHabitat, listMyHabitats, transferOwnership, updateHabitat } from '@/lib/habitats';
+import {
+  createHabitat,
+  deleteHabitat,
+  listMyHabitats,
+  transferOwnership,
+  updateHabitat,
+} from '@/lib/habitats';
 import { changeRole, listMembers, removeMember } from '@/lib/members';
 import { listActive } from '@/lib/installed-modules';
 import { requireMember } from '@/lib/session';
@@ -21,7 +27,12 @@ describe('createHabitat', () => {
 
   it('lets the creator untick starting modules', async () => {
     const u = await makeUser();
-    const h = await createHabitat(u.id, { name: 'Just chat', emoji: '💬', accent: '#000000', modules: ['chat'] });
+    const h = await createHabitat(u.id, {
+      name: 'Just chat',
+      emoji: '💬',
+      accent: '#000000',
+      modules: ['chat'],
+    });
     expect((await listActive(getDb(), h.id)).map((a) => a.manifest.id)).toEqual(['chat']);
   });
 
@@ -47,10 +58,14 @@ describe('membership', () => {
     const h = await makeHabitat();
     const stranger = await makeUser();
     await expect(requireMember(getDb(), h.id, stranger.id)).rejects.toMatchObject({ status: 404 });
-    await expect(requireMember(getDb(), '00000000-0000-0000-0000-000000000000', stranger.id)).rejects.toMatchObject({
+    await expect(
+      requireMember(getDb(), '00000000-0000-0000-0000-000000000000', stranger.id),
+    ).rejects.toMatchObject({
       status: 404,
     });
-    await expect(requireMember(getDb(), 'nope', stranger.id)).rejects.toMatchObject({ status: 404 });
+    await expect(requireMember(getDb(), 'nope', stranger.id)).rejects.toMatchObject({
+      status: 404,
+    });
   });
 
   it('lists only my active habitats', async () => {
@@ -63,15 +78,21 @@ describe('membership', () => {
   it('only the owner can change roles; the owner cannot leave without transferring', async () => {
     const h = await makeHabitat({ members: 3 });
     await changeRole(h.members[0]!, h.members[1]!.userId, 'admin');
-    await expect(changeRole(h.members[1]!, h.members[2]!.userId, 'admin')).rejects.toMatchObject({ status: 403 });
-    await expect(removeMember(h.members[0]!, h.members[0]!.userId)).rejects.toMatchObject({ status: 422 });
+    await expect(changeRole(h.members[1]!, h.members[2]!.userId, 'admin')).rejects.toMatchObject({
+      status: 403,
+    });
+    await expect(removeMember(h.members[0]!, h.members[0]!.userId)).rejects.toMatchObject({
+      status: 422,
+    });
   });
 
   it('transfers ownership and keeps exactly one owner', async () => {
     const h = await makeHabitat({ members: 2 });
     await transferOwnership(h.members[0]!, h.members[1]!.userId);
     const members = await listMembers(h.id);
-    expect(members.filter((m) => m.role === 'owner').map((m) => m.userId)).toEqual([h.members[1]!.userId]);
+    expect(members.filter((m) => m.role === 'owner').map((m) => m.userId)).toEqual([
+      h.members[1]!.userId,
+    ]);
     expect(members.find((m) => m.userId === h.members[0]!.userId)!.role).toBe('admin');
   });
 
@@ -89,13 +110,21 @@ describe('membership', () => {
     const h = await makeHabitat({ members: 2 });
     const [owner, me] = h.members;
     const { createRecord, getRecord } = await import('@/lib/records');
-    const post = await createRecord(me!, { module: 'feed', collection: 'post', data: { text: 'hello' } });
+    const post = await createRecord(me!, {
+      module: 'feed',
+      collection: 'post',
+      data: { text: 'hello' },
+    });
     await removeMember(me!, me!.userId);
     const seen = await getRecord(owner!, post.id);
     expect(seen.author).toMatchObject({ name: 'Former member' });
 
     const h2 = await makeHabitat({ members: 2 });
-    const post2 = await createRecord(h2.members[1]!, { module: 'feed', collection: 'post', data: { text: 'bye' } });
+    const post2 = await createRecord(h2.members[1]!, {
+      module: 'feed',
+      collection: 'post',
+      data: { text: 'bye' },
+    });
     await removeMember(h2.members[1]!, h2.members[1]!.userId, { deleteContent: true });
     await expect(getRecord(h2.members[0]!, post2.id)).rejects.toMatchObject({ status: 404 });
   });
@@ -105,16 +134,25 @@ describe('settings', () => {
   it('admins update; members cannot; the cap cannot drop below the member count', async () => {
     const h = await makeHabitat({ members: 3 });
     await updateHabitat(h.members[0]!, { name: 'Renamed', accent: '#111111' });
-    await expect(updateHabitat(h.members[1]!, { name: 'Nope' })).rejects.toMatchObject({ status: 403 });
-    await expect(updateHabitat(h.members[0]!, { memberCap: 2 })).rejects.toMatchObject({ status: 422 });
+    await expect(updateHabitat(h.members[1]!, { name: 'Nope' })).rejects.toMatchObject({
+      status: 403,
+    });
+    await expect(updateHabitat(h.members[0]!, { memberCap: 2 })).rejects.toMatchObject({
+      status: 422,
+    });
   });
 
   it('only the owner deletes, and a deleted habitat is a 404 for everyone', async () => {
     const h = await makeHabitat({ members: 2 });
     await expect(deleteHabitat(h.members[1]!)).rejects.toMatchObject({ status: 403 });
     await deleteHabitat(h.members[0]!);
-    await expect(requireMember(getDb(), h.id, h.members[0]!.userId)).rejects.toMatchObject({ status: 404 });
-    const [row] = await getDb().select().from(s.habitat).where(and(eq(s.habitat.id, h.id), isNull(s.habitat.deletedAt)));
+    await expect(requireMember(getDb(), h.id, h.members[0]!.userId)).rejects.toMatchObject({
+      status: 404,
+    });
+    const [row] = await getDb()
+      .select()
+      .from(s.habitat)
+      .where(and(eq(s.habitat.id, h.id), isNull(s.habitat.deletedAt)));
     expect(row).toBeUndefined();
   });
 });

@@ -9,9 +9,22 @@ import { manifest as birthdays } from './birthdays/manifest';
 import { manifest as recommendations } from './recommendations/manifest';
 import { manifest as wishlist } from './wishlist/manifest';
 import { manifest as splitCosts } from './split-costs/manifest';
+import { loadMdl } from './declarative/load';
+import bucketListDoc from './bucket-list/module.json';
 
 /** Server-safe: manifests only, no React. The UI registry lives in `ui-registry.ts`. */
-const BUILT_IN: unknown[] = [feed, photos, events, chat, polls, birthdays, recommendations, wishlist, splitCosts];
+const BUILT_IN: unknown[] = [
+  feed,
+  photos,
+  events,
+  chat,
+  polls,
+  birthdays,
+  recommendations,
+  wishlist,
+  splitCosts,
+  loadMdl(bucketListDoc).manifest,
+];
 
 const byId = new Map<string, ModuleManifest>();
 for (const m of BUILT_IN) {

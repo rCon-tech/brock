@@ -13,14 +13,21 @@ export function DropdownMenuContent({ className, ...props }: ComponentProps<type
       <M.Content
         sideOffset={6}
         align="end"
-        className={cn('z-50 min-w-48 rounded-xl border border-line bg-surface p-1 shadow-lg', className)}
+        className={cn(
+          'z-50 min-w-48 rounded-xl border border-line bg-surface p-1 shadow-lg',
+          className,
+        )}
         {...props}
       />
     </M.Portal>
   );
 }
 
-export function DropdownMenuItem({ className, danger, ...props }: ComponentProps<typeof M.Item> & { danger?: boolean }) {
+export function DropdownMenuItem({
+  className,
+  danger,
+  ...props
+}: ComponentProps<typeof M.Item> & { danger?: boolean }) {
   return (
     <M.Item
       className={cn(
@@ -37,5 +44,7 @@ export const DropdownMenuSeparator = ({ className }: { className?: string }) => 
   <M.Separator className={cn('my-1 h-px bg-line', className)} />
 );
 export const DropdownMenuLabel = ({ children }: { children: React.ReactNode }) => (
-  <M.Label className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">{children}</M.Label>
+  <M.Label className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+    {children}
+  </M.Label>
 );

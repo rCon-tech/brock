@@ -31,7 +31,9 @@ describe('proposals', () => {
 
   it('a solo habitat passes its own proposal at once', async () => {
     const h = await makeHabitat();
-    expect((await propose(h.members[0]!, { kind: 'install', moduleId: 'polls' })).status).toBe('passed');
+    expect((await propose(h.members[0]!, { kind: 'install', moduleId: 'polls' })).status).toBe(
+      'passed',
+    );
   });
 
   it('6 members: passes on the 4th yes, fails on the 3rd no', async () => {
@@ -58,7 +60,9 @@ describe('proposals', () => {
   it('only one open proposal per module (409), but other modules are fine', async () => {
     const h = await makeHabitat({ members: 3 });
     await propose(h.members[0]!, { kind: 'install', moduleId: 'polls' });
-    await expect(propose(h.members[1]!, { kind: 'install', moduleId: 'polls' })).rejects.toMatchObject({
+    await expect(
+      propose(h.members[1]!, { kind: 'install', moduleId: 'polls' }),
+    ).rejects.toMatchObject({
       status: 409,
       code: 'proposal_already_open',
     });
@@ -67,9 +71,15 @@ describe('proposals', () => {
 
   it('refuses to install what is installed, or an unknown module', async () => {
     const h = await makeHabitat({ members: 2 });
-    await expect(propose(h.members[0]!, { kind: 'install', moduleId: 'feed' })).rejects.toMatchObject({ status: 409 });
-    await expect(propose(h.members[0]!, { kind: 'install', moduleId: 'nope' })).rejects.toMatchObject({ status: 404 });
-    await expect(propose(h.members[0]!, { kind: 'uninstall', moduleId: 'polls' })).rejects.toMatchObject({ status: 409 });
+    await expect(
+      propose(h.members[0]!, { kind: 'install', moduleId: 'feed' }),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      propose(h.members[0]!, { kind: 'install', moduleId: 'nope' }),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      propose(h.members[0]!, { kind: 'uninstall', moduleId: 'polls' }),
+    ).rejects.toMatchObject({ status: 409 });
   });
 
   it('concurrency: 6 members voting yes at once install the module exactly once', async () => {
@@ -78,9 +88,15 @@ describe('proposals', () => {
     const results = await Promise.allSettled(h.members.slice(1).map((m) => vote(m, p.id, 'yes')));
     const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
     expect(failures.every((f) => f.reason.code === 'proposal_closed')).toBe(true);
-    const rows = await getDb().select().from(s.installedModule).where(eq(s.installedModule.moduleId, 'polls'));
+    const rows = await getDb()
+      .select()
+      .from(s.installedModule)
+      .where(eq(s.installedModule.moduleId, 'polls'));
     expect(rows).toHaveLength(1);
-    const audit = await getDb().select().from(s.auditLog).where(eq(s.auditLog.action, 'proposal.passed'));
+    const audit = await getDb()
+      .select()
+      .from(s.auditLog)
+      .where(eq(s.auditLog.action, 'proposal.passed'));
     expect(audit).toHaveLength(1);
   });
 
@@ -109,7 +125,9 @@ describe('proposals', () => {
     const h = await makeHabitat({ members: 3 });
     const t0 = new Date('2026-03-01T00:00:00Z');
     const p = await propose(h.members[0]!, { kind: 'install', moduleId: 'polls' }, t0);
-    await expect(vote(h.members[1]!, p.id, 'yes', new Date(t0.getTime() + 50 * HOUR))).rejects.toMatchObject({
+    await expect(
+      vote(h.members[1]!, p.id, 'yes', new Date(t0.getTime() + 50 * HOUR)),
+    ).rejects.toMatchObject({
       code: 'proposal_closed',
     });
   });
@@ -179,13 +197,24 @@ describe('proposals', () => {
   it('notifies other members when a vote opens and when it ends', async () => {
     const h = await makeHabitat({ members: 3 });
     const p = await propose(h.members[0]!, { kind: 'install', moduleId: 'polls' });
-    const opened = await getDb().select().from(s.notification).where(eq(s.notification.type, 'proposal.opened'));
-    expect(opened.map((n) => n.userId).sort()).toEqual([h.members[1]!.userId, h.members[2]!.userId].sort());
+    const opened = await getDb()
+      .select()
+      .from(s.notification)
+      .where(eq(s.notification.type, 'proposal.opened'));
+    expect(opened.map((n) => n.userId).sort()).toEqual(
+      [h.members[1]!.userId, h.members[2]!.userId].sort(),
+    );
     await vote(h.members[1]!, p.id, 'yes');
-    const decided = await getDb().select().from(s.notification).where(eq(s.notification.type, 'proposal.decided'));
+    const decided = await getDb()
+      .select()
+      .from(s.notification)
+      .where(eq(s.notification.type, 'proposal.decided'));
     expect(decided).toHaveLength(3);
     expect(
-      await getDb().select().from(s.installedModule).where(and(eq(s.installedModule.moduleId, 'polls'), isNull(s.installedModule.removedAt))),
+      await getDb()
+        .select()
+        .from(s.installedModule)
+        .where(and(eq(s.installedModule.moduleId, 'polls'), isNull(s.installedModule.removedAt))),
     ).toHaveLength(1);
   });
 });

@@ -19,7 +19,9 @@ export function MentionInput({ value, onValueChange, ...props }: Props) {
   const matches = useMemo(() => {
     if (!query) return [];
     const q = query.text.toLowerCase();
-    return members.filter((m) => m.id !== me.id && displayName(m).toLowerCase().startsWith(q)).slice(0, 5);
+    return members
+      .filter((m) => m.id !== me.id && displayName(m).toLowerCase().startsWith(q))
+      .slice(0, 5);
   }, [query, members, me.id]);
 
   function detect(text: string, caret: number) {
@@ -57,10 +59,19 @@ export function MentionInput({ value, onValueChange, ...props }: Props) {
         }}
       />
       {matches.length > 0 && (
-        <ul role="listbox" aria-label="Mention a member" className="absolute left-0 top-full z-20 mt-1 w-64 rounded-xl border border-line bg-surface p-1 shadow-lg">
+        <ul
+          role="listbox"
+          aria-label="Mention a member"
+          className="absolute left-0 top-full z-20 mt-1 w-64 rounded-xl border border-line bg-surface p-1 shadow-lg"
+        >
           {matches.map((m) => (
             <li key={m.id} role="option" aria-selected={false}>
-              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(displayName(m))} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-surface-2">
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pick(displayName(m))}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-surface-2"
+              >
                 <MemberAvatar member={m} size="xs" /> {displayName(m)}
               </button>
             </li>

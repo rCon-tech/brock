@@ -11,7 +11,13 @@ import { cn } from '@/lib/utils';
 import { useCreateRecord } from '../sdk/hooks';
 import { KINDS } from './RecCard';
 
-export function RecForm({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+export function RecForm({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
   const [kind, setKind] = useState('film');
   const [title, setTitle] = useState('');
   const [link, setLink] = useState('');
@@ -28,10 +34,21 @@ export function RecForm({ open, onOpenChange }: { open: boolean; onOpenChange: (
           onSubmit={(e) => {
             e.preventDefault();
             create.mutate(
-              { data: { kind, title, link: link.trim() || undefined, note: note.trim() || undefined, rating: rating || undefined } },
+              {
+                data: {
+                  kind,
+                  title,
+                  link: link.trim() || undefined,
+                  note: note.trim() || undefined,
+                  rating: rating || undefined,
+                },
+              },
               {
                 onSuccess: () => onOpenChange(false),
-                onError: (err) => (err instanceof ApiError && err.fields ? setFields(err.fields) : toast.error(errorMessage(err))),
+                onError: (err) =>
+                  err instanceof ApiError && err.fields
+                    ? setFields(err.fields)
+                    : toast.error(errorMessage(err)),
               },
             );
           }}
@@ -49,28 +66,55 @@ export function RecForm({ open, onOpenChange }: { open: boolean; onOpenChange: (
             </div>
             <div className="col-span-2">
               <Label htmlFor="rt">Title</Label>
-              <Input id="rt" required maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} />
+              <Input
+                id="rt"
+                required
+                maxLength={120}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
               <FieldError messages={fields.title} />
             </div>
           </div>
           <div>
             <Label htmlFor="rl">Link (optional)</Label>
-            <Input id="rl" type="url" placeholder="https://…" value={link} onChange={(e) => setLink(e.target.value)} />
+            <Input
+              id="rl"
+              type="url"
+              placeholder="https://…"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+            />
             <FieldError messages={fields.link} />
           </div>
           <div>
             <Label>Rating</Label>
             <div className="flex gap-1" role="radiogroup" aria-label="Rating">
               {[1, 2, 3, 4, 5].map((n) => (
-                <button key={n} type="button" role="radio" aria-checked={rating === n} aria-label={`${n} star${n > 1 ? 's' : ''}`} onClick={() => setRating(rating === n ? 0 : n)}>
-                  <Star size={28} className={cn(n <= rating ? 'fill-accent text-accent' : 'text-line')} />
+                <button
+                  key={n}
+                  type="button"
+                  role="radio"
+                  aria-checked={rating === n}
+                  aria-label={`${n} star${n > 1 ? 's' : ''}`}
+                  onClick={() => setRating(rating === n ? 0 : n)}
+                >
+                  <Star
+                    size={28}
+                    className={cn(n <= rating ? 'fill-accent text-accent' : 'text-line')}
+                  />
                 </button>
               ))}
             </div>
           </div>
           <div>
             <Label htmlFor="rn">Why? (optional)</Label>
-            <Textarea id="rn" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+            <Textarea
+              id="rn"
+              maxLength={500}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
           </div>
           <div className="flex justify-end gap-2">
             <DialogClose asChild>

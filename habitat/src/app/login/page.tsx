@@ -6,7 +6,11 @@ import { safeNext } from '@/lib/safe-next';
 
 export const metadata = { title: 'Sign in' };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   const { next: rawNext } = await searchParams;
   const next = safeNext(rawNext);
   if (await getCurrentUser()) redirect(next);
@@ -16,7 +20,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <Logo size="lg" />
         <h1 className="mt-6 text-xl font-bold">Sign in or create your account</h1>
       </div>
-      <LoginForm next={next} google={!!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET} invited={next.startsWith('/join/')} />
+      <LoginForm
+        next={next}
+        google={!!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET}
+        invited={next.startsWith('/join/')}
+      />
     </main>
   );
 }

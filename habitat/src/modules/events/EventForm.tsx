@@ -63,7 +63,10 @@ export function EventForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={existing ? 'Edit event' : 'Plan something'} description="Everyone in the Habitat will be told.">
+      <DialogContent
+        title={existing ? 'Edit event' : 'Plan something'}
+        description="Everyone in the Habitat will be told."
+      >
         <form
           className="space-y-3"
           onSubmit={(e) => {
@@ -73,27 +76,56 @@ export function EventForm({
         >
           <div>
             <Label htmlFor="et">What’s the plan?</Label>
-            <Input id="et" required maxLength={100} placeholder="Pub quiz" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Input
+              id="et"
+              required
+              maxLength={100}
+              placeholder="Pub quiz"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
             <FieldError messages={fields.title} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <Label htmlFor="es">Starts</Label>
-              <Input id="es" type="datetime-local" required value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
+              <Input
+                id="es"
+                type="datetime-local"
+                required
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+              />
               <FieldError messages={fields.startsAt} />
             </div>
             <div>
               <Label htmlFor="ee">Ends (optional)</Label>
-              <Input id="ee" type="datetime-local" min={startsAt} value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
+              <Input
+                id="ee"
+                type="datetime-local"
+                min={startsAt}
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+              />
             </div>
           </div>
           <div>
             <Label htmlFor="el">Where (optional)</Label>
-            <Input id="el" maxLength={200} value={location} onChange={(e) => setLocation(e.target.value)} />
+            <Input
+              id="el"
+              maxLength={200}
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
           </div>
           <div>
             <Label htmlFor="ed">Details (optional)</Label>
-            <Textarea id="ed" maxLength={2000} value={details} onChange={(e) => setDetails(e.target.value)} />
+            <Textarea
+              id="ed"
+              maxLength={2000}
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+            />
           </div>
           <div className="flex justify-end gap-2">
             <DialogClose asChild>

@@ -88,11 +88,18 @@ export async function sendBirthdayNotices(now = new Date()): Promise<number> {
       ),
     )
     .innerJoin(habitat, and(eq(habitat.id, record.habitatId), isNull(habitat.deletedAt)))
-    .where(and(eq(record.moduleId, 'birthdays'), eq(record.collection, 'birthday'), isNull(record.deletedAt)));
+    .where(
+      and(
+        eq(record.moduleId, 'birthdays'),
+        eq(record.collection, 'birthday'),
+        isNull(record.deletedAt),
+      ),
+    );
 
   let sent = 0;
   for (const { r: b } of rows) {
-    if (!b.authorId || !occursOn({ month: Number(b.data.month), day: Number(b.data.day) }, now)) continue;
+    if (!b.authorId || !occursOn({ month: Number(b.data.month), day: Number(b.data.day) }, now))
+      continue;
     const done = await db
       .select({ id: notification.id })
       .from(notification)

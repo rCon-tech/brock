@@ -13,7 +13,15 @@ import { parseMoneyInput } from './settle';
 
 export const CURRENCIES = ['GBP', 'EUR', 'USD', 'CAD', 'AUD', 'JPY'];
 
-export function ExpenseForm({ open, onOpenChange, defaultCurrency }: { open: boolean; onOpenChange: (o: boolean) => void; defaultCurrency: string }) {
+export function ExpenseForm({
+  open,
+  onOpenChange,
+  defaultCurrency,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  defaultCurrency: string;
+}) {
   const { me, members } = useHabitat();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -26,31 +34,60 @@ export function ExpenseForm({ open, onOpenChange, defaultCurrency }: { open: boo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title="Add an expense" description="It’s split equally between the people you tick.">
+      <DialogContent
+        title="Add an expense"
+        description="It’s split equally between the people you tick."
+      >
         <form
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
             if (!minor) return;
             create.mutate(
-              { data: { description, amount: { amountMinor: minor, currency }, paidBy, splitAmong: [...among] } },
+              {
+                data: {
+                  description,
+                  amount: { amountMinor: minor, currency },
+                  paidBy,
+                  splitAmong: [...among],
+                },
+              },
               {
                 onSuccess: () => onOpenChange(false),
-                onError: (err) => (err instanceof ApiError && err.fields ? setFields(err.fields) : toast.error(errorMessage(err))),
+                onError: (err) =>
+                  err instanceof ApiError && err.fields
+                    ? setFields(err.fields)
+                    : toast.error(errorMessage(err)),
               },
             );
           }}
         >
           <div>
             <Label htmlFor="xd">What was it?</Label>
-            <Input id="xd" required maxLength={100} placeholder="Dinner at Luigi’s" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Input
+              id="xd"
+              required
+              maxLength={100}
+              placeholder="Dinner at Luigi’s"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
             <FieldError messages={fields.description} />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <Label htmlFor="xa">Amount</Label>
-              <Input id="xa" inputMode="decimal" required placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} />
-              {amount && !minor && <p className="mt-1 text-sm text-danger">Use a number like 12.50</p>}
+              <Input
+                id="xa"
+                inputMode="decimal"
+                required
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+              {amount && !minor && (
+                <p className="mt-1 text-sm text-danger">Use a number like 12.50</p>
+              )}
             </div>
             <div>
               <Label htmlFor="xc">Currency</Label>
@@ -88,7 +125,10 @@ export function ExpenseForm({ open, onOpenChange, defaultCurrency }: { open: boo
                         setAmong(next);
                       }}
                     />
-                    <MemberAvatar member={m} size="xs" /> <span className="truncate text-sm">{m.id === me.id ? 'You' : displayName(m)}</span>
+                    <MemberAvatar member={m} size="xs" />{' '}
+                    <span className="truncate text-sm">
+                      {m.id === me.id ? 'You' : displayName(m)}
+                    </span>
                   </label>
                 </li>
               ))}
@@ -101,7 +141,10 @@ export function ExpenseForm({ open, onOpenChange, defaultCurrency }: { open: boo
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={create.isPending || !description.trim() || !minor || among.size === 0}>
+            <Button
+              type="submit"
+              disabled={create.isPending || !description.trim() || !minor || among.size === 0}
+            >
               Add expense
             </Button>
           </div>

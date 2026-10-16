@@ -30,8 +30,17 @@ export async function apiFetch<T = unknown>(
     // non-JSON body
   }
   if (!res.ok) {
-    const e = (data as { error?: { code?: string; message?: string; fields?: Record<string, string[]> } } | null)?.error;
-    throw new ApiError(res.status, e?.code ?? 'error', e?.message ?? 'Something went wrong.', e?.fields);
+    const e = (
+      data as {
+        error?: { code?: string; message?: string; fields?: Record<string, string[]> };
+      } | null
+    )?.error;
+    throw new ApiError(
+      res.status,
+      e?.code ?? 'error',
+      e?.message ?? 'Something went wrong.',
+      e?.fields,
+    );
   }
   return data as T;
 }

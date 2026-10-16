@@ -21,7 +21,10 @@ export const formatWhen = (iso: string, endIso?: string) => {
   let out = format(s, "EEE d MMM yyyy 'at' HH:mm");
   if (endIso) {
     const e = new Date(endIso);
-    out += s.toDateString() === e.toDateString() ? ` – ${format(e, 'HH:mm')}` : ` → ${format(e, "EEE d MMM 'at' HH:mm")}`;
+    out +=
+      s.toDateString() === e.toDateString()
+        ? ` – ${format(e, 'HH:mm')}`
+        : ` → ${format(e, "EEE d MMM 'at' HH:mm")}`;
   }
   return out;
 };
@@ -33,13 +36,16 @@ export function EventDetail({ eventId }: { eventId: string }) {
   const [editing, setEditing] = useState(false);
 
   if (event.isLoading) return <Skeleton className="h-48" />;
-  if (event.isError || !event.data) return <EmptyState emoji="🌫️" title="That event isn’t here anymore" />;
+  if (event.isError || !event.data)
+    return <EmptyState emoji="🌫️" title="That event isn’t here anymore" />;
   const e = event.data;
   const canEdit = e.author?.id === me.id || isAdmin(me.role);
   const { title, startsAt, endsAt, location, details } = e.data;
 
   function download() {
-    const blob = new Blob([toIcs({ id: e.id, title, startsAt, endsAt, location, details }, name)], { type: 'text/calendar;charset=utf-8' });
+    const blob = new Blob([toIcs({ id: e.id, title, startsAt, endsAt, location, details }, name)], {
+      type: 'text/calendar;charset=utf-8',
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -50,7 +56,10 @@ export function EventDetail({ eventId }: { eventId: string }) {
 
   return (
     <div className="space-y-4">
-      <Link href={`/h/${slug}/m/events`} className="inline-flex items-center gap-1 text-sm text-ink-soft hover:text-ink">
+      <Link
+        href={`/h/${slug}/m/events`}
+        className="inline-flex items-center gap-1 text-sm text-ink-soft hover:text-ink"
+      >
         <ArrowLeft size={14} /> Events
       </Link>
       <Card className="space-y-3">
@@ -65,7 +74,12 @@ export function EventDetail({ eventId }: { eventId: string }) {
             )}
           </div>
           {canEdit && (
-            <Button variant="ghost" size="icon" aria-label="Edit event" onClick={() => setEditing(true)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Edit event"
+              onClick={() => setEditing(true)}
+            >
               <Pencil size={18} />
             </Button>
           )}
@@ -94,7 +108,10 @@ export function EventDetail({ eventId }: { eventId: string }) {
                 </h3>
                 <ul className="flex flex-wrap gap-2">
                   {who.map((r) => (
-                    <li key={r.id} className="flex items-center gap-1.5 rounded-full bg-surface-2 py-1 pl-1 pr-3 text-sm">
+                    <li
+                      key={r.id}
+                      className="flex items-center gap-1.5 rounded-full bg-surface-2 py-1 pl-1 pr-3 text-sm"
+                    >
                       <MemberAvatar member={r.author} size="xs" /> {displayName(r.author)}
                     </li>
                   ))}
@@ -110,7 +127,9 @@ export function EventDetail({ eventId }: { eventId: string }) {
         <CommentThread recordId={eventId} />
       </Card>
 
-      {editing && <EventForm open onOpenChange={setEditing} existing={{ id: e.id, data: e.data }} />}
+      {editing && (
+        <EventForm open onOpenChange={setEditing} existing={{ id: e.id, data: e.data }} />
+      )}
     </div>
   );
 }

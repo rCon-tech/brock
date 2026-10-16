@@ -27,7 +27,15 @@ const ICONS: Record<string, LucideIcon> = {
   'check-square': CheckSquare,
 };
 
-export function ModuleIcon({ name, size = 20, className }: { name: string; size?: number; className?: string }) {
+export function ModuleIcon({
+  name,
+  size = 20,
+  className,
+}: {
+  name: string;
+  size?: number;
+  className?: string;
+}) {
   const Icon = ICONS[name] ?? Puzzle;
   return <Icon size={size} className={className} aria-hidden />;
 }

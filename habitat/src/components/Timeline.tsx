@@ -19,7 +19,9 @@ export function Timeline() {
     queryKey: ['habitat', habitatId, 'timeline'],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
-      apiFetch<TimelinePage>(`/api/habitats/${habitatId}/timeline${pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ''}`),
+      apiFetch<TimelinePage>(
+        `/api/habitats/${habitatId}/timeline${pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ''}`,
+      ),
     getNextPageParam: (l) => l.nextCursor ?? undefined,
     refetchInterval: 45_000,
   });
@@ -55,7 +57,11 @@ export function Timeline() {
       ))}
       {q.hasNextPage && (
         <div className="flex justify-center">
-          <Button variant="outline" onClick={() => q.fetchNextPage()} disabled={q.isFetchingNextPage}>
+          <Button
+            variant="outline"
+            onClick={() => q.fetchNextPage()}
+            disabled={q.isFetchingNextPage}
+          >
             {q.isFetchingNextPage ? 'Loading…' : 'Load more'}
           </Button>
         </div>

@@ -19,7 +19,9 @@ async function load(h: Headers): Promise<CurrentUser | null> {
 export const getCurrentUser = cache(async () => load(await headers()));
 
 /** For pages: redirect to /login (or /onboarding for brand-new accounts). */
-export async function requireUser(opts: { allowUnonboarded?: boolean; next?: string } = {}): Promise<CurrentUser> {
+export async function requireUser(
+  opts: { allowUnonboarded?: boolean; next?: string } = {},
+): Promise<CurrentUser> {
   const u = await getCurrentUser();
   if (!u) redirect(opts.next ? `/login?next=${encodeURIComponent(opts.next)}` : '/login');
   if (!u.onboardedAt && !opts.allowUnonboarded) {

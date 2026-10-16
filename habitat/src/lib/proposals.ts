@@ -69,22 +69,29 @@ async function tally(tx: Executor, p: ProposalRow) {
   const adminVotes = rows
     .filter((r) => r.role !== 'member')
     .sort((a, b) => a.votedAt.getTime() - b.votedAt.getTime());
-  return { yes, no, memberCount: n, adminVote: (adminVotes[0]?.vote ?? null) as 'yes' | 'no' | null };
+  return {
+    yes,
+    no,
+    memberCount: n,
+    adminVote: (adminVotes[0]?.vote ?? null) as 'yes' | 'no' | null,
+  };
 }
 
 /**
  * Decide an open proposal, and if it is decided, finish it in this transaction: apply the change,
  * notify members, write the audit log. Callers hold a row lock on the proposal.
  */
-async function evaluate(tx: Tx, p: ProposalRow, mode: GovernanceMode, now: Date): Promise<Decision> {
+async function evaluate(
+  tx: Tx,
+  p: ProposalRow,
+  mode: GovernanceMode,
+  now: Date,
+): Promise<Decision> {
   const t = await tally(tx, p);
   const decision = decide({ mode, ...t, closesAt: p.closesAt, now });
   if (decision === 'open') return decision;
 
-  await tx
-    .update(proposal)
-    .set({ status: decision, decidedAt: now })
-    .where(eq(proposal.id, p.id));
+  await tx.update(proposal).set({ status: decision, decidedAt: now }).where(eq(proposal.id, p.id));
   if (decision === 'passed') await applyPassed(tx, p);
   const members = await activeMemberIds(tx, p.habitatId);
   await notify(
@@ -123,7 +130,12 @@ async function applyPassed(tx: Tx, p: ProposalRow) {
       await tx
         .update(installedModule)
         .set({ settings: (p.payload.settings ?? {}) as Record<string, unknown> })
-        .where(and(eq(installedModule.habitatId, p.habitatId), eq(installedModule.moduleId, p.moduleId!)));
+        .where(
+          and(
+            eq(installedModule.habitatId, p.habitatId),
+            eq(installedModule.moduleId, p.moduleId!),
+          ),
+        );
       break;
   }
 }
@@ -137,24 +149,32 @@ async function validateProposal(tx: Tx, habitatId: string, input: ProposeInput) 
 
   switch (input.kind) {
     case 'install': {
-      if (!input.moduleId || !getManifest(input.moduleId)) throw notFound('There’s no such module.');
-      if (isActive(input.moduleId)) throw conflict('already_installed', 'That module is already installed.');
+      if (!input.moduleId || !getManifest(input.moduleId))
+        throw notFound('There’s no such module.');
+      if (isActive(input.moduleId))
+        throw conflict('already_installed', 'That module is already installed.');
       return { payload: {} };
     }
     case 'uninstall': {
-      if (!input.moduleId || !isActive(input.moduleId)) throw conflict('not_installed', 'That module isn’t installed.');
+      if (!input.moduleId || !isActive(input.moduleId))
+        throw conflict('not_installed', 'That module isn’t installed.');
       return { payload: {} };
     }
     case 'governance': {
       const mode = input.payload?.mode;
-      if (mode !== 'majority' && mode !== 'unanimous' && mode !== 'admins') throw invalid('Choose a voting rule.');
-      const [h] = await tx.select({ g: habitat.governance }).from(habitat).where(eq(habitat.id, habitatId));
+      if (mode !== 'majority' && mode !== 'unanimous' && mode !== 'admins')
+        throw invalid('Choose a voting rule.');
+      const [h] = await tx
+        .select({ g: habitat.governance })
+        .from(habitat)
+        .where(eq(habitat.id, habitatId));
       if (h?.g === mode) throw conflict('no_change', 'That’s already the voting rule.');
       return { payload: { mode } };
     }
     case 'settings': {
       const m = input.moduleId ? getManifest(input.moduleId) : undefined;
-      if (!m || !input.moduleId || !isActive(input.moduleId)) throw conflict('not_installed', 'That module isn’t installed.');
+      if (!m || !input.moduleId || !isActive(input.moduleId))
+        throw conflict('not_installed', 'That module isn’t installed.');
       if (!m.settings) throw invalid('That module has no settings.');
       const parsed = compileFields(m.settings).safeParse(input.payload?.settings ?? {});
       if (!parsed.success) throw invalid('Those settings aren’t valid.');
@@ -163,7 +183,11 @@ async function validateProposal(tx: Tx, habitatId: string, input: ProposeInput) 
   }
 }
 
-export async function propose(ctx: MemberCtx, input: ProposeInput, now = new Date()): Promise<ProposalDTO> {
+export async function propose(
+  ctx: MemberCtx,
+  input: ProposeInput,
+  now = new Date(),
+): Promise<ProposalDTO> {
   const db = getDb();
   const id = await db
     .transaction(async (tx) => {
@@ -182,7 +206,9 @@ export async function propose(ctx: MemberCtx, input: ProposeInput, now = new Dat
           createdAt: now,
         })
         .returning();
-      await tx.insert(proposalVote).values({ proposalId: p!.id, userId: ctx.userId, vote: 'yes', votedAt: now });
+      await tx
+        .insert(proposalVote)
+        .values({ proposalId: p!.id, userId: ctx.userId, vote: 'yes', votedAt: now });
       const others = await activeMemberIds(tx, ctx.habitatId, ctx.userId);
       await notify(
         tx,
@@ -195,7 +221,11 @@ export async function propose(ctx: MemberCtx, input: ProposeInput, now = new Dat
           payload: { kind: input.kind, moduleId: input.moduleId ?? null },
         })),
       );
-      await logAudit(tx, ctx.habitatId, ctx.userId, 'proposal.opened', { proposalId: p!.id, kind: input.kind, moduleId: input.moduleId });
+      await logAudit(tx, ctx.habitatId, ctx.userId, 'proposal.opened', {
+        proposalId: p!.id,
+        kind: input.kind,
+        moduleId: input.moduleId,
+      });
       await evaluate(tx, p!, h.governance, now);
       return p!.id;
     })
@@ -257,7 +287,10 @@ export async function withdraw(ctx: MemberCtx, proposalId: string): Promise<void
     if (!p) throw notFound();
     if (p.proposedBy !== ctx.userId && !can(ctx.role, 'habitat.update')) throw forbidden();
     if (p.status !== 'open') throw conflict('proposal_closed', 'This vote has already finished.');
-    await tx.update(proposal).set({ status: 'withdrawn', decidedAt: new Date() }).where(eq(proposal.id, p.id));
+    await tx
+      .update(proposal)
+      .set({ status: 'withdrawn', decidedAt: new Date() })
+      .where(eq(proposal.id, p.id));
     await logAudit(tx, ctx.habitatId, ctx.userId, 'proposal.withdrawn', { proposalId });
   });
 }
@@ -331,7 +364,10 @@ async function toDTOs(db: Executor, ctx: MemberCtx, rows: ProposalRow[]): Promis
     .where(and(eq(membership.habitatId, ctx.habitatId), isNull(membership.leftAt)));
   const proposerIds = [...new Set(rows.map((r) => r.proposedBy).filter((x): x is string => !!x))];
   const people = proposerIds.length
-    ? await db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, proposerIds))
+    ? await db
+        .select({ id: user.id, name: user.name })
+        .from(user)
+        .where(inArray(user.id, proposerIds))
     : [];
   return rows.map((p) => {
     const mine = votes.filter((v) => v.proposalId === p.id);
@@ -356,7 +392,11 @@ async function toDTOs(db: Executor, ctx: MemberCtx, rows: ProposalRow[]): Promis
   });
 }
 
-export async function getProposal(db: Executor, ctx: MemberCtx, proposalId: string): Promise<ProposalDTO> {
+export async function getProposal(
+  db: Executor,
+  ctx: MemberCtx,
+  proposalId: string,
+): Promise<ProposalDTO> {
   const [p] = await db
     .select()
     .from(proposal)
@@ -365,7 +405,10 @@ export async function getProposal(db: Executor, ctx: MemberCtx, proposalId: stri
   return (await toDTOs(db, ctx, [p]))[0]!;
 }
 
-export async function listProposals(ctx: MemberCtx, opts: { status?: 'open' | 'closed' } = {}): Promise<ProposalDTO[]> {
+export async function listProposals(
+  ctx: MemberCtx,
+  opts: { status?: 'open' | 'closed' } = {},
+): Promise<ProposalDTO[]> {
   const db = getDb();
   const rows = await db
     .select()

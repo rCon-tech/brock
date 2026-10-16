@@ -8,7 +8,11 @@ export interface BirthdayEntry {
 const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 
 /** Feb 29 birthdays are celebrated on Feb 28 in non-leap years. */
-export function effectiveDay(month: number, day: number, year: number): { month: number; day: number } {
+export function effectiveDay(
+  month: number,
+  day: number,
+  year: number,
+): { month: number; day: number } {
   if (month === 2 && day === 29 && !isLeap(year)) return { month: 2, day: 28 };
   return { month, day };
 }

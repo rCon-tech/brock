@@ -6,7 +6,11 @@ const bool = z.boolean().optional();
 
 export const fieldSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), max: z.number().int().min(1).max(2000), required: bool }),
-  z.object({ type: z.literal('longtext'), max: z.number().int().min(1).max(10000), required: bool }),
+  z.object({
+    type: z.literal('longtext'),
+    max: z.number().int().min(1).max(10000),
+    required: bool,
+  }),
   z.object({
     type: z.enum(['integer', 'number']),
     min: z.number().optional(),
@@ -51,8 +55,8 @@ const collectionSchema = z.object({
   permissions: z
     .object({
       create: z.enum(['member', 'admin']).optional(),
-      update: z.enum(['author', 'admin', 'author-or-admin']).optional(),
-      delete: z.enum(['author', 'admin', 'author-or-admin']).optional(),
+      update: z.enum(['author', 'admin', 'author-or-admin', 'member']).optional(),
+      delete: z.enum(['author', 'admin', 'author-or-admin', 'member']).optional(),
       hiddenFrom: z.literal('parent-author').optional(),
     })
     .optional(),
@@ -87,7 +91,9 @@ export const manifestSchema = z
       message: 'A module needs at least one collection',
     }),
     settings: fieldSpecSchema.optional(),
-    nav: z.union([z.literal(false), z.object({ label: z.string().min(1).max(30), order: z.number() })]).optional(),
+    nav: z
+      .union([z.literal(false), z.object({ label: z.string().min(1).max(30), order: z.number() })])
+      .optional(),
   })
   .superRefine((m, ctx) => {
     for (const [cname, c] of Object.entries(m.collections)) {
@@ -118,7 +124,11 @@ export const manifestSchema = z
         }
       }
       if (c.parent === cname) {
-        ctx.addIssue({ code: 'custom', path: ['collections', cname, 'parent'], message: 'A collection cannot be its own parent' });
+        ctx.addIssue({
+          code: 'custom',
+          path: ['collections', cname, 'parent'],
+          message: 'A collection cannot be its own parent',
+        });
       }
       if (c.unique && c.unique !== 'per-member' && !c.parent) {
         ctx.addIssue({
@@ -150,7 +160,9 @@ export const manifestSchema = z
 export function parseManifest(input: unknown): ModuleManifest {
   const r = manifestSchema.safeParse(input);
   if (!r.success) {
-    const msg = r.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ');
+    const msg = r.error.issues
+      .map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
+      .join('; ');
     throw new Error(`Invalid module manifest: ${msg}`);
   }
   return r.data as ModuleManifest;

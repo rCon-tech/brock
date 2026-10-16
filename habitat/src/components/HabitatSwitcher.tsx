@@ -5,7 +5,13 @@ import { ChevronsUpDown, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
 import { inkFor } from '@/lib/utils';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface Mine {
   id: string;
@@ -15,12 +21,24 @@ interface Mine {
   accent: string;
 }
 
-export function HabitatSwitcher({ current }: { current: { slug: string; name: string; emoji: string; accent: string } }) {
-  const { data } = useQuery({ queryKey: ['my-habitats'], queryFn: () => apiFetch<{ habitats: Mine[] }>('/api/habitats'), staleTime: 60_000 });
+export function HabitatSwitcher({
+  current,
+}: {
+  current: { slug: string; name: string; emoji: string; accent: string };
+}) {
+  const { data } = useQuery({
+    queryKey: ['my-habitats'],
+    queryFn: () => apiFetch<{ habitats: Mine[] }>('/api/habitats'),
+    staleTime: 60_000,
+  });
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex max-w-[60vw] items-center gap-2 rounded-xl px-2 py-1 hover:bg-surface-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg text-lg" style={{ background: current.accent, color: inkFor(current.accent) }} aria-hidden>
+        <span
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-lg"
+          style={{ background: current.accent, color: inkFor(current.accent) }}
+          aria-hidden
+        >
           {current.emoji}
         </span>
         <span className="truncate font-bold">{current.name}</span>

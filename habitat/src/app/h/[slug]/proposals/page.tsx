@@ -26,7 +26,11 @@ export default async function ProposalsPage({ params }: { params: Promise<{ slug
         <h2 className="font-bold">Open</h2>
         {open.length === 0 ? (
           <EmptyState emoji="🗳️" title="Nothing to vote on">
-            See something missing? Browse the <Link className="text-accent underline" href={`/h/${slug}/library`}>library</Link> and suggest it.
+            See something missing? Browse the{' '}
+            <Link className="text-accent underline" href={`/h/${slug}/library`}>
+              library
+            </Link>{' '}
+            and suggest it.
           </EmptyState>
         ) : (
           open.map((p) => <ProposalCard key={p.id} p={p} />)

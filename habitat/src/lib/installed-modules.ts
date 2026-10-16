@@ -29,7 +29,11 @@ export async function listActive(db: Executor, habitatId: string): Promise<Activ
     .sort((a, b) => a.position - b.position);
 }
 
-export async function requireInstalled(db: Executor, habitatId: string, moduleId: string): Promise<ModuleManifest> {
+export async function requireInstalled(
+  db: Executor,
+  habitatId: string,
+  moduleId: string,
+): Promise<ModuleManifest> {
   const manifest = getManifest(moduleId);
   const [row] = manifest
     ? await db
@@ -43,7 +47,8 @@ export async function requireInstalled(db: Executor, habitatId: string, moduleId
           ),
         )
     : [];
-  if (!manifest || !row) throw new DomainError('module_not_installed', 404, 'That module isn’t installed here.');
+  if (!manifest || !row)
+    throw new DomainError('module_not_installed', 404, 'That module isn’t installed here.');
   return manifest;
 }
 
@@ -71,12 +76,21 @@ export async function install(
     })
     .onConflictDoUpdate({
       target: [installedModule.habitatId, installedModule.moduleId],
-      set: { removedAt: null, version: manifest.version, installedByProposalId: opts.proposalId ?? null },
+      set: {
+        removedAt: null,
+        version: manifest.version,
+        installedByProposalId: opts.proposalId ?? null,
+      },
     });
 }
 
 /** Soft: data is hidden, not deleted, until the purge job runs 30 days later. */
-export async function uninstall(db: Executor, habitatId: string, moduleId: string, now = new Date()): Promise<void> {
+export async function uninstall(
+  db: Executor,
+  habitatId: string,
+  moduleId: string,
+  now = new Date(),
+): Promise<void> {
   await db
     .update(installedModule)
     .set({ removedAt: now })
@@ -89,7 +103,11 @@ export async function reorder(ctx: MemberCtx, order: string[]): Promise<void> {
   await db.transaction(async (tx) => {
     const active = await listActive(tx, ctx.habitatId);
     const ids = new Set(active.map((a) => a.manifest.id));
-    if (order.length !== ids.size || !order.every((id) => ids.has(id)) || new Set(order).size !== order.length) {
+    if (
+      order.length !== ids.size ||
+      !order.every((id) => ids.has(id)) ||
+      new Set(order).size !== order.length
+    ) {
       throw invalid('Send every installed module exactly once.');
     }
     for (const [i, id] of order.entries()) {
@@ -103,7 +121,9 @@ export async function reorder(ctx: MemberCtx, order: string[]): Promise<void> {
 }
 
 /** Nightly: hard-delete data of modules removed more than 30 days ago, and Habitats deleted likewise. */
-export async function purgeRemoved(now = new Date()): Promise<{ modules: number; habitats: number }> {
+export async function purgeRemoved(
+  now = new Date(),
+): Promise<{ modules: number; habitats: number }> {
   const db = getDb();
   const cutoff = new Date(now.getTime() - PURGE_AFTER_DAYS * 86400_000);
   let modules = 0;
@@ -118,7 +138,9 @@ export async function purgeRemoved(now = new Date()): Promise<{ modules: number;
         .where(and(eq(record.habitatId, m.habitatId), eq(record.moduleId, m.moduleId)));
       await tx
         .delete(installedModule)
-        .where(and(eq(installedModule.habitatId, m.habitatId), eq(installedModule.moduleId, m.moduleId)));
+        .where(
+          and(eq(installedModule.habitatId, m.habitatId), eq(installedModule.moduleId, m.moduleId)),
+        );
     });
     modules++;
   }

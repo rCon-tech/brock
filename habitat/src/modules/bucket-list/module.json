@@ -1,0 +1,75 @@
+{
+  "manifest": {
+    "id": "bucket-list",
+    "name": "Bucket List",
+    "tagline": "Things to do together, ticked off as you go",
+    "description": "A shared list of ideas. Anyone can add one and anyone can tick it off when it happens.",
+    "icon": "check-square",
+    "category": "fun",
+    "version": 1,
+    "nav": { "label": "Bucket list", "order": 15 },
+    "collections": {
+      "idea": {
+        "fields": {
+          "title": { "type": "text", "max": 120, "required": true },
+          "details": { "type": "longtext", "max": 500 },
+          "done": { "type": "boolean" }
+        },
+        "showInTimeline": true,
+        "permissions": { "update": "member", "delete": "author-or-admin" }
+      }
+    }
+  },
+  "views": {
+    "main": {
+      "type": "stack",
+      "children": [
+        {
+          "type": "counter",
+          "collection": "idea",
+          "filter": { "field": "done", "op": "eq", "value": true },
+          "label": "ticked off"
+        },
+        {
+          "type": "form",
+          "collection": "idea",
+          "title": "Add an idea",
+          "submitLabel": "Add",
+          "fields": ["title", "details"]
+        },
+        {
+          "type": "tabs",
+          "tabs": [
+            {
+              "label": "To do",
+              "view": {
+                "type": "list",
+                "collection": "idea",
+                "filter": { "field": "done", "op": "eq", "value": false },
+                "empty": "Nothing on the list yet. What would you love to do together?",
+                "cells": [
+                  { "field": "done", "as": "toggle" },
+                  { "field": "title", "as": "title" },
+                  { "field": "details", "as": "muted" }
+                ]
+              }
+            },
+            {
+              "label": "Done",
+              "view": {
+                "type": "list",
+                "collection": "idea",
+                "filter": { "field": "done", "op": "eq", "value": true },
+                "empty": "Nothing ticked off yet.",
+                "cells": [
+                  { "field": "done", "as": "toggle" },
+                  { "field": "title", "as": "title" }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

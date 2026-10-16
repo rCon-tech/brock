@@ -32,7 +32,9 @@ function PollList() {
       {q.isLoading ? (
         <Skeleton className="h-40" />
       ) : q.items.length === 0 ? (
-        <EmptyState emoji="🗳️" title="No polls yet">Ask the group something.</EmptyState>
+        <EmptyState emoji="🗳️" title="No polls yet">
+          Ask the group something.
+        </EmptyState>
       ) : (
         q.items.map((p) => (
           <TimelineItem key={p.id} record={p}>
@@ -57,7 +59,10 @@ function OnePoll({ id }: { id: string }) {
   if (!q.data) return <EmptyState emoji="🌫️" title="That poll isn’t here anymore" />;
   return (
     <div className="space-y-3">
-      <Link href={`/h/${slug}/m/polls`} className="inline-flex items-center gap-1 text-sm text-ink-soft hover:text-ink">
+      <Link
+        href={`/h/${slug}/m/polls`}
+        className="inline-flex items-center gap-1 text-sm text-ink-soft hover:text-ink"
+      >
         <ArrowLeft size={14} /> Polls
       </Link>
       <TimelineItem record={q.data} defaultOpen>

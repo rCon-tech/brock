@@ -59,9 +59,14 @@ export function balances(expenses: Expense[], settlements: Settlement[] = []): B
 
 /** Fewest payments (greedy, largest debtor pays largest creditor) that bring everyone to zero. */
 export function transfers(balance: Record<string, number>): Transfer[] {
-  const creditors = Object.entries(balance).filter(([, n]) => n > 0).map(([id, n]) => ({ id, n }));
-  const debtors = Object.entries(balance).filter(([, n]) => n < 0).map(([id, n]) => ({ id, n: -n }));
-  const byAmountThenId = (a: { id: string; n: number }, b: { id: string; n: number }) => b.n - a.n || a.id.localeCompare(b.id);
+  const creditors = Object.entries(balance)
+    .filter(([, n]) => n > 0)
+    .map(([id, n]) => ({ id, n }));
+  const debtors = Object.entries(balance)
+    .filter(([, n]) => n < 0)
+    .map(([id, n]) => ({ id, n: -n }));
+  const byAmountThenId = (a: { id: string; n: number }, b: { id: string; n: number }) =>
+    b.n - a.n || a.id.localeCompare(b.id);
   const out: Transfer[] = [];
   for (;;) {
     creditors.sort(byAmountThenId);

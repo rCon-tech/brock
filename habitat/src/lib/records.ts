@@ -3,7 +3,15 @@ import { getDb, type Executor } from '@/db';
 import { comment, media, membership, reaction, record, user } from '@/db/schema';
 import { compileFields, referenceFields } from '@/modules/sdk/fields';
 import type { CollectionDef, MemberDTO, ModuleManifest, RecordDTO } from '@/modules/sdk/types';
-import { DomainError, conflict, forbidden, invalid, isUniqueViolation, notFound, tooMany } from './errors';
+import {
+  DomainError,
+  conflict,
+  forbidden,
+  invalid,
+  isUniqueViolation,
+  notFound,
+  tooMany,
+} from './errors';
 import { requireInstalled } from './installed-modules';
 import { extractMentions } from './mentions';
 import { activeMemberIds, notify, type NewNotification } from './notifications';
@@ -37,10 +45,15 @@ async function resolveDef(db: Executor, habitatId: string, moduleId: string, col
 }
 
 /** SQL excluding records the viewer must not see (wishlist claims on their own wishes). */
-export function hiddenFilter(viewerId: string, hidden: Array<{ module: string; collection: string }>): SQL | undefined {
+export function hiddenFilter(
+  viewerId: string,
+  hidden: Array<{ module: string; collection: string }>,
+): SQL | undefined {
   if (!hidden.length) return undefined;
   const clauses = hidden.map(
-    (h) => sql`("record"."module_id" = ${h.module} AND "record"."collection" = ${h.collection} AND EXISTS (
+    (
+      h,
+    ) => sql`("record"."module_id" = ${h.module} AND "record"."collection" = ${h.collection} AND EXISTS (
       select 1 from "record" "p" where "p"."id" = "record"."parent_id" and "p"."author_id" = ${viewerId}))`,
   );
   return sql`NOT (${sql.join(clauses, sql` OR `)})`;
@@ -62,7 +75,12 @@ function stringsIn(def: CollectionDef, data: Record<string, unknown>): string {
     .join('\n');
 }
 
-async function checkReferences(db: Executor, habitatId: string, def: CollectionDef, data: Record<string, unknown>) {
+async function checkReferences(
+  db: Executor,
+  habitatId: string,
+  def: CollectionDef,
+  data: Record<string, unknown>,
+) {
   const refs = referenceFields(def.fields);
   const errors: Record<string, string[]> = {};
 
@@ -75,7 +93,13 @@ async function checkReferences(db: Executor, habitatId: string, def: CollectionD
     const found = await db
       .select({ id: media.id })
       .from(media)
-      .where(and(eq(media.habitatId, habitatId), inArray(media.id, [...mediaIds]), eq(media.status, 'ready')));
+      .where(
+        and(
+          eq(media.habitatId, habitatId),
+          inArray(media.id, [...mediaIds]),
+          eq(media.status, 'ready'),
+        ),
+      );
     const ok = new Set(found.map((f) => f.id));
     for (const f of refs.media) {
       const v = data[f];
@@ -95,7 +119,11 @@ async function checkReferences(db: Executor, habitatId: string, def: CollectionD
       .select({ id: membership.userId })
       .from(membership)
       .where(
-        and(eq(membership.habitatId, habitatId), inArray(membership.userId, [...memberIds]), isNull(membership.leftAt)),
+        and(
+          eq(membership.habitatId, habitatId),
+          inArray(membership.userId, [...memberIds]),
+          isNull(membership.leftAt),
+        ),
       );
     const ok = new Set(found.map((f) => f.id));
     for (const f of refs.members) {
@@ -124,7 +152,9 @@ function validateData(def: CollectionDef, raw: unknown): Record<string, unknown>
   }
   const data = parsed.data as Record<string, unknown>;
   if (def.atLeastOne && def.atLeastOne.every((f) => isEmptyValue(data[f]))) {
-    throw invalid('Add some text or a photo.', { [def.atLeastOne[0]!]: ['Add some text or a photo.'] });
+    throw invalid('Add some text or a photo.', {
+      [def.atLeastOne[0]!]: ['Add some text or a photo.'],
+    });
   }
   return data;
 }
@@ -152,11 +182,19 @@ async function memberNames(db: Executor, habitatId: string) {
 
 function fillTemplate(text: string, author: string, data: Record<string, unknown>) {
   return text.replace(/\{(\w+)\}/g, (_, k: string) =>
-    k === 'author' ? author : typeof data[k] === 'string' || typeof data[k] === 'number' ? String(data[k]) : '',
+    k === 'author'
+      ? author
+      : typeof data[k] === 'string' || typeof data[k] === 'number'
+        ? String(data[k])
+        : '',
   );
 }
 
-export async function createRecord(ctx: MemberCtx, input: RecordInput, now = new Date()): Promise<RecordDTO> {
+export async function createRecord(
+  ctx: MemberCtx,
+  input: RecordInput,
+  now = new Date(),
+): Promise<RecordDTO> {
   const db = getDb();
   const { manifest, def } = await resolveDef(db, ctx.habitatId, input.module, input.collection);
   if (!canWriteRecord({ userId: ctx.userId, role: ctx.role }, def, 'create')) throw forbidden();
@@ -164,7 +202,8 @@ export async function createRecord(ctx: MemberCtx, input: RecordInput, now = new
 
   const parentId = input.parentId ?? null;
   if (def.parent && !parentId) throw invalid('This needs a parent.', { parentId: ['Required.'] });
-  if (!def.parent && parentId) throw invalid('This can’t have a parent.', { parentId: ['Not allowed.'] });
+  if (!def.parent && parentId)
+    throw invalid('This can’t have a parent.', { parentId: ['Not allowed.'] });
 
   const data = validateData(def, input.data);
 
@@ -184,7 +223,9 @@ export async function createRecord(ctx: MemberCtx, input: RecordInput, now = new
           ),
         );
       if (!parent) throw invalid('That parent doesn’t exist.', { parentId: ['Not found.'] });
-      const lockAt = def.lockedAfterParentField ? parent.data[def.lockedAfterParentField] : undefined;
+      const lockAt = def.lockedAfterParentField
+        ? parent.data[def.lockedAfterParentField]
+        : undefined;
       if (typeof lockAt === 'string' && Date.parse(lockAt) <= now.getTime()) {
         throw conflict('closed', 'This has closed.');
       }
@@ -219,7 +260,8 @@ export async function createRecord(ctx: MemberCtx, input: RecordInput, now = new
             isNull(record.deletedAt),
           ),
         );
-      if (n >= def.limits.maxPerHabitat) throw conflict('limit_reached', 'This Habitat has reached the limit.');
+      if (n >= def.limits.maxPerHabitat)
+        throw conflict('limit_reached', 'This Habitat has reached the limit.');
     }
 
     const uniqueKey = uniqueKeyFor(def, ctx.userId, parentId);
@@ -298,7 +340,12 @@ export async function createRecord(ctx: MemberCtx, input: RecordInput, now = new
   });
 
   if (def.realtime) {
-    await publish(ctx.habitatId, { type: 'record.created', moduleId: manifest.id, collection: input.collection, id });
+    await publish(ctx.habitatId, {
+      type: 'record.created',
+      moduleId: manifest.id,
+      collection: input.collection,
+      id,
+    });
   }
   return getRecord(ctx, id);
 }
@@ -315,11 +362,16 @@ export async function loadVisibleRow(
     .from(record)
     .where(and(eq(record.id, id), eq(record.habitatId, ctx.habitatId), isNull(record.deletedAt)));
   if (!row) throw notFound();
-  const { manifest, def } = await resolveDef(db, ctx.habitatId, row.moduleId, row.collection).catch(() => {
-    throw notFound();
-  });
+  const { manifest, def } = await resolveDef(db, ctx.habitatId, row.moduleId, row.collection).catch(
+    () => {
+      throw notFound();
+    },
+  );
   if (def.permissions?.hiddenFrom === 'parent-author' && row.parentId) {
-    const [p] = await db.select({ authorId: record.authorId }).from(record).where(eq(record.id, row.parentId));
+    const [p] = await db
+      .select({ authorId: record.authorId })
+      .from(record)
+      .where(eq(record.id, row.parentId));
     if (p?.authorId === ctx.userId) throw notFound();
   }
   return { row, manifest, def };
@@ -384,7 +436,13 @@ export async function updateRecord(
   const db = getDb();
   await rateLimit(`rw:${ctx.habitatId}:${ctx.userId}`, WRITES_PER_MINUTE, 60, now);
   const { row, manifest, def } = await loadVisibleRow(db, ctx, id);
-  if (!canWriteRecord({ userId: ctx.userId, role: ctx.role, recordAuthorId: row.authorId }, def, 'update')) {
+  if (
+    !canWriteRecord(
+      { userId: ctx.userId, role: ctx.role, recordAuthorId: row.authorId },
+      def,
+      'update',
+    )
+  ) {
     throw forbidden();
   }
   const data = validateData(def, { ...row.data, ...patch });
@@ -393,7 +451,12 @@ export async function updateRecord(
     await tx.update(record).set({ data, updatedAt: now }).where(eq(record.id, id));
   });
   if (def.realtime) {
-    await publish(ctx.habitatId, { type: 'record.updated', moduleId: manifest.id, collection: row.collection, id });
+    await publish(ctx.habitatId, {
+      type: 'record.updated',
+      moduleId: manifest.id,
+      collection: row.collection,
+      id,
+    });
   }
   return getRecord(ctx, id);
 }
@@ -402,24 +465,45 @@ export async function updateRecord(
 export async function deleteRecord(ctx: MemberCtx, id: string, now = new Date()): Promise<void> {
   const db = getDb();
   const { row, manifest, def } = await loadVisibleRow(db, ctx, id);
-  if (!canWriteRecord({ userId: ctx.userId, role: ctx.role, recordAuthorId: row.authorId }, def, 'delete')) {
+  if (
+    !canWriteRecord(
+      { userId: ctx.userId, role: ctx.role, recordAuthorId: row.authorId },
+      def,
+      'delete',
+    )
+  ) {
     throw forbidden();
   }
   await db.transaction(async (tx) => {
-    await tx.update(record).set({ deletedAt: now }).where(and(eq(record.id, id), isNull(record.deletedAt)));
+    await tx
+      .update(record)
+      .set({ deletedAt: now })
+      .where(and(eq(record.id, id), isNull(record.deletedAt)));
     await tx
       .update(record)
       .set({ deletedAt: now })
       .where(and(eq(record.parentId, id), isNull(record.deletedAt)));
-    await tx.update(comment).set({ deletedAt: now }).where(and(eq(comment.recordId, id), isNull(comment.deletedAt)));
+    await tx
+      .update(comment)
+      .set({ deletedAt: now })
+      .where(and(eq(comment.recordId, id), isNull(comment.deletedAt)));
   });
   if (def.realtime) {
-    await publish(ctx.habitatId, { type: 'record.deleted', moduleId: manifest.id, collection: row.collection, id });
+    await publish(ctx.habitatId, {
+      type: 'record.deleted',
+      moduleId: manifest.id,
+      collection: row.collection,
+      id,
+    });
   }
 }
 
 /** Authors, reactions and comment counts for a page of records, in four queries. */
-export async function toDTOs(db: Executor, ctx: MemberCtx, rows: RecordRow[]): Promise<RecordDTO[]> {
+export async function toDTOs(
+  db: Executor,
+  ctx: MemberCtx,
+  rows: RecordRow[],
+): Promise<RecordDTO[]> {
   if (!rows.length) return [];
   const ids = rows.map((r) => r.id);
   const authorIds = [...new Set(rows.map((r) => r.authorId).filter((x): x is string => !!x))];
@@ -434,7 +518,10 @@ export async function toDTOs(db: Executor, ctx: MemberCtx, rows: RecordRow[]): P
           leftAt: membership.leftAt,
         })
         .from(user)
-        .leftJoin(membership, and(eq(membership.userId, user.id), eq(membership.habitatId, ctx.habitatId)))
+        .leftJoin(
+          membership,
+          and(eq(membership.userId, user.id), eq(membership.habitatId, ctx.habitatId)),
+        )
         .where(inArray(user.id, authorIds))
     : [];
   const authorMap = new Map<string, MemberDTO>(

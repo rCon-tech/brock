@@ -153,7 +153,10 @@ export const invite = pgTable(
     revokedAt: ts('revoked_at'),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex('invite_code_hash_uq').on(t.codeHash), index('invite_habitat_idx').on(t.habitatId)],
+  (t) => [
+    uniqueIndex('invite_code_hash_uq').on(t.codeHash),
+    index('invite_habitat_idx').on(t.habitatId),
+  ],
 );
 
 export const installedModule = pgTable(

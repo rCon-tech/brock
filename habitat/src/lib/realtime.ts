@@ -3,7 +3,12 @@
  * without it, publishing is a no-op and clients fall back to polling (see sdk/hooks.ts).
  */
 export type RealtimeEvent =
-  | { type: 'record.created' | 'record.updated' | 'record.deleted'; moduleId: string; collection: string; id: string }
+  | {
+      type: 'record.created' | 'record.updated' | 'record.deleted';
+      moduleId: string;
+      collection: string;
+      id: string;
+    }
   | { type: 'proposal.decided'; proposalId: string; status: string }
   | { type: 'modules.changed' }
   | { type: 'notification'; userId: string };
@@ -40,7 +45,9 @@ export async function createTokenRequest(habitatId: string, clientId: string) {
   if (!key) return null;
   const { createHmac, randomBytes } = await import('node:crypto');
   const [keyName, secret] = key.split(':');
-  const capability = JSON.stringify({ [channelName(habitatId)]: ['subscribe', 'presence', 'publish'] });
+  const capability = JSON.stringify({
+    [channelName(habitatId)]: ['subscribe', 'presence', 'publish'],
+  });
   const req = {
     keyName,
     ttl: 3600_000,
@@ -50,7 +57,8 @@ export async function createTokenRequest(habitatId: string, clientId: string) {
     nonce: randomBytes(16).toString('hex'),
   };
   const signText =
-    [req.keyName, req.ttl, req.capability, req.clientId, req.timestamp, req.nonce].join('\n') + '\n';
+    [req.keyName, req.ttl, req.capability, req.clientId, req.timestamp, req.nonce].join('\n') +
+    '\n';
   const mac = createHmac('sha256', secret!).update(signText).digest('base64');
   return { ...req, mac };
 }

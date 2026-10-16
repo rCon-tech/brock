@@ -64,7 +64,10 @@ export const RecordQuery = z.object({
   collection: z.string().min(1).max(40),
   parentId: z.string().optional(),
   authorId: z.string().optional(),
-  pinned: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+  pinned: z
+    .enum(['true', 'false'])
+    .transform((v) => v === 'true')
+    .optional(),
   order: z.string().max(60).optional(),
   limit: z.coerce.number().int().optional(),
   cursor: z.string().max(500).optional(),

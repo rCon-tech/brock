@@ -23,6 +23,8 @@ describe('extractMentions', () => {
     expect(extractMentions('mail jo@example.com', members)).toEqual([]);
   });
   it('ignores unknown names and empty names', () => {
-    expect(extractMentions('@nobody', [...members, { userId: 'x', names: ['', '  '] }])).toEqual([]);
+    expect(extractMentions('@nobody', [...members, { userId: 'x', names: ['', '  '] }])).toEqual(
+      [],
+    );
   });
 });

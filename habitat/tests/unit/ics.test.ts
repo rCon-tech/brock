@@ -16,7 +16,16 @@ describe('ics', () => {
     expect(ics.replace(/\r\n/g, '').includes('\n')).toBe(false);
   });
   it('uses the end time, location and details when given', () => {
-    const ics = toIcs({ ...ev, endsAt: '2026-06-10T22:30:00Z', location: 'The Red Lion, High St', details: 'Bring cash' }, 'The Lads', now);
+    const ics = toIcs(
+      {
+        ...ev,
+        endsAt: '2026-06-10T22:30:00Z',
+        location: 'The Red Lion, High St',
+        details: 'Bring cash',
+      },
+      'The Lads',
+      now,
+    );
     expect(ics).toContain('DTEND:20260610T223000Z');
     expect(ics).toContain('LOCATION:The Red Lion\\, High St');
     expect(ics).toContain('DESCRIPTION:Bring cash\\n\\nFrom The Lads on Habitat');

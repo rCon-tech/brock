@@ -46,7 +46,8 @@ export function decide(i: DecideInput): Decision {
 /** The rule in plain English, shown on the vote card. */
 export function describeRule(mode: GovernanceMode, memberCount: number): string {
   if (mode === 'admins') return 'Any admin can decide this by voting.';
-  if (mode === 'unanimous') return `Passes when all ${memberCount} members say yes. Any no stops it.`;
+  if (mode === 'unanimous')
+    return `Passes when all ${memberCount} members say yes. Any no stops it.`;
   const need = Math.floor(memberCount / 2) + 1;
   return `Passes when ${need} of ${memberCount} say yes.`;
 }

@@ -25,7 +25,9 @@ describe('comments', () => {
     const top = await addComment(b!, p.id, { body: 'first' });
     const reply = await addComment(c!, p.id, { body: 'reply', parentCommentId: top.id });
     expect(reply.parentCommentId).toBe(top.id);
-    await expect(addComment(a!, p.id, { body: 'too deep', parentCommentId: reply.id })).rejects.toMatchObject({ status: 422 });
+    await expect(
+      addComment(a!, p.id, { body: 'too deep', parentCommentId: reply.id }),
+    ).rejects.toMatchObject({ status: 422 });
 
     const thread = await listComments(a!, p.id);
     expect(thread).toHaveLength(1);
@@ -33,7 +35,10 @@ describe('comments', () => {
     expect((await getRecord(a!, p.id)).commentCount).toBe(2);
 
     await editComment(b!, top.id, 'first (edited)');
-    expect((await listComments(a!, p.id))[0]).toMatchObject({ body: 'first (edited)', editedAt: expect.any(String) });
+    expect((await listComments(a!, p.id))[0]).toMatchObject({
+      body: 'first (edited)',
+      editedAt: expect.any(String),
+    });
     await expect(editComment(c!, top.id, 'nope')).rejects.toMatchObject({ status: 403 });
 
     await deleteComment(b!, top.id);
@@ -54,8 +59,12 @@ describe('comments', () => {
   it('validates the body', async () => {
     const h = await makeHabitat();
     const p = await createRecord(h.members[0]!, post('hi'));
-    await expect(addComment(h.members[0]!, p.id, { body: '   ' })).rejects.toMatchObject({ status: 422 });
-    await expect(addComment(h.members[0]!, p.id, { body: 'x'.repeat(2001) })).rejects.toMatchObject({ status: 422 });
+    await expect(addComment(h.members[0]!, p.id, { body: '   ' })).rejects.toMatchObject({
+      status: 422,
+    });
+    await expect(addComment(h.members[0]!, p.id, { body: 'x'.repeat(2001) })).rejects.toMatchObject(
+      { status: 422 },
+    );
   });
 
   it('notifies once per person: mention beats reply beats comment, never the author', async () => {
@@ -102,9 +111,21 @@ describe('timeline and pins', () => {
       { module: 'polls', collection: 'poll', data: { question: 'Pizza?', options: ['yes', 'no'] } },
       new Date(t + 2000),
     );
-    await createRecord(a!, { module: 'events', collection: 'event', data: { title: 'E', startsAt: '2026-12-01T10:00:00Z' } }, new Date(t + 3000));
+    await createRecord(
+      a!,
+      {
+        module: 'events',
+        collection: 'event',
+        data: { title: 'E', startsAt: '2026-12-01T10:00:00Z' },
+      },
+      new Date(t + 3000),
+    );
     // chat is not a timeline collection
-    await createRecord(a!, { module: 'chat', collection: 'message', data: { text: 'chatter' } }, new Date(t + 4000));
+    await createRecord(
+      a!,
+      { module: 'chat', collection: 'message', data: { text: 'chatter' } },
+      new Date(t + 4000),
+    );
 
     const first = await getTimeline(a!, { limit: 3 });
     expect(first.items.map((r) => r.collection)).toEqual(['event', 'poll', 'post']);
@@ -116,7 +137,11 @@ describe('timeline and pins', () => {
     await setPinned(a!, p1.id, true);
     const pinned = await getTimeline(a!, { limit: 10 });
     expect(pinned.pinned.map((r) => r.data.text)).toEqual(['one']);
-    expect(pinned.items.map((r) => r.data.text ?? r.data.title ?? r.data.question)).toEqual(['E', 'Pizza?', 'two']);
+    expect(pinned.items.map((r) => r.data.text ?? r.data.title ?? r.data.question)).toEqual([
+      'E',
+      'Pizza?',
+      'two',
+    ]);
     expect(pinned.pinned[0]!.pinned).toBe(true);
   });
 
@@ -124,8 +149,17 @@ describe('timeline and pins', () => {
     const h = await makeHabitat({ members: 2 });
     const p = await createRecord(h.members[1]!, post('hi'));
     await expect(setPinned(h.members[1]!, p.id, true)).rejects.toMatchObject({ status: 403 });
-    const rsvpParent = await createRecord(h.members[0]!, { module: 'events', collection: 'event', data: { title: 'E', startsAt: '2026-12-01T10:00:00Z' } });
-    const rsvp = await createRecord(h.members[1]!, { module: 'events', collection: 'rsvp', parentId: rsvpParent.id, data: { status: 'going' } });
+    const rsvpParent = await createRecord(h.members[0]!, {
+      module: 'events',
+      collection: 'event',
+      data: { title: 'E', startsAt: '2026-12-01T10:00:00Z' },
+    });
+    const rsvp = await createRecord(h.members[1]!, {
+      module: 'events',
+      collection: 'rsvp',
+      parentId: rsvpParent.id,
+      data: { status: 'going' },
+    });
     await expect(setPinned(h.members[0]!, rsvp.id, true)).rejects.toMatchObject({ status: 422 });
   });
 
@@ -138,7 +172,10 @@ describe('timeline and pins', () => {
   it('removed modules vanish from the timeline', async () => {
     const h = await makeHabitat();
     await createRecord(h.members[0]!, post('hi'));
-    await getDb().update(s.installedModule).set({ removedAt: new Date() }).where(eq(s.installedModule.moduleId, 'feed'));
+    await getDb()
+      .update(s.installedModule)
+      .set({ removedAt: new Date() })
+      .where(eq(s.installedModule.moduleId, 'feed'));
     expect((await getTimeline(h.members[0]!)).items).toEqual([]);
   });
 });

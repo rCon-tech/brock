@@ -26,11 +26,18 @@ export const created = (body: unknown) => json(body, 201);
 
 function errorResponse(e: unknown) {
   if (e instanceof DomainError) {
-    return json({ error: { code: e.code, message: e.message, ...(e.fields ? { fields: e.fields } : {}) } }, e.status);
+    return json(
+      { error: { code: e.code, message: e.message, ...(e.fields ? { fields: e.fields } : {}) } },
+      e.status,
+    );
   }
-  if (e instanceof BadQueryError) return json({ error: { code: 'bad_query', message: e.message } }, 400);
+  if (e instanceof BadQueryError)
+    return json({ error: { code: 'bad_query', message: e.message } }, 400);
   if (e instanceof ZodError) {
-    return json({ error: { code: 'invalid', message: 'Some fields are not valid.', fields: fieldErrors(e) } }, 422);
+    return json(
+      { error: { code: 'invalid', message: 'Some fields are not valid.', fields: fieldErrors(e) } },
+      422,
+    );
   }
   console.error('Unhandled route error', e);
   return json({ error: { code: 'internal', message: 'Something went wrong on our side.' } }, 500);
@@ -63,15 +70,21 @@ export async function parseBody<T>(req: Request, schema: ZodType<T>): Promise<T>
     throw badRequest('bad_json', 'The request body must be JSON.');
   }
   const r = schema.safeParse(raw);
-  if (!r.success) throw new DomainError('invalid', 422, 'Some fields are not valid.', fieldErrors(r.error));
+  if (!r.success)
+    throw new DomainError('invalid', 422, 'Some fields are not valid.', fieldErrors(r.error));
   return r.data;
 }
 
-export function parseQuery<T>(url: URL, schema: ZodType<T>, extra: Record<string, unknown> = {}): T {
+export function parseQuery<T>(
+  url: URL,
+  schema: ZodType<T>,
+  extra: Record<string, unknown> = {},
+): T {
   const raw: Record<string, unknown> = { ...extra };
   for (const [k, v] of url.searchParams) raw[k] = v;
   const r = schema.safeParse(raw);
-  if (!r.success) throw new DomainError('invalid', 422, 'Some fields are not valid.', fieldErrors(r.error));
+  if (!r.success)
+    throw new DomainError('invalid', 422, 'Some fields are not valid.', fieldErrors(r.error));
   return r.data;
 }
 
@@ -103,7 +116,9 @@ export function userRoute<P = Record<string, never>>(handler: (c: Ctx<P>) => Pro
 }
 
 /** Signed-in members of `params.habitatId` only: anyone else gets the same 404. */
-export function habitatRoute<P extends { habitatId: string }>(handler: (c: HabitatCtx<P>) => Promise<unknown>) {
+export function habitatRoute<P extends { habitatId: string }>(
+  handler: (c: HabitatCtx<P>) => Promise<unknown>,
+) {
   return wrap<P, HabitatCtx<P>>(async (req, params) => {
     const user = await userFromRequest(req);
     if (!user) throw unauthenticated();
@@ -120,7 +135,11 @@ export function publicRoute<P = Record<string, never>>(
 }
 
 export function clientIp(req: Request): string {
-  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown';
+  return (
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip') ||
+    'unknown'
+  );
 }
 
 export { forbidden };

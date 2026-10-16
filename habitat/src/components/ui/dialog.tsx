@@ -35,7 +35,11 @@ export function DialogContent({
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <D.Title className="text-lg font-bold">{title}</D.Title>
-            {description ? <D.Description className="mt-1 text-sm text-ink-soft">{description}</D.Description> : <D.Description className="sr-only">{title}</D.Description>}
+            {description ? (
+              <D.Description className="mt-1 text-sm text-ink-soft">{description}</D.Description>
+            ) : (
+              <D.Description className="sr-only">{title}</D.Description>
+            )}
           </div>
           <D.Close aria-label="Close" className="rounded-lg p-1 text-ink-soft hover:bg-surface-2">
             <X size={20} />

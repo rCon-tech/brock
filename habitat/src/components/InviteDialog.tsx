@@ -33,7 +33,10 @@ export function InviteDialog({ canInvite }: { canInvite: boolean }) {
 
   const create = useMutation({
     mutationFn: (body: { email?: string }) =>
-      apiFetch<{ url: string; emailed: boolean }>(`/api/habitats/${habitatId}/invites`, { method: 'POST', body }),
+      apiFetch<{ url: string; emailed: boolean }>(`/api/habitats/${habitatId}/invites`, {
+        method: 'POST',
+        body,
+      }),
     onSuccess: (r) => {
       setFresh({ url: r.url });
       if (r.emailed) toast.success('Invite sent');
@@ -43,7 +46,8 @@ export function InviteDialog({ canInvite }: { canInvite: boolean }) {
     onError: (e) => toast.error(errorMessage(e)),
   });
   const revoke = useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/habitats/${habitatId}/invites/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) =>
+      apiFetch(`/api/habitats/${habitatId}/invites/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['habitat', habitatId, 'invites'] }),
   });
 
@@ -62,25 +66,43 @@ export function InviteDialog({ canInvite }: { canInvite: boolean }) {
           <Link2 size={16} /> Invite
         </Button>
       </DialogTrigger>
-      <DialogContent title="Invite people" description={`Anyone with the link can join ${name}. Only share it with people you trust.`}>
+      <DialogContent
+        title="Invite people"
+        description={`Anyone with the link can join ${name}. Only share it with people you trust.`}
+      >
         <div className="space-y-4">
           {fresh ? (
             <div className="space-y-2">
               <Label htmlFor="link">Your new link (shown once)</Label>
               <div className="flex gap-2">
-                <Input id="link" readOnly value={fresh.url} onFocus={(e) => e.currentTarget.select()} />
+                <Input
+                  id="link"
+                  readOnly
+                  value={fresh.url}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
                 <Button variant="secondary" onClick={copy} aria-label="Copy link">
                   {copied ? <Check size={18} /> : <Copy size={18} />}
                 </Button>
                 {typeof navigator !== 'undefined' && 'share' in navigator && (
-                  <Button variant="secondary" aria-label="Share link" onClick={() => navigator.share({ title: `Join ${name}`, url: fresh.url }).catch(() => {})}>
+                  <Button
+                    variant="secondary"
+                    aria-label="Share link"
+                    onClick={() =>
+                      navigator.share({ title: `Join ${name}`, url: fresh.url }).catch(() => {})
+                    }
+                  >
                     <Share2 size={18} />
                   </Button>
                 )}
               </div>
             </div>
           ) : (
-            <Button className="w-full" onClick={() => create.mutate({})} disabled={create.isPending}>
+            <Button
+              className="w-full"
+              onClick={() => create.mutate({})}
+              disabled={create.isPending}
+            >
               Create invite link
             </Button>
           )}
@@ -94,8 +116,20 @@ export function InviteDialog({ canInvite }: { canInvite: boolean }) {
           >
             <Label htmlFor="inv-email">Or email it</Label>
             <div className="flex gap-2">
-              <Input id="inv-email" type="email" placeholder="friend@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
-              <Button type="submit" variant="secondary" disabled={create.isPending} aria-label="Send invite email">
+              <Input
+                id="inv-email"
+                type="email"
+                placeholder="friend@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <Button
+                type="submit"
+                variant="secondary"
+                disabled={create.isPending}
+                aria-label="Send invite email"
+              >
                 <Mail size={18} />
               </Button>
             </div>
@@ -106,11 +140,20 @@ export function InviteDialog({ canInvite }: { canInvite: boolean }) {
               <h3 className="mb-1 text-sm font-semibold">Active links</h3>
               <ul className="divide-y divide-line rounded-xl border border-line">
                 {data!.invites.map((i) => (
-                  <li key={i.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                  <li
+                    key={i.id}
+                    className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
+                  >
                     <span>
-                      Expires <RelativeTime iso={i.expiresAt} className="font-medium" /> · {i.uses} joined
+                      Expires <RelativeTime iso={i.expiresAt} className="font-medium" /> · {i.uses}{' '}
+                      joined
                     </span>
-                    <Button variant="ghost" size="sm" aria-label="Turn off this link" onClick={() => revoke.mutate(i.id)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Turn off this link"
+                      onClick={() => revoke.mutate(i.id)}
+                    >
                       <Trash2 size={16} />
                     </Button>
                   </li>

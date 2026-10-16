@@ -2,12 +2,24 @@
 
 import { useMemo } from 'react';
 import { useRecords } from '../sdk/hooks';
-import { balances, transfers, type Balances, type Expense, type Settlement, type Transfer } from './settle';
+import {
+  balances,
+  transfers,
+  type Balances,
+  type Expense,
+  type Settlement,
+  type Transfer,
+} from './settle';
 
 type Money = { amountMinor: number; currency: string };
 
 export function useCosts() {
-  const expenses = useRecords<{ description: string; amount: Money; paidBy: string; splitAmong: string[] }>({
+  const expenses = useRecords<{
+    description: string;
+    amount: Money;
+    paidBy: string;
+    splitAmong: string[];
+  }>({
     module: 'split-costs',
     collection: 'expense',
     limit: 100,
@@ -34,7 +46,9 @@ export function useCosts() {
       currency: r.data.amount.currency,
     }));
     const b: Balances = balances(e, s);
-    const t: Record<string, Transfer[]> = Object.fromEntries(Object.entries(b).map(([cur, bal]) => [cur, transfers(bal)]));
+    const t: Record<string, Transfer[]> = Object.fromEntries(
+      Object.entries(b).map(([cur, bal]) => [cur, transfers(bal)]),
+    );
     return { balances: b, transfers: t };
   }, [expenses.items, settlements.items]);
 

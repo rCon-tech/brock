@@ -20,7 +20,11 @@ export function Page({ path }: PageProps) {
 function Albums() {
   const { slug, photosEnabled } = useHabitat();
   const router = useRouter();
-  const albums = useRecords<{ title: string; description?: string; coverMediaId?: string }>({ module: 'photos', collection: 'album', limit: 50 });
+  const albums = useRecords<{ title: string; description?: string; coverMediaId?: string }>({
+    module: 'photos',
+    collection: 'album',
+    limit: 50,
+  });
 
   return (
     <div className="space-y-4">
@@ -29,7 +33,9 @@ function Albums() {
         <NewAlbumDialog onCreated={(id) => router.push(`/h/${slug}/m/photos/${id}`)} />
       </div>
       {!photosEnabled && (
-        <p className="rounded-xl bg-surface-2 p-3 text-sm">Photo uploads aren’t switched on for this server yet. You can still make albums.</p>
+        <p className="rounded-xl bg-surface-2 p-3 text-sm">
+          Photo uploads aren’t switched on for this server yet. You can still make albums.
+        </p>
       )}
       {albums.isLoading ? (
         <Skeleton className="h-40" />
@@ -41,9 +47,16 @@ function Albums() {
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {albums.items.map((a) => (
             <li key={a.id}>
-              <Link href={`/h/${slug}/m/photos/${a.id}`} className="block overflow-hidden rounded-2xl border border-line bg-surface hover:shadow-md">
+              <Link
+                href={`/h/${slug}/m/photos/${a.id}`}
+                className="block overflow-hidden rounded-2xl border border-line bg-surface hover:shadow-md"
+              >
                 <div className="flex aspect-square items-center justify-center bg-surface-2 text-4xl">
-                  {a.data.coverMediaId ? <MediaImage id={a.data.coverMediaId} alt="" className="h-full w-full" /> : <span aria-hidden>📷</span>}
+                  {a.data.coverMediaId ? (
+                    <MediaImage id={a.data.coverMediaId} alt="" className="h-full w-full" />
+                  ) : (
+                    <span aria-hidden>📷</span>
+                  )}
                 </div>
                 <div className="p-3">
                   <div className="truncate font-bold">{a.data.title}</div>

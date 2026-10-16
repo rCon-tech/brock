@@ -5,7 +5,11 @@ const sum = (m: Record<string, number>) => Object.values(m).reduce((a, b) => a +
 
 describe('shares', () => {
   it('splits exactly, giving remainder pence to the first people in a stable order', () => {
-    expect([...shares(100, ['c', 'a', 'b'])]).toEqual([['a', 34], ['b', 33], ['c', 33]]);
+    expect([...shares(100, ['c', 'a', 'b'])]).toEqual([
+      ['a', 34],
+      ['b', 33],
+      ['c', 33],
+    ]);
     expect([...shares(101, ['b', 'a', 'c'])].map(([, n]) => n)).toEqual([34, 34, 33]);
   });
   it('de-duplicates people and handles one or zero', () => {
@@ -16,11 +20,18 @@ describe('shares', () => {
 
 describe('balances', () => {
   it('payer is owed the others’ shares', () => {
-    const b = balances([{ amountMinor: 3000, currency: 'GBP', paidBy: 'a', splitAmong: ['a', 'b', 'c'] }]);
+    const b = balances([
+      { amountMinor: 3000, currency: 'GBP', paidBy: 'a', splitAmong: ['a', 'b', 'c'] },
+    ]);
     expect(b.GBP).toEqual({ a: 2000, b: -1000, c: -1000 });
   });
   it('settlements reduce what is owed', () => {
-    const e: Expense = { amountMinor: 3000, currency: 'GBP', paidBy: 'a', splitAmong: ['a', 'b', 'c'] };
+    const e: Expense = {
+      amountMinor: 3000,
+      currency: 'GBP',
+      paidBy: 'a',
+      splitAmong: ['a', 'b', 'c'],
+    };
     const b = balances([e], [{ from: 'b', to: 'a', amountMinor: 1000, currency: 'GBP' }]);
     expect(b.GBP).toEqual({ a: 1000, c: -1000 });
   });
@@ -73,7 +84,9 @@ describe('transfers', () => {
   });
   it('uses the fewest payments for a chain', () => {
     // b owes a 10 and c owes b 10 collapses into c paying a
-    expect(transfers({ a: 1000, b: 0, c: -1000 })).toEqual([{ from: 'c', to: 'a', amountMinor: 1000 }]);
+    expect(transfers({ a: 1000, b: 0, c: -1000 })).toEqual([
+      { from: 'c', to: 'a', amountMinor: 1000 },
+    ]);
   });
   it('is deterministic on ties and empty when settled', () => {
     expect(transfers({ a: 500, b: 500, c: -500, d: -500 })).toEqual([
@@ -95,6 +108,7 @@ describe('parseMoneyInput', () => {
     expect(parseMoneyInput('19.99')).toBe(1999); // 19.99 * 100 would be 1998.9999999999998 as a float
   });
   it('rejects junk, zero, negatives and too many decimals', () => {
-    for (const bad of ['', 'abc', '-5', '0', '0.00', '1.234', '1e3', '£5', '12.', '.5']) expect(parseMoneyInput(bad)).toBeNull();
+    for (const bad of ['', 'abc', '-5', '0', '0.00', '1.234', '1e3', '£5', '12.', '.5'])
+      expect(parseMoneyInput(bad)).toBeNull();
   });
 });

@@ -24,7 +24,11 @@ const ADMIN_ACTIONS: ReadonlySet<Action> = new Set([
   'module.settings',
 ]);
 
-const OWNER_ACTIONS: ReadonlySet<Action> = new Set(['habitat.delete', 'habitat.transfer', 'member.role']);
+const OWNER_ACTIONS: ReadonlySet<Action> = new Set([
+  'habitat.delete',
+  'habitat.transfer',
+  'member.role',
+]);
 
 const RANK: Record<Role, number> = { member: 0, admin: 1, owner: 2 };
 
@@ -40,7 +44,12 @@ export function can(role: Role, action: Action): boolean {
 }
 
 /** May `actor` remove `target`? Admins cannot remove other admins or the owner. */
-export function canRemoveMember(actorRole: Role, actorId: string, targetRole: Role, targetId: string): boolean {
+export function canRemoveMember(
+  actorRole: Role,
+  actorId: string,
+  targetRole: Role,
+  targetId: string,
+): boolean {
   if (actorId === targetId) return targetRole !== 'owner'; // leaving; the owner must transfer first
   if (targetRole === 'owner') return false;
   if (actorRole === 'owner') return true;
@@ -63,6 +72,7 @@ export function canWriteRecord(ctx: WriteContext, def: CollectionDef, op: WriteO
     return (def.permissions?.create ?? 'member') === 'admin' ? isAdmin : true;
   }
   const scope = def.permissions?.[op] ?? (op === 'update' ? 'author' : 'author-or-admin');
+  if (scope === 'member') return true;
   const isAuthor = !!ctx.recordAuthorId && ctx.recordAuthorId === ctx.userId;
   if (scope === 'author') return isAuthor;
   if (scope === 'admin') return isAdmin;

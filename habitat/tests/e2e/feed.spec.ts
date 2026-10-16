@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test';
 import { newPerson, signUp } from './fixtures';
 import { createHabitatViaUi, joinViaInvite } from './helpers';
 
-
 test('post, react, comment and @mention', async ({ page, browser }) => {
   await signUp(page, 'Dana');
   const { invite, slug } = await createHabitatViaUi(page, 'Feed Test');
@@ -27,7 +26,9 @@ test('post, react, comment and @mention', async ({ page, browser }) => {
   await b.page.getByRole('button', { name: /^Comment$/ }).click();
   await b.page.getByLabel('Write a comment…').fill('Thanks Dana!');
   // Wait for the server to confirm: the text sitting in the textarea would satisfy getByText too early.
-  const saved = b.page.waitForResponse((r) => r.url().includes('/comments') && r.request().method() === 'POST');
+  const saved = b.page.waitForResponse(
+    (r) => r.url().includes('/comments') && r.request().method() === 'POST',
+  );
   await b.page.getByRole('button', { name: 'Send' }).click();
   expect((await saved).status()).toBe(201);
   await expect(b.page.getByLabel('Write a comment…')).toHaveValue('');

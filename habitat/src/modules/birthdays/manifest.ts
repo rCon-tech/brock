@@ -4,7 +4,8 @@ export const manifest = defineManifest({
   id: 'birthdays',
   name: 'Birthdays',
   tagline: 'Never miss one again',
-  description: 'Everyone adds their own birthday. Get a reminder on the day and a countdown on the home page.',
+  description:
+    'Everyone adds their own birthday. Get a reminder on the day and a countdown on the home page.',
   icon: 'cake',
   category: 'social',
   version: 1,

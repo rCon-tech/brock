@@ -11,7 +11,10 @@ export function Page() {
   const { typing, live } = useRealtime();
   // Polls every few seconds only when there is no live connection.
   const q = useRecords({ module: 'chat', collection: 'message', limit: 40, pollMs: 4000 });
-  const who = typing.map((id) => members.find((m) => m.id === id)).filter((m) => m && m.id !== me.id).map((m) => m!.nickname || m!.name.split(' ')[0]);
+  const who = typing
+    .map((id) => members.find((m) => m.id === id))
+    .filter((m) => m && m.id !== me.id)
+    .map((m) => m!.nickname || m!.name.split(' ')[0]);
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-9.5rem)] max-w-2xl flex-col md:h-[calc(100dvh-6rem)]">

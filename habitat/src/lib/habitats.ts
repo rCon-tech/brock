@@ -53,7 +53,10 @@ async function freeSlug(db: Executor, base: string, startAt: number): Promise<st
   for (let n = startAt; n < startAt + 50; n++) {
     const candidate = withSuffix(base, n);
     if (isReserved(candidate)) continue;
-    const [row] = await db.select({ id: habitat.id }).from(habitat).where(eq(habitat.slug, candidate));
+    const [row] = await db
+      .select({ id: habitat.id })
+      .from(habitat)
+      .where(eq(habitat.slug, candidate));
     if (!row) return candidate;
   }
   throw conflict('slug_taken', 'Couldn’t find a free address for that name. Try another.');
@@ -97,10 +100,17 @@ export async function updateHabitat(ctx: MemberCtx, patch: HabitatPatch) {
         .select({ n: sql<number>`count(*)::int` })
         .from(membership)
         .where(and(eq(membership.habitatId, ctx.habitatId), isNull(membership.leftAt)));
-      if (patch.memberCap < n) throw invalid(`There are already ${n} members, so the cap can’t go lower.`);
+      if (patch.memberCap < n)
+        throw invalid(`There are already ${n} members, so the cap can’t go lower.`);
     }
-    const [h] = await tx.update(habitat).set(patch).where(eq(habitat.id, ctx.habitatId)).returning();
-    await logAudit(tx, ctx.habitatId, ctx.userId, 'habitat.updated', { fields: Object.keys(patch) });
+    const [h] = await tx
+      .update(habitat)
+      .set(patch)
+      .where(eq(habitat.id, ctx.habitatId))
+      .returning();
+    await logAudit(tx, ctx.habitatId, ctx.userId, 'habitat.updated', {
+      fields: Object.keys(patch),
+    });
     return h!;
   });
 }
@@ -111,14 +121,19 @@ export async function deleteHabitat(ctx: MemberCtx, now = new Date()) {
 }
 
 export async function transferOwnership(ctx: MemberCtx, newOwnerId: string) {
-  if (!can(ctx.role, 'habitat.transfer')) throw forbidden('Only the owner can hand over a Habitat.');
+  if (!can(ctx.role, 'habitat.transfer'))
+    throw forbidden('Only the owner can hand over a Habitat.');
   if (newOwnerId === ctx.userId) throw invalid('You already own this Habitat.');
   await getDb().transaction(async (tx) => {
     const [target] = await tx
       .select()
       .from(membership)
       .where(
-        and(eq(membership.habitatId, ctx.habitatId), eq(membership.userId, newOwnerId), isNull(membership.leftAt)),
+        and(
+          eq(membership.habitatId, ctx.habitatId),
+          eq(membership.userId, newOwnerId),
+          isNull(membership.leftAt),
+        ),
       );
     if (!target) throw notFound('They aren’t a member.');
     // Demote first: the database allows only one active owner at a time.

@@ -28,7 +28,10 @@ export function ReportButton({
   async function send() {
     setBusy(true);
     try {
-      await apiFetch(`/api/habitats/${habitatId}/reports`, { method: 'POST', body: { targetType, targetId, reason } });
+      await apiFetch(`/api/habitats/${habitatId}/reports`, {
+        method: 'POST',
+        body: { targetType, targetId, reason },
+      });
       toast.success('Thanks. The admins will take a look.');
       setOpen(false);
       setReason('');
@@ -51,9 +54,17 @@ export function ReportButton({
         </Button>
       )}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent title="Report to admins" description="Only this Habitat’s admins will see this.">
+        <DialogContent
+          title="Report to admins"
+          description="Only this Habitat’s admins will see this."
+        >
           <Label htmlFor="why">What’s wrong?</Label>
-          <Textarea id="why" value={reason} maxLength={1000} onChange={(e) => setReason(e.target.value)} />
+          <Textarea
+            id="why"
+            value={reason}
+            maxLength={1000}
+            onChange={(e) => setReason(e.target.value)}
+          />
           <div className="mt-4 flex justify-end gap-2">
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>

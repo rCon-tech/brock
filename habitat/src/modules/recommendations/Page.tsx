@@ -24,7 +24,10 @@ export function Page(_: PageProps) {
     limit: 50,
   });
   const items = useMemo(
-    () => (sort === 'loved' ? [...q.items].sort((a, b) => (b.reactionCounts['❤️'] ?? 0) - (a.reactionCounts['❤️'] ?? 0)) : q.items),
+    () =>
+      sort === 'loved'
+        ? [...q.items].sort((a, b) => (b.reactionCounts['❤️'] ?? 0) - (a.reactionCounts['❤️'] ?? 0))
+        : q.items,
     [q.items, sort],
   );
 
@@ -37,7 +40,12 @@ export function Page(_: PageProps) {
         </Button>
       </div>
       <div className="flex gap-2">
-        <Select aria-label="Filter by kind" value={kind} onChange={(e) => setKind(e.target.value)} className="w-auto">
+        <Select
+          aria-label="Filter by kind"
+          value={kind}
+          onChange={(e) => setKind(e.target.value)}
+          className="w-auto"
+        >
           <option value="all">Everything</option>
           {Object.entries(KINDS).map(([k, v]) => (
             <option key={k} value={k}>
@@ -45,7 +53,12 @@ export function Page(_: PageProps) {
             </option>
           ))}
         </Select>
-        <Select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as 'new' | 'loved')} className="w-auto">
+        <Select
+          aria-label="Sort"
+          value={sort}
+          onChange={(e) => setSort(e.target.value as 'new' | 'loved')}
+          className="w-auto"
+        >
           <option value="new">Newest</option>
           <option value="loved">Most ❤️</option>
         </Select>
@@ -53,7 +66,9 @@ export function Page(_: PageProps) {
       {q.isLoading ? (
         <Skeleton className="h-32" />
       ) : items.length === 0 ? (
-        <EmptyState emoji="💡" title="Nothing recommended yet">What’s the best thing you’ve watched, read or eaten lately?</EmptyState>
+        <EmptyState emoji="💡" title="Nothing recommended yet">
+          What’s the best thing you’ve watched, read or eaten lately?
+        </EmptyState>
       ) : (
         items.map((r) => (
           <TimelineItem key={r.id} record={r}>

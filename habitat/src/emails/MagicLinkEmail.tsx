@@ -5,7 +5,9 @@ export function MagicLinkEmail({ url }: { url: string }) {
   return (
     <Layout preview="Your sign-in link for Habitat">
       <Text style={h1}>Sign in to Habitat</Text>
-      <Text style={p}>Tap the button to sign in. The link works once and expires in 10 minutes.</Text>
+      <Text style={p}>
+        Tap the button to sign in. The link works once and expires in 10 minutes.
+      </Text>
       <Button href={url} style={button}>
         Sign in
       </Button>

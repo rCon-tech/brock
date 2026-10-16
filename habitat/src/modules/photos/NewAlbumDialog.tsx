@@ -47,12 +47,24 @@ export function NewAlbumDialog({ onCreated }: { onCreated?: (id: string) => void
         >
           <div>
             <Label htmlFor="at">Title</Label>
-            <Input id="at" required maxLength={80} placeholder="Lisbon 2026" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Input
+              id="at"
+              required
+              maxLength={80}
+              placeholder="Lisbon 2026"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
             <FieldError messages={fields.title} />
           </div>
           <div>
             <Label htmlFor="ad">Description (optional)</Label>
-            <Textarea id="ad" maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Textarea
+              id="ad"
+              maxLength={500}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </div>
           <div className="flex justify-end gap-2">
             <DialogClose asChild>

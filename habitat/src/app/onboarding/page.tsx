@@ -6,7 +6,11 @@ import { safeNext } from '@/lib/safe-next';
 
 export const metadata = { title: 'Welcome' };
 
-export default async function Onboarding({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+export default async function Onboarding({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   const user = await requireUser({ allowUnonboarded: true });
   const next = safeNext((await searchParams).next);
   if (user.onboardedAt) redirect(next);

@@ -7,5 +7,8 @@ import { MediaQuery } from '@/lib/validation';
 export const GET = userRoute<{ mediaId: string }>(async ({ url, user, params }) => {
   const { v } = parseQuery(url, MediaQuery);
   const target = await signedMediaUrl(user.id, params.mediaId, v);
-  return NextResponse.redirect(target, { status: 302, headers: { 'Cache-Control': 'private, max-age=3000' } });
+  return NextResponse.redirect(target, {
+    status: 302,
+    headers: { 'Cache-Control': 'private, max-age=3000' },
+  });
 });

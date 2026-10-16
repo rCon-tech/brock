@@ -14,7 +14,12 @@ export function MediaGrid({ ids, alt }: { ids: string[]; alt: string }) {
   const shown = ids.slice(0, 4);
   return (
     <>
-      <div className={cn('grid gap-1 overflow-hidden rounded-xl', ids.length === 1 ? 'grid-cols-1' : 'grid-cols-2')}>
+      <div
+        className={cn(
+          'grid gap-1 overflow-hidden rounded-xl',
+          ids.length === 1 ? 'grid-cols-1' : 'grid-cols-2',
+        )}
+      >
         {shown.map((id, i) => (
           <div key={id} className="relative">
             <MediaImage
@@ -25,12 +30,20 @@ export function MediaGrid({ ids, alt }: { ids: string[]; alt: string }) {
               onClick={() => setOpen(i)}
             />
             {i === 3 && ids.length > 4 && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/50 text-2xl font-bold text-white">+{ids.length - 4}</span>
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/50 text-2xl font-bold text-white">
+                +{ids.length - 4}
+              </span>
             )}
           </div>
         ))}
       </div>
-      <Lightbox ids={ids} index={open} onIndexChange={setOpen} onClose={() => setOpen(null)} alt={(i) => `${alt} (photo ${i + 1} of ${ids.length})`} />
+      <Lightbox
+        ids={ids}
+        index={open}
+        onIndexChange={setOpen}
+        onClose={() => setOpen(null)}
+        alt={(i) => `${alt} (photo ${i + 1} of ${ids.length})`}
+      />
     </>
   );
 }

@@ -33,7 +33,8 @@ export function env(): Env {
   const e = parsed.data;
   if (e.NODE_ENV === 'production') {
     if (e.EMAIL_TRANSPORT === 'outbox') throw new Error('EMAIL_TRANSPORT=outbox is for tests only');
-    if (e.EMAIL_TRANSPORT === 'resend' && !e.RESEND_API_KEY) throw new Error('RESEND_API_KEY is required');
+    if (e.EMAIL_TRANSPORT === 'resend' && !e.RESEND_API_KEY)
+      throw new Error('RESEND_API_KEY is required');
     if (!e.CRON_SECRET) throw new Error('CRON_SECRET is required in production');
   }
   return (cached = e);

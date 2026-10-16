@@ -84,11 +84,20 @@ export async function sendDigests(now = new Date()): Promise<number> {
         );
 
       if (newPosts || events.length || open.length) {
-        sections.push({ habitat: h.name, emoji: h.emoji, url: `${appUrl()}/h/${h.slug}`, newPosts, events, openVotes: open.length });
+        sections.push({
+          habitat: h.name,
+          emoji: h.emoji,
+          url: `${appUrl()}/h/${h.slug}`,
+          newPosts,
+          events,
+          openVotes: open.length,
+        });
       }
     }
     if (!sections.length) continue;
-    const body = await renderEmail(DigestEmail({ name: u.name, sections, settingsUrl: `${appUrl()}/settings` }));
+    const body = await renderEmail(
+      DigestEmail({ name: u.name, sections, settingsUrl: `${appUrl()}/settings` }),
+    );
     await sendEmail({ to: u.email, subject: 'Your week in Habitat', ...body });
     sent++;
   }

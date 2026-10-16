@@ -14,6 +14,10 @@ const eslintConfig = [
   },
   ...nextCoreWebVitals,
   ...nextTypescript,
+  {
+    // Habitat never renders HTML from user data: text becomes React nodes. Keep it that way.
+    rules: { 'react/no-danger': 'error' },
+  },
 ];
 
 export default eslintConfig;

@@ -20,6 +20,8 @@ const LABEL: Record<string, string> = {
 
 /** "title (short text), starts at (date and time)…": for the library's "what it stores" panel. */
 export function fieldSummary(spec: FieldSpec): string {
-  const names = Object.entries(spec).map(([k, f]) => `${k.replace(/([A-Z])/g, ' $1').toLowerCase()} (${LABEL[f.type] ?? f.type})`);
+  const names = Object.entries(spec).map(
+    ([k, f]) => `${k.replace(/([A-Z])/g, ' $1').toLowerCase()} (${LABEL[f.type] ?? f.type})`,
+  );
   return names.length ? names.join(', ') : 'just who and when';
 }

@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test';
 import { newPerson, signUp } from './fixtures';
 import { createHabitatViaUi, joinViaInvite } from './helpers';
 
-
 test('A proposes Polls, B votes yes, and Polls appears for both', async ({ page, browser }) => {
   await signUp(page, 'Fay');
   const { invite, slug } = await createHabitatViaUi(page, 'Vote Test');

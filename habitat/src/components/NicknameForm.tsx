@@ -14,7 +14,10 @@ export function NicknameForm({ initial }: { initial: string }) {
   const [value, setValue] = useState(initial);
   async function save() {
     try {
-      await apiFetch(`/api/habitats/${habitatId}/members/${me.id}`, { method: 'PATCH', body: { nickname: value.trim() || null } });
+      await apiFetch(`/api/habitats/${habitatId}/members/${me.id}`, {
+        method: 'PATCH',
+        body: { nickname: value.trim() || null },
+      });
       toast.success('Saved');
       router.refresh();
     } catch (e) {
@@ -25,7 +28,13 @@ export function NicknameForm({ initial }: { initial: string }) {
     <div className="max-w-sm">
       <Label htmlFor="nick">Your nickname in this Habitat</Label>
       <div className="flex gap-2">
-        <Input id="nick" value={value} maxLength={40} placeholder="Optional" onChange={(e) => setValue(e.target.value)} />
+        <Input
+          id="nick"
+          value={value}
+          maxLength={40}
+          placeholder="Optional"
+          onChange={(e) => setValue(e.target.value)}
+        />
         <Button onClick={save} disabled={value === initial}>
           Save
         </Button>

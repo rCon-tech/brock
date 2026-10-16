@@ -14,7 +14,11 @@ import { Badge, Card } from '@/components/ui/card';
 
 export const metadata = { title: 'Member' };
 
-export default async function MemberPage({ params }: { params: Promise<{ slug: string; userId: string }> }) {
+export default async function MemberPage({
+  params,
+}: {
+  params: Promise<{ slug: string; userId: string }>;
+}) {
   const { slug, userId } = await params;
   const user = await requireUser({ next: `/h/${slug}/members/${userId}` });
   const { ctx, habitat } = await requireMemberBySlug(getDb(), slug, user.id);
@@ -22,25 +26,30 @@ export default async function MemberPage({ params }: { params: Promise<{ slug: s
   if (!person) notFound();
 
   const feedOn = (await listActive(getDb(), ctx.habitatId)).some((a) => a.manifest.id === 'feed');
-  const posts = !feedOn ? [] : await getDb()
-    .select()
-    .from(record)
-    .where(
-      and(
-        eq(record.habitatId, ctx.habitatId),
-        eq(record.authorId, userId),
-        eq(record.moduleId, 'feed'),
-        eq(record.collection, 'post'),
-        isNull(record.deletedAt),
-      ),
-    )
-    .orderBy(desc(record.createdAt))
-    .limit(20);
+  const posts = !feedOn
+    ? []
+    : await getDb()
+        .select()
+        .from(record)
+        .where(
+          and(
+            eq(record.habitatId, ctx.habitatId),
+            eq(record.authorId, userId),
+            eq(record.moduleId, 'feed'),
+            eq(record.collection, 'post'),
+            isNull(record.deletedAt),
+          ),
+        )
+        .orderBy(desc(record.createdAt))
+        .limit(20);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center gap-4">
-        <MemberAvatar member={{ name: person.name, image: person.image, nickname: person.nickname }} size="lg" />
+        <MemberAvatar
+          member={{ name: person.name, image: person.image, nickname: person.nickname }}
+          size="lg"
+        />
         <div>
           <h1 className="text-2xl font-extrabold">{displayName(person)}</h1>
           <div className="mt-1 flex items-center gap-2 text-sm text-ink-soft">

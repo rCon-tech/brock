@@ -8,9 +8,21 @@ import birthdays from './birthdays';
 import recommendations from './recommendations';
 import wishlist from './wishlist';
 import splitCosts from './split-costs';
+import bucketList from './bucket-list';
 
 /** The client-side registry: manifests plus their React components. Server code uses `registry.ts`. */
-const MODULES: HabitatModule[] = [feed, photos, events, chat, polls, birthdays, recommendations, wishlist, splitCosts];
+const MODULES: HabitatModule[] = [
+  feed,
+  photos,
+  events,
+  chat,
+  polls,
+  birthdays,
+  recommendations,
+  wishlist,
+  splitCosts,
+  bucketList,
+];
 const byId = new Map(MODULES.map((m) => [m.manifest.id, m]));
 
 export function getModule(id: string): HabitatModule | undefined {
