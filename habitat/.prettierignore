@@ -1,0 +1,9 @@
+.next
+node_modules
+coverage
+playwright-report
+test-results
+drizzle
+pnpm-lock.yaml
+public
+PLAN.md
