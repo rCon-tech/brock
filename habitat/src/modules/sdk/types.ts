@@ -11,8 +11,8 @@ export type Field =
   | { type: 'media'; required?: boolean }
   | { type: 'media-list'; max: number }
   | { type: 'member'; required?: boolean }
-  | { type: 'member-list'; max?: number }
-  | { type: 'text-list'; maxItems: number; maxLength: number }
+  | { type: 'member-list'; min?: number; max?: number }
+  | { type: 'text-list'; minItems?: number; maxItems: number; maxLength: number }
   | { type: 'money'; required?: boolean };
 
 export type FieldSpec = Record<string, Field>;
@@ -24,6 +24,8 @@ export interface CollectionDef {
   fields: FieldSpec;
   /** The collection this one hangs off, e.g. `rsvp.parent = 'event'` (same module). */
   parent?: string;
+  /** At least one of these fields must be non-empty (a post needs text or a photo). */
+  atLeastOne?: string[];
   unique?: 'per-member' | 'per-parent' | 'per-member-per-parent';
   showInTimeline?: boolean;
   realtime?: boolean;

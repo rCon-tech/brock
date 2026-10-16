@@ -75,9 +75,14 @@ export function compileField(field: Field): z.ZodType {
       required = !!field.required;
       break;
     case 'member-list':
-      return z.array(uuid).max(field.max ?? 150).default([]);
+      return field.min
+        ? z.array(uuid).min(field.min).max(field.max ?? 150)
+        : z.array(uuid).max(field.max ?? 150).default([]);
     case 'text-list':
-      return z.array(z.string().trim().min(1).max(field.maxLength)).max(field.maxItems).default([]);
+    {
+      const list = z.array(z.string().trim().min(1).max(field.maxLength)).max(field.maxItems);
+      return field.minItems ? list.min(field.minItems) : list.default([]);
+    }
     case 'money':
       base = money;
       required = !!field.required;

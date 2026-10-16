@@ -24,9 +24,14 @@ export const fieldSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('media'), required: bool }),
   z.object({ type: z.literal('media-list'), max: z.number().int().min(1).max(20) }),
   z.object({ type: z.literal('member'), required: bool }),
-  z.object({ type: z.literal('member-list'), max: z.number().int().min(1).max(150).optional() }),
+  z.object({
+    type: z.literal('member-list'),
+    min: z.number().int().min(1).max(150).optional(),
+    max: z.number().int().min(1).max(150).optional(),
+  }),
   z.object({
     type: z.literal('text-list'),
+    minItems: z.number().int().min(1).max(50).optional(),
     maxItems: z.number().int().min(1).max(50),
     maxLength: z.number().int().min(1).max(500),
   }),
@@ -38,6 +43,7 @@ export const fieldSpecSchema = z.record(name, fieldSchema);
 const collectionSchema = z.object({
   fields: fieldSpecSchema,
   parent: z.string().optional(),
+  atLeastOne: z.array(name).min(1).optional(),
   unique: z.enum(['per-member', 'per-parent', 'per-member-per-parent']).optional(),
   showInTimeline: bool,
   realtime: bool,
@@ -90,6 +96,15 @@ export const manifestSchema = z
           path: ['collections', cname, 'parent'],
           message: `Parent collection "${c.parent}" does not exist`,
         });
+      }
+      for (const f of c.atLeastOne ?? []) {
+        if (!(f in c.fields)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['collections', cname, 'atLeastOne'],
+            message: `"${f}" is not a field of this collection`,
+          });
+        }
       }
       if (c.parent === cname) {
         ctx.addIssue({ code: 'custom', path: ['collections', cname, 'parent'], message: 'A collection cannot be its own parent' });
