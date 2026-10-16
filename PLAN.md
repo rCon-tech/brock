@@ -1,5 +1,7 @@
 # Brock — Build Plan
 
+> **Revision 4.** Adds the trivia lifeline: losing a live streak offers one hard multiple-choice question per day, with a 15-second server-enforced timer; a correct answer restores the streak and reopens the day's Brock for one more throw. See `README.md` (“The trivia lifeline”).
+
 > **Revision 3 (supersedes the recovery codes in Revision 2).** Recovery codes are gone. A returning player on a new device types their username on `/login` and carries on, with no password. Browser tokens moved from `player.token_hash` to a `player_session` table so one player can be logged in on several devices; migration `0001_player_sessions` copies existing tokens across so nobody is logged out. Vercel's `vercel-build` script now applies migrations on deploy.
 
 > **Revision 2 (supersedes the sign-in parts of this plan).** Instead of Google/GitHub sign-in, players are anonymous and remembered by a secret cookie. They pick a handle *after* their first finished Brock and receive a one-time recovery code to restore their streak on another device. Consequently: Better Auth, the OAuth providers, the `user`/`session`/`account`/`verification` tables, `/onboarding` and `E2E_TEST_AUTH` are gone; `player` is now keyed by its own id with a hashed token and a nullable handle; new `/recover` page and `/api/player/{handle,recover}` routes; the leaderboard shows named players only. Everything else (rules, fairness, streaks, API for `/api/brock/*`) is unchanged. See `README.md` for the current design.

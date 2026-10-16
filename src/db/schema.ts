@@ -3,6 +3,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -16,6 +17,7 @@ import {
 export const throwEnum = pgEnum('throw', ['rock', 'paper', 'scissors']);
 export const roundResultEnum = pgEnum('round_result', ['win', 'loss', 'draw']);
 export const brockStatusEnum = pgEnum('brock_status', ['pending', 'won', 'lost']);
+export const rescueStatusEnum = pgEnum('rescue_status', ['offered', 'asked', 'passed', 'failed']);
 
 /**
  * A player. There are no accounts: each browser holds a secret cookie that maps to a player
@@ -89,6 +91,28 @@ export const brockRound = pgTable(
   (t) => [unique('brock_round_brock_no_unique').on(t.brockId, t.roundNo)],
 );
 
+/**
+ * The trivia lifeline, offered when a Brock is lost while on a streak. At most one per Brock, so
+ * at most one per player per day. The correct answer never leaves the server until it's answered.
+ */
+export const brockRescue = pgTable('brock_rescue', {
+  brockId: uuid('brock_id')
+    .primaryKey()
+    .references(() => brock.id, { onDelete: 'cascade' }),
+  /** The streak the loss ended; restored if the question is answered correctly. */
+  streakBefore: integer('streak_before').notNull(),
+  status: rescueStatusEnum('status').notNull().default('offered'),
+  questionId: text('question_id'),
+  /** Answer options in the order the player saw them. */
+  options: jsonb('options').$type<string[]>(),
+  answerIndex: integer('answer_index'),
+  chosenIndex: integer('chosen_index'),
+  askedAt: timestamp('asked_at', { withTimezone: true }),
+  answeredAt: timestamp('answered_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Player = typeof player.$inferSelect;
 export type BrockRow = typeof brock.$inferSelect;
 export type BrockRoundRow = typeof brockRound.$inferSelect;
+export type BrockRescueRow = typeof brockRescue.$inferSelect;
