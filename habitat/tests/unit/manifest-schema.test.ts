@@ -28,7 +28,7 @@ describe('parseManifest', () => {
   });
   it('rejects a missing parent collection', () => {
     const bad = structuredClone(good);
-    bad.collections.vote.parent = 'ghost';
+    (bad.collections.vote as { parent?: string }).parent = 'ghost';
     expect(() => parseManifest(bad)).toThrow(/collections\.vote\.parent.*ghost/);
   });
   it('rejects per-parent uniqueness without a parent', () => {
@@ -38,12 +38,12 @@ describe('parseManifest', () => {
   });
   it('rejects bad ids and field names', () => {
     expect(() => parseManifest({ ...good, id: 'Bad Id' })).toThrow();
-    const bad = structuredClone(good) as typeof good & { collections: Record<string, unknown> };
+    const bad = structuredClone(good) as unknown as { collections: Record<string, unknown> };
     bad.collections.poll = { fields: { 'bad name': { type: 'text', max: 1 } } };
     expect(() => parseManifest(bad)).toThrow();
   });
   it('rejects unknown field types', () => {
-    const bad = structuredClone(good) as typeof good & { collections: Record<string, unknown> };
+    const bad = structuredClone(good) as unknown as { collections: Record<string, unknown> };
     bad.collections.poll = { fields: { x: { type: 'html' } } };
     expect(() => parseManifest(bad)).toThrow();
   });

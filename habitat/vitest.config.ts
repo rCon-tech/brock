@@ -1,6 +1,9 @@
 import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
 import { fileURLToPath } from 'node:url';
 
+// Pick up .env so TEST_DATABASE_URL works without exporting it.
+const env = loadEnv('test', process.cwd(), '');
 const alias = { '@': fileURLToPath(new URL('./src', import.meta.url)) };
 
 export default defineConfig({
@@ -10,12 +13,13 @@ export default defineConfig({
     projects: [
       {
         resolve: { alias },
-        test: { name: 'unit', include: ['tests/unit/**/*.test.ts'], environment: 'node' },
+        test: { name: 'unit', env, include: ['tests/unit/**/*.test.ts'], environment: 'node' },
       },
       {
         resolve: { alias },
         test: {
           name: 'integration',
+          env,
           include: ['tests/integration/**/*.test.ts'],
           environment: 'node',
           setupFiles: ['tests/integration/setup.ts'],
