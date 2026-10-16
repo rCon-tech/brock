@@ -3,11 +3,20 @@ import { getDb } from '@/db';
 import { record } from '@/db/schema';
 import type { RecordDTO } from '@/modules/sdk/types';
 import { DomainError } from './errors';
-import { listActive } from './installed-modules';
+import { listActive, type ActiveModule } from './installed-modules';
 import { hiddenCollections, hiddenFilter, toDTOs } from './records';
 import type { MemberCtx } from './session';
 
 export const TIMELINE_PAGE = 20;
+
+/** The (module, collection) pairs that show on the home timeline for these installed modules. */
+export function timelinePairs(active: ActiveModule[]) {
+  return active.flatMap((a) =>
+    Object.entries(a.manifest.collections)
+      .filter(([, d]) => d.showInTimeline)
+      .map(([c]) => ({ module: a.manifest.id, collection: c })),
+  );
+}
 
 /**
  * The Habitat's home timeline: every installed module's `showInTimeline` collections merged,
@@ -20,11 +29,7 @@ export async function getTimeline(
   const db = getDb();
   const limit = Math.min(Math.max(opts.limit ?? TIMELINE_PAGE, 1), 50);
   const active = await listActive(db, ctx.habitatId);
-  const pairs = active.flatMap((a) =>
-    Object.entries(a.manifest.collections)
-      .filter(([, d]) => d.showInTimeline)
-      .map(([c]) => ({ module: a.manifest.id, collection: c })),
-  );
+  const pairs = timelinePairs(active);
   if (!pairs.length) return { pinned: [], items: [], nextCursor: null };
 
   const inPairs = or(...pairs.map((p) => and(eq(record.moduleId, p.module), eq(record.collection, p.collection))))!;

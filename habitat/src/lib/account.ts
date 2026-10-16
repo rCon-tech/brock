@@ -67,3 +67,20 @@ export async function deleteAccount(userId: string, opts: { deleteContent?: bool
     await tx.delete(user).where(eq(user.id, userId));
   });
 }
+
+export async function updateProfile(
+  userId: string,
+  patch: {
+    name?: string;
+    image?: string | null;
+    onboarded?: true;
+    emailPrefs?: { digest: boolean; events: boolean; proposals: boolean };
+  },
+) {
+  const set: Partial<typeof user.$inferInsert> = { updatedAt: new Date() };
+  if (patch.name !== undefined) set.name = patch.name;
+  if (patch.image !== undefined) set.image = patch.image;
+  if (patch.emailPrefs) set.emailPrefs = patch.emailPrefs;
+  if (patch.onboarded) set.onboardedAt = new Date();
+  await getDb().update(user).set(set).where(eq(user.id, userId));
+}
