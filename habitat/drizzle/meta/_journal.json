@@ -8,6 +8,13 @@
       "when": 1792188372650,
       "tag": "0000_initial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792189006818,
+      "tag": "0001_habitat_created_by_nullable",
+      "breakpoints": true
     }
   ]
 }

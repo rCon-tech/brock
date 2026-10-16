@@ -104,9 +104,7 @@ export const habitat = pgTable(
     voteWindowHours: integer('vote_window_hours').notNull().default(48),
     memberCap: integer('member_cap').notNull().default(150),
     membersCanInvite: boolean('members_can_invite').notNull().default(true),
-    createdBy: text('created_by')
-      .notNull()
-      .references(() => user.id),
+    createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
     deletedAt: ts('deleted_at'),
   },
