@@ -30,7 +30,8 @@ function create() {
       },
     }),
     socialProviders: google,
-    rateLimit: { enabled: true },
+    // Off only for the e2e suite (outbox transport, which production refuses), where many sign-ups share one IP.
+    rateLimit: { enabled: e.EMAIL_TRANSPORT !== 'outbox' },
     session: { expiresIn: 60 * 60 * 24 * 60, updateAge: 60 * 60 * 24 },
     plugins: [
       magicLink({

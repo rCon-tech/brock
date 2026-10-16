@@ -22,6 +22,7 @@ export const manifest = defineManifest({
     },
     vote: {
       parent: 'poll',
+      lockedAfterParentField: 'closesAt',
       unique: 'per-member-per-parent',
       fields: { choices: { type: 'text-list', minItems: 1, maxItems: 10, maxLength: 100 } },
       realtime: true,

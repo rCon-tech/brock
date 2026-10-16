@@ -44,6 +44,7 @@ const collectionSchema = z.object({
   fields: fieldSpecSchema,
   parent: z.string().optional(),
   atLeastOne: z.array(name).min(1).optional(),
+  lockedAfterParentField: name.optional(),
   unique: z.enum(['per-member', 'per-parent', 'per-member-per-parent']).optional(),
   showInTimeline: bool,
   realtime: bool,
@@ -96,6 +97,16 @@ export const manifestSchema = z
           path: ['collections', cname, 'parent'],
           message: `Parent collection "${c.parent}" does not exist`,
         });
+      }
+      if (c.lockedAfterParentField) {
+        const parent = c.parent ? m.collections[c.parent] : undefined;
+        if (parent?.fields[c.lockedAfterParentField]?.type !== 'datetime') {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['collections', cname, 'lockedAfterParentField'],
+            message: 'Must name a datetime field on the parent collection',
+          });
+        }
       }
       for (const f of c.atLeastOne ?? []) {
         if (!(f in c.fields)) {

@@ -184,6 +184,10 @@ export async function createRecord(ctx: MemberCtx, input: RecordInput, now = new
           ),
         );
       if (!parent) throw invalid('That parent doesn’t exist.', { parentId: ['Not found.'] });
+      const lockAt = def.lockedAfterParentField ? parent.data[def.lockedAfterParentField] : undefined;
+      if (typeof lockAt === 'string' && Date.parse(lockAt) <= now.getTime()) {
+        throw conflict('closed', 'This has closed.');
+      }
     }
     await checkReferences(tx, ctx.habitatId, def, data);
 

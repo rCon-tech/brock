@@ -271,3 +271,28 @@ describe('records: limits and notifications', () => {
     expect(await getDb().select().from(s.notification)).toHaveLength(0);
   });
 });
+
+describe('records: closing time', () => {
+  it('refuses new votes once a poll has closed, but allows them before', async () => {
+    const h = await makeHabitat({ members: 2, extraModules: ['polls'] });
+    const now = new Date('2026-06-01T12:00:00Z');
+    const poll = await createRecord(
+      h.members[0]!,
+      { module: 'polls', collection: 'poll', data: { question: 'Pizza?', options: ['yes', 'no'], closesAt: '2026-06-01T13:00:00Z' } },
+      now,
+    );
+    const vote = { module: 'polls', collection: 'vote', parentId: poll.id, data: { choices: ['yes'] } };
+    await createRecord(h.members[1]!, vote, new Date('2026-06-01T12:30:00Z'));
+    await expect(createRecord(h.members[0]!, vote, new Date('2026-06-01T13:00:01Z'))).rejects.toMatchObject({
+      status: 409,
+      code: 'closed',
+    });
+  });
+
+  it('polls need at least two options', async () => {
+    const h = await makeHabitat({ extraModules: ['polls'] });
+    await expect(
+      createRecord(h.members[0]!, { module: 'polls', collection: 'poll', data: { question: 'Q', options: ['only one'] } }),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+});

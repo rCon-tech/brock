@@ -51,3 +51,11 @@ describe('parseManifest', () => {
     expect(parseManifest({ ...good, id: 'custom:8f14e45f-ceea-467a-9575-1f1a2a6e0a11' }).id).toMatch(/^custom:/);
   });
 });
+
+describe('lockedAfterParentField', () => {
+  it('must name a datetime field on the parent', () => {
+    const bad = structuredClone(good) as unknown as { collections: Record<string, Record<string, unknown>> };
+    bad.collections.vote!.lockedAfterParentField = 'question';
+    expect(() => parseManifest(bad)).toThrow(/datetime field on the parent/);
+  });
+});

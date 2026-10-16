@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Don't let `next dev` write an AGENTS.md into the repo.
+  agentRules: false,
+  turbopack: { root: import.meta.dirname },
   async headers() {
     return [
       {

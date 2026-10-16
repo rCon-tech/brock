@@ -26,6 +26,8 @@ export interface CollectionDef {
   parent?: string;
   /** At least one of these fields must be non-empty (a post needs text or a photo). */
   atLeastOne?: string[];
+  /** New records are refused once the parent's datetime field has passed (a poll's `closesAt`). */
+  lockedAfterParentField?: string;
   unique?: 'per-member' | 'per-parent' | 'per-member-per-parent';
   showInTimeline?: boolean;
   realtime?: boolean;
