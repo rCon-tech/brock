@@ -1,32 +1,27 @@
-import { THROW_EMOJI, type Throw } from './game';
-
-export interface ShareRound {
-  player: Throw;
-  house: Throw;
-}
+import type { RoundResult } from './game';
 
 export interface ShareInput {
   brockNumber: number;
-  rounds: ShareRound[];
-  status: 'won' | 'lost';
-  streak: number;
+  /** Every round of the day's run, in order. */
+  results: RoundResult[];
+  score: number;
   url?: string;
 }
 
+const SQUARE: Record<RoundResult, string> = { win: '🟩', draw: '⬜', loss: '🟥' };
+
 /**
  * Wordle-style result text, e.g.
- *   Brock #42 🔥7
- *   🪨📄 → 🪨✂️ ✅
+ *   Brock #42: run of 3 🔥
+ *   🟩⬜🟩🟥❤️🟩🟥
  *   brock.example.com
- * Player throws are on the left of the arrow, the House's on the right.
+ * One square per round. ❤️ marks an extra life won in the quiz after a loss.
  */
-export function buildShareText({ brockNumber, rounds, status, streak, url }: ShareInput): string {
-  const player = rounds.map((r) => THROW_EMOJI[r.player]).join('');
-  const house = rounds.map((r) => THROW_EMOJI[r.house]).join('');
-  const lines = [
-    `Brock #${brockNumber} 🔥${streak}`,
-    `${player} → ${house} ${status === 'won' ? '✅' : '❌'}`,
-  ];
+export function buildShareText({ brockNumber, results, score, url }: ShareInput): string {
+  const squares = results
+    .map((r, i) => SQUARE[r] + (r === 'loss' && i < results.length - 1 ? '❤️' : ''))
+    .join('');
+  const lines = [`Brock #${brockNumber}: run of ${score} 🔥`, squares];
   if (url) lines.push(url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
   return lines.join('\n');
 }

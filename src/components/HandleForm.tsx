@@ -12,7 +12,7 @@ const MESSAGES: Record<string, string> = {
   rate_limited: 'Slow down a moment and try again.',
 };
 
-/** Shown after a finished Brock so the streak can go on the leaderboard. */
+/** Shown after a finished run so the score can go on the leaderboard. */
 export function HandleForm({ onNamed }: Props) {
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);

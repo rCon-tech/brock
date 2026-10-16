@@ -1,89 +1,76 @@
-import { and, count, eq, gt, gte, isNotNull, or, sql } from 'drizzle-orm';
-import { getDb, schema, type Db } from '@/db';
-import { previousDay, utcDay, type Day } from './day';
-import { clampLimit } from './validation';
-
-const { player } = schema;
+import { sql } from 'drizzle-orm';
+import { getDb, type Db } from '@/db';
+import { utcDay, type Day } from './day';
+import { clampLimit, type LeaderboardBoard } from './validation';
 
 export interface LeaderboardEntry {
   rank: number;
   handle: string;
-  currentStreak: number;
-  bestStreak: number;
+  score: number;
+  /** Today board only: the run is still going, so the score can still climb. */
+  playing: boolean;
 }
 
 export interface MyStanding {
   rank: number;
-  streak: number;
+  score: number;
 }
 
 /**
- * Players on the board have a live streak: they won today or yesterday, so a lapsed streak
- * (last win 2+ days ago) is excluded even though its stored value hasn't been reset yet.
+ * One row per ranked player: today's runs (named players with at least one win today), or each
+ * player's best run ever. Equal scores share a rank.
  */
-function onBoard(today: Day) {
-  return and(
-    isNotNull(player.handle),
-    gt(player.currentStreak, 0),
-    gte(player.lastWinDay, previousDay(today)),
-  );
+function ranked(board: LeaderboardBoard, today: Day) {
+  return board === 'today'
+    ? sql`
+        SELECT p.id, p.handle, b.score, b.status = 'pending' AS playing,
+               RANK() OVER (ORDER BY b.score DESC) AS rank
+        FROM brock b JOIN player p ON p.id = b.player_id
+        WHERE b.day = ${today}::date AND b.score > 0 AND p.handle IS NOT NULL`
+    : sql`
+        SELECT p.id, p.handle, p.best_score AS score, false AS playing,
+               RANK() OVER (ORDER BY p.best_score DESC) AS rank
+        FROM player p
+        WHERE p.best_score > 0 AND p.handle IS NOT NULL`;
 }
 
-/**
- * Ordered by current streak, then best streak, then handle A→Z. Players tied on
- * (current, best) share a rank.
- */
+interface Row extends Record<string, unknown> {
+  id: string;
+  handle: string;
+  score: number;
+  playing: boolean;
+  rank: string;
+}
+
+/** Ordered by score, then handle A→Z. */
 export async function topPlayers(
+  board: LeaderboardBoard,
   limit = 100,
   today: Day = utcDay(new Date()),
   database: Db = getDb(),
 ): Promise<LeaderboardEntry[]> {
-  const rows = await database.execute<{
-    handle: string;
-    current_streak: number;
-    best_streak: number;
-    rank: string;
-  }>(sql`
-    SELECT handle, current_streak, best_streak,
-           RANK() OVER (ORDER BY current_streak DESC, best_streak DESC) AS rank
-    FROM player
-    WHERE handle IS NOT NULL AND current_streak > 0 AND last_win_day >= ${previousDay(today)}::date
-    ORDER BY current_streak DESC, best_streak DESC, lower(handle) ASC
+  const rows = await database.execute<Row>(sql`
+    SELECT * FROM (${ranked(board, today)}) r
+    ORDER BY r.score DESC, lower(r.handle) ASC
     LIMIT ${clampLimit(limit)}
   `);
-
   return Array.from(rows, (r) => ({
     rank: Number(r.rank),
     handle: r.handle,
-    currentStreak: r.current_streak,
-    bestStreak: r.best_streak,
+    score: r.score,
+    playing: r.playing,
   }));
 }
 
-/** 1 + the number of players with a strictly better (streak, best). Null if not on the board. */
+/** The player's place on a board, or null if they're not on it. */
 export async function rankOf(
   playerId: string,
+  board: LeaderboardBoard,
   today: Day = utcDay(new Date()),
   database: Db = getDb(),
 ): Promise<MyStanding | null> {
-  const [me] = await database
-    .select()
-    .from(player)
-    .where(and(eq(player.id, playerId), onBoard(today)));
-  if (!me) return null;
-
-  const [{ better }] = await database
-    .select({ better: count() })
-    .from(player)
-    .where(
-      and(
-        onBoard(today),
-        or(
-          gt(player.currentStreak, me.currentStreak),
-          and(eq(player.currentStreak, me.currentStreak), gt(player.bestStreak, me.bestStreak)),
-        ),
-      ),
-    );
-
-  return { rank: better + 1, streak: me.currentStreak };
+  const [me] = await database.execute<Row>(sql`
+    SELECT * FROM (${ranked(board, today)}) r WHERE r.id = ${playerId}
+  `);
+  return me ? { rank: Number(me.rank), score: me.score } : null;
 }

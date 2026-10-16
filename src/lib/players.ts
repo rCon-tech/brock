@@ -47,7 +47,7 @@ function pgError(err: unknown): { code?: string } {
 }
 
 /**
- * Names an anonymous player. Allowed once, and only after they've finished a Brock, so a name
+ * Names an anonymous player. Allowed once, and only after they've finished a run, so a name
  * can't be squatted by something that never played.
  */
 export async function claimHandle(playerId: string, rawHandle: string): Promise<Player> {
@@ -98,7 +98,8 @@ export async function logInAs(rawHandle: string): Promise<{ player: Player; toke
   return { player: found, token };
 }
 
-export type ProfileDay = { day: Day; status: 'won' | 'lost' | 'pending' | null };
+/** One day of a player's history: their run's score, or null if they didn't play. */
+export type ProfileDay = { day: Day; score: number | null; playing: boolean };
 
 export interface Profile {
   player: Player;
@@ -112,16 +113,17 @@ export async function getProfile(handle: string, today: Day): Promise<Profile | 
 
   const since = addDays(today, -29);
   const rows = await getDb()
-    .select({ day: brock.day, status: brock.status })
+    .select({ day: brock.day, status: brock.status, score: brock.score })
     .from(brock)
     .where(and(eq(brock.playerId, found.id), gte(brock.day, since)))
     .orderBy(asc(brock.day));
-  const byDay = new Map(rows.map((r) => [r.day, r.status]));
+  const byDay = new Map(rows.map((r) => [r.day, r]));
 
   const days: ProfileDay[] = [];
   for (let i = 29; i >= 0; i--) {
     const day = addDays(today, -i);
-    days.push({ day, status: byDay.get(day) ?? null });
+    const row = byDay.get(day);
+    days.push({ day, score: row?.score ?? null, playing: row?.status === 'pending' });
   }
   return { player: found, days };
 }

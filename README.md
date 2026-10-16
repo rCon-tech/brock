@@ -1,26 +1,25 @@
 # Brock 🪨📄✂️
 
-Rock paper scissors, once a day. Win and your streak grows by 1. Lose, or skip a day, and it resets to 0. Streaks are ranked on a global leaderboard. There are no accounts: play straight away, and pick a name after your first Brock.
+Rock paper scissors against the House, one run a day. Win and you keep going; your first loss ends the run. Today's runs and everyone's best runs are ranked on a global leaderboard. There are no accounts: play straight away, and pick a name once your first run ends.
 
-The full design is in [`PLAN.md`](./PLAN.md). This README covers running, testing and deploying it.
+The original design is in [`PLAN.md`](./PLAN.md) (see Revision 5 at the top for how the rules changed). This README covers the current rules, running, testing and deploying.
 
 ## The rules
 
-|              |                                                                                                                                                                                                                                                                                                          |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Opponent     | **The House**: a server-side pick, uniformly random (`crypto.randomInt`)                                                                                                                                                                                                                                 |
-| A "day"      | A **UTC calendar day** (resets 00:00 UTC). The countdown shows the time left.                                                                                                                                                                                                                            |
-| Win          | Streak +1                                                                                                                                                                                                                                                                                                |
-| Loss         | Streak → 0                                                                                                                                                                                                                                                                                               |
-| Draw         | Throw again, the same day. A draw doesn't use up your Brock.                                                                                                                                                                                                                                             |
-| Missed day   | Streak → 0                                                                                                                                                                                                                                                                                               |
-| Lifeline     | Lose while on a streak and you get one tough multiple-choice trivia question, once per day. Answer correctly within 15 seconds (enforced by the server) and your streak is restored for one more Brock. Win it and the streak continues; lose it, answer wrongly or run out of time and the streak ends. |
-| Fairness     | The House's throw is committed to before you throw: you see `sha256("<throw>:<salt>")` first, and the throw and salt are revealed afterwards. "Verify fairness" recomputes the hash in your browser.                                                                                                     |
-| Leaderboard  | Named players only. Current streak ↓, then best streak ↓, then handle A→Z. Ties share a rank.                                                                                                                                                                                                            |
-| Identity     | No login. Each browser gets a secret cookie that remembers you. After your first finished Brock you pick a username. On another device, type that username at `/login` to carry on with the same streak.                                                                                                 |
-| Brock number | Days since `LAUNCH_DAY` (Brock #1 is launch day)                                                                                                                                                                                                                                                         |
+|                  |                                                                                                                                                                                                                                                                                                                      |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Opponent         | **The House**: a server-side pick, uniformly random (`crypto.randomInt`)                                                                                                                                                                                                                                             |
+| A "day"          | A **UTC calendar day** (resets 00:00 UTC). The countdown shows the time left.                                                                                                                                                                                                                                        |
+| A run            | One per day. Each win adds 1 to the run's score and you throw again.                                                                                                                                                                                                                                                 |
+| Draw             | Throw again. A draw neither scores nor ends the run.                                                                                                                                                                                                                                                                 |
+| Loss             | Ends the run. Its score stands for the day.                                                                                                                                                                                                                                                                          |
+| Win another life | Once the run ends, you can try once a day: 5 hard multiple-choice questions about rocks, paper and scissors (all three themes appear), 15 seconds each, enforced by the server. Nothing says right or wrong until all 5 are answered. 5/5 reopens the run with its score kept; anything less and the run stays over. |
+| Fairness         | The House's throw is committed to before you throw: you see `sha256("<throw>:<salt>")` first, and the throw and salt are revealed afterwards. "Verify fairness" recomputes the hash in your browser.                                                                                                                 |
+| Leaderboards     | Named players only. **Today**: today's runs by score (runs still going are marked live). **All-time**: each player's best run. Ties share a rank.                                                                                                                                                                    |
+| Identity         | No login. Each browser gets a secret cookie that remembers you. After your first finished run you pick a username. On another device, type that username at `/login` to carry on.                                                                                                                                    |
+| Brock number     | Days since `LAUNCH_DAY` (Brock #1 is launch day)                                                                                                                                                                                                                                                                     |
 
-The rules live in `src/lib/` (`game.ts`, `day.ts`, `streak.ts`, `fairness.ts`), so changing them means changing one file each.
+The rules live in `src/lib/` (`game.ts`, `day.ts`, `fairness.ts`, `trivia/quiz.ts`) and the service that applies them is `src/lib/brock-service.ts`.
 
 ## Stack
 
@@ -76,7 +75,7 @@ If a Chromium is already installed (e.g. in a container), point Playwright at it
 
 ## How one Brock stays fair
 
-Everything that matters happens inside one transaction holding a row lock on the player's Brock for the day (`src/lib/brock-service.ts`), backed by `UNIQUE (user_id, day)`. Two tabs submitting at once can't both count, and nobody can play twice in a day. The House's throw and salt stay on the server until the player's throw is saved. API responses are built in one place (`buildState`) so an open round can only ever expose its hash.
+Everything that matters happens inside one transaction holding a row lock on the player's run for the day (`src/lib/brock-service.ts`), backed by `UNIQUE (player_id, day)`. Two tabs submitting at once can't both count, and nobody can start a second run in a day. The House's throw and salt stay on the server until the player's throw is saved. API responses are built in one place (`buildState`) so an open round can only ever expose its hash.
 
 ## Deploying (Vercel + Neon)
 
@@ -97,16 +96,16 @@ drizzle/          generated migrations (never hand-edit)
 tests/            unit, integration, e2e
 ```
 
-## The trivia lifeline
+## The life quiz
 
-- **Questions** live in `src/lib/trivia/questions.ts` (about 150, hard general knowledge). Each has a stable `id`, one answer and three wrong options. Add questions with new ids and never reuse an old one; players never see the same question twice until they've seen them all.
-- **Fairness:** the options are shuffled on the server and the correct answer never reaches the browser until the question is answered. Asking again (for example after a reload) returns the same question with the time that's left, so it can't be rerolled.
-- **Timer:** 15 seconds plus a 1.5-second network grace, checked on the server. An abandoned question is closed as wrong on the next visit.
-- **Data:** one `brock_rescue` row per lost Brock that earned a lifeline (migration `0002_trivia_rescue`).
+- **Questions** live in `src/lib/trivia/questions.ts`: 126 hard questions themed on rock (geology, music, stones), paper (history, sizes, craft) and scissors (tools, blades, the game itself). Each has a stable `id`, one answer and three wrong options. Add questions with new ids and never reuse an old one. A player doesn't see a question twice until they've seen the rest of that theme, which takes a few weeks of daily quizzes.
+- **Fairness:** the five questions and their shuffled options are fixed when the quiz starts. The answers never reach the browser until all five are answered. Reloading returns the same question with the time that's left, so nothing can be rerolled.
+- **Timer:** each question gets 15 seconds from when it appears, plus a 1.5-second network grace, checked on the server. A late answer counts as wrong. An abandoned question is closed as wrong on the next visit, and the next one starts.
+- **Data:** one `brock_quiz` row per run, keyed by the run, so there is at most one quiz a day (migration `0003_daily_runs`).
 
 ## Known limitations
 
 - **Anyone can play as anyone.** Logging in needs only a username, by design: it's a casual game and convenience wins. Someone who knows your name can play your Brock for you. If that ever matters, a passkey or a PIN per player would be the next step.
 - **Identity is a cookie.** Clearing site data, switching browser or using a private window starts a new anonymous player until you log in with your username. Unnamed players can't get their Brock back, but they have nothing on the leaderboard to lose.
-- **One person can play as many players** by using several browsers, and could farm streaks that way. Fine for a friends game. Handle claims need a finished Brock and new players are limited per IP, which slows it down but doesn't stop it.
+- **One person can play as many players** by using several browsers, and could farm quiz attempts that way. Fine for a friends game. Handle claims need a finished Brock and new players are limited per IP, which slows it down but doesn't stop it.
 - **Rate limits are in memory**, so on serverless hosting each instance counts separately. They slow abuse down; they're not a hard guarantee.

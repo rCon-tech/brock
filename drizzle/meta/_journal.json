@@ -22,6 +22,13 @@
       "when": 1792089083022,
       "tag": "0002_trivia_rescue",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792153725460,
+      "tag": "0003_daily_runs",
+      "breakpoints": true
     }
   ]
 }

@@ -1,24 +1,25 @@
-import { and, asc, eq, isNotNull } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { getDb, schema, type Db, type Tx } from '@/db';
-import type { BrockRescueRow, BrockRoundRow, Player } from '@/db/schema';
+import type { BrockQuizRow, BrockRoundRow, BrockRow, Player, QuizItem } from '@/db/schema';
 import { brockNumber, msUntilReset, utcDay, type Day } from './day';
 import { DomainError } from './errors';
 import { commit, houseThrow, newSalt } from './fairness';
 import { resolveRound, type RoundResult, type Throw } from './game';
-import { applyLoss, applyWin, effectiveStreak } from './streak';
 import {
-  isExpired,
-  pickQuestion,
-  rescueView,
-  shuffledOptions,
-  RESCUE_GRACE_MS,
-  RESCUE_SECONDS,
-  type RescueView,
-} from './trivia/rescue';
+  correctCount,
+  currentExpired,
+  pickQuiz,
+  questionDeadline,
+  quizView,
+  toItems,
+  QUIZ_GRACE_MS,
+  type QuizView,
+} from './trivia/quiz';
 
-const { brock, brockRescue, brockRound, player } = schema;
+const { brock, brockQuiz, brockRound, player } = schema;
 
-export type BrockStatus = 'pending' | 'won' | 'lost';
+/** `playing`: today's run is still going. `over`: the run has ended (a life from the quiz can revive it). */
+export type RunStatus = 'playing' | 'over';
 
 /** A round the player has thrown in. Only these ever expose the House's throw and salt. */
 export interface RevealedRound {
@@ -39,15 +40,20 @@ export interface OpenRound {
 export interface TodayState {
   day: Day;
   brockNumber: number;
-  /** Null until the player names themselves after a finished Brock. */
+  /** Null until the player names themselves after their first finished run. */
   handle: string | null;
-  status: BrockStatus;
-  streak: { current: number; best: number };
+  status: RunStatus;
+  /** Brocks won in today's run. */
+  score: number;
+  /** The player's best run ever. */
+  best: number;
   rounds: RevealedRound[];
   openRound: OpenRound | null;
   msUntilReset: number;
-  /** Today's trivia lifeline, if a streak-ending loss earned one. */
-  rescue: RescueView | null;
+  /** Today's "win another life" quiz, once started. */
+  quiz: QuizView | null;
+  /** True when the run is over and today's quiz hasn't been tried yet. */
+  quizAvailable: boolean;
 }
 
 export interface ThrowResult extends TodayState {
@@ -81,28 +87,29 @@ async function loadRounds(tx: Tx, brockId: string): Promise<BrockRoundRow[]> {
     .orderBy(asc(brockRound.roundNo));
 }
 
-/** Builds the client-safe view. This is the only place round rows become API output. */
+/** Builds the client-safe view. This is the only place round and quiz rows become API output. */
 function buildState(
   now: Date,
-  day: Day,
-  status: BrockStatus,
+  today: BrockRow,
   playerRow: Player,
   rounds: BrockRoundRow[],
-  rescue: BrockRescueRow | null,
+  quiz: BrockQuizRow | null,
 ): TodayState {
-  const revealed = rounds.filter((r) => r.playerThrow !== null).map(toRevealed);
+  const playing = today.status === 'pending';
   const open = rounds.find((r) => r.playerThrow === null);
   return {
-    day,
-    brockNumber: brockNumber(day),
+    day: today.day,
+    brockNumber: brockNumber(today.day),
     handle: playerRow.handle,
-    status,
-    streak: { current: effectiveStreak(playerRow, day), best: playerRow.bestStreak },
-    rounds: revealed,
-    openRound:
-      status === 'pending' && open ? { roundNo: open.roundNo, commitHash: open.commitHash } : null,
+    status: playing ? 'playing' : 'over',
+    score: today.score,
+    best: playerRow.bestScore,
+    rounds: rounds.filter((r) => r.playerThrow !== null).map(toRevealed),
+    openRound: playing && open ? { roundNo: open.roundNo, commitHash: open.commitHash } : null,
     msUntilReset: msUntilReset(now),
-    rescue: rescueView(rescue, now),
+    quiz: quizView(quiz, now),
+    // Runs that ended under the old one-Brock rules ('won') don't get a quiz.
+    quizAvailable: today.status === 'lost' && quiz === null,
   };
 }
 
@@ -113,22 +120,7 @@ async function loadPlayer(tx: Tx, playerId: string, lock: boolean): Promise<Play
   return row;
 }
 
-/** Today's rescue, closing it first if its clock ran out while nobody was looking. */
-async function loadRescue(tx: Tx, brockId: string, now: Date): Promise<BrockRescueRow | null> {
-  const [row] = await tx.select().from(brockRescue).where(eq(brockRescue.brockId, brockId));
-  if (!row) return null;
-  if (isExpired(row, now)) {
-    const [failed] = await tx
-      .update(brockRescue)
-      .set({ status: 'failed', answeredAt: now })
-      .where(eq(brockRescue.brockId, brockId))
-      .returning();
-    return failed;
-  }
-  return row;
-}
-
-async function lockToday(tx: Tx, playerId: string, day: Day) {
+async function lockToday(tx: Tx, playerId: string, day: Day): Promise<BrockRow> {
   const [today] = await tx
     .select()
     .from(brock)
@@ -139,8 +131,50 @@ async function lockToday(tx: Tx, playerId: string, day: Day) {
 }
 
 /**
- * Today's Brock for a player. Idempotent: the first call creates the Brock and the first
- * round (committing to the House's throw); later calls return the same state.
+ * Records an answer to the current question (null: the clock ran out) and moves on. The next
+ * question's clock starts now. After the last question the quiz is marked passed or failed.
+ */
+function answered(row: BrockQuizRow, choice: number | null, now: Date) {
+  const items: QuizItem[] = row.items.map((item, i) =>
+    i === row.currentIndex ? { ...item, chosenIndex: choice } : item,
+  );
+  const currentIndex = row.currentIndex + 1;
+  if (currentIndex < items.length) {
+    return { items, currentIndex, questionStartedAt: now };
+  }
+  const status = correctCount(items) === items.length ? ('passed' as const) : ('failed' as const);
+  return { items, currentIndex, status, finishedAt: now };
+}
+
+/**
+ * Today's quiz, first closing a question whose clock ran out while nobody was looking (it counts
+ * as wrong). Only the question on screen has a running clock, so at most one can expire.
+ * Expiring the last question can fail the quiz but never pass it, so the run stays over.
+ */
+async function loadQuiz(tx: Tx, brockId: string, now: Date): Promise<BrockQuizRow | null> {
+  const [row] = await tx.select().from(brockQuiz).where(eq(brockQuiz.brockId, brockId));
+  if (!row || !currentExpired(row, now)) return row ?? null;
+  const [updated] = await tx
+    .update(brockQuiz)
+    .set(answered(row, null, now))
+    .where(eq(brockQuiz.brockId, brockId))
+    .returning();
+  return updated;
+}
+
+/** Question ids from every quiz this player has taken, so new quizzes prefer unseen ones. */
+async function seenQuestions(tx: Tx, playerId: string): Promise<string[]> {
+  const rows = await tx
+    .select({ items: brockQuiz.items })
+    .from(brockQuiz)
+    .innerJoin(brock, eq(brock.id, brockQuiz.brockId))
+    .where(eq(brock.playerId, playerId));
+  return rows.flatMap((r) => r.items.map((i) => i.questionId));
+}
+
+/**
+ * Today's run for a player. Idempotent: the first call creates the run and its first round
+ * (committing to the House's throw); later calls return the same state.
  */
 export async function getToday(
   playerId: string,
@@ -153,11 +187,7 @@ export async function getToday(
     const playerRow = await loadPlayer(tx, playerId, false);
 
     await tx.insert(brock).values({ playerId, day }).onConflictDoNothing();
-    const [today] = await tx
-      .select()
-      .from(brock)
-      .where(and(eq(brock.playerId, playerId), eq(brock.day, day)))
-      .for('update');
+    const today = await lockToday(tx, playerId, day);
 
     let rounds = await loadRounds(tx, today.id);
     if (today.status === 'pending' && !rounds.some((r) => r.playerThrow === null)) {
@@ -168,15 +198,15 @@ export async function getToday(
       rounds = [...rounds, created];
     }
 
-    const rescue = await loadRescue(tx, today.id, now);
-    return buildState(now, day, today.status, playerRow, rounds, rescue);
+    const quiz = await loadQuiz(tx, today.id, now);
+    return buildState(now, today, playerRow, rounds, quiz);
   });
 }
 
 /**
- * Resolves the open round. A draw opens a new round; a win or loss decides the day's Brock
- * and updates the player's streak. Everything happens under a row lock on today's Brock,
- * so concurrent submissions can't both succeed.
+ * Resolves the open round. A draw or a win opens the next round (a win also adds 1 to the run's
+ * score); a loss ends the run. Everything happens under a row lock on today's run, so
+ * concurrent submissions can't both succeed.
  */
 export async function submitThrow(
   playerId: string,
@@ -187,13 +217,7 @@ export async function submitThrow(
   const day = utcDay(now);
 
   return database.transaction(async (tx) => {
-    const [today] = await tx
-      .select()
-      .from(brock)
-      .where(and(eq(brock.playerId, playerId), eq(brock.day, day)))
-      .for('update');
-
-    if (!today) throw new DomainError('new_day');
+    let today = await lockToday(tx, playerId, day);
     if (today.status !== 'pending') throw new DomainError('already_played');
 
     const rounds = await loadRounds(tx, today.id);
@@ -207,60 +231,54 @@ export async function submitThrow(
       .where(eq(brockRound.id, open.id))
       .returning();
 
-    let status: BrockStatus = 'pending';
     let allRounds = rounds.map((r) => (r.id === revealedRow.id ? revealedRow : r));
     let playerRow = await loadPlayer(tx, playerId, true);
-    const streakBefore = effectiveStreak(playerRow, day);
-    let rescue = await loadRescue(tx, today.id, now);
 
-    if (result === 'draw') {
+    if (result === 'loss') {
+      [today] = await tx
+        .update(brock)
+        .set({ status: 'lost', decidedAt: now })
+        .where(eq(brock.id, today.id))
+        .returning();
+      [playerRow] = await tx
+        .update(player)
+        .set({ totalLosses: playerRow.totalLosses + 1 })
+        .where(eq(player.id, playerId))
+        .returning();
+    } else {
+      if (result === 'win') {
+        const score = today.score + 1;
+        [today] = await tx.update(brock).set({ score }).where(eq(brock.id, today.id)).returning();
+        [playerRow] = await tx
+          .update(player)
+          .set({
+            totalWins: playerRow.totalWins + 1,
+            bestScore: Math.max(playerRow.bestScore, score),
+          })
+          .where(eq(player.id, playerId))
+          .returning();
+      }
       const [next] = await tx
         .insert(brockRound)
         .values(freshRound(today.id, open.roundNo + 1))
         .returning();
       allRounds = [...allRounds, next];
-    } else if (result === 'win') {
-      status = 'won';
-      const streak = applyWin(playerRow, day);
-      [playerRow] = await tx
-        .update(player)
-        .set({ ...streak, totalWins: playerRow.totalWins + 1 })
-        .where(eq(player.id, playerId))
-        .returning();
-    } else {
-      status = 'lost';
-      const streak = applyLoss(playerRow);
-      [playerRow] = await tx
-        .update(player)
-        .set({ ...streak, totalLosses: playerRow.totalLosses + 1 })
-        .where(eq(player.id, playerId))
-        .returning();
-      // Losing a live streak earns one trivia lifeline per day. A second loss after using it
-      // today (the rescue row already exists) ends the streak for good.
-      if (streakBefore > 0 && !rescue) {
-        [rescue] = await tx
-          .insert(brockRescue)
-          .values({ brockId: today.id, streakBefore })
-          .returning();
-      }
     }
 
-    if (status !== 'pending') {
-      await tx.update(brock).set({ status, decidedAt: now }).where(eq(brock.id, today.id));
-    }
-
+    const quiz = await loadQuiz(tx, today.id, now);
     return {
-      ...buildState(now, day, status, playerRow, allRounds, rescue),
+      ...buildState(now, today, playerRow, allRounds, quiz),
       round: toRevealed(revealedRow),
     };
   });
 }
 
 /**
- * Shows the lifeline question and starts its clock. Idempotent once asked: reloading returns the
- * same question with the time that's left, so nobody can reroll for an easier one.
+ * Starts today's quiz, or returns it where it stands. The questions are fixed when it starts,
+ * and reloading shows the same question with the time that's left, so nothing can be rerolled.
+ * One try per day: a finished quiz is never replaced.
  */
-export async function startRescue(
+export async function startQuiz(
   playerId: string,
   now: Date = new Date(),
   database: Db = getDb(),
@@ -269,71 +287,58 @@ export async function startRescue(
 
   return database.transaction(async (tx) => {
     const today = await lockToday(tx, playerId, day);
-    let rescue = await loadRescue(tx, today.id, now);
-    if (!rescue) throw new DomainError('no_rescue');
+    let quiz = await loadQuiz(tx, today.id, now);
 
-    if (rescue.status === 'offered') {
-      const seen = await tx
-        .select({ id: brockRescue.questionId })
-        .from(brockRescue)
-        .innerJoin(brock, eq(brock.id, brockRescue.brockId))
-        .where(and(eq(brock.playerId, playerId), isNotNull(brockRescue.questionId)));
-      const question = pickQuestion(seen.map((r) => r.id!));
-      const { options, answerIndex } = shuffledOptions(question);
-      [rescue] = await tx
-        .update(brockRescue)
-        .set({ status: 'asked', questionId: question.id, options, answerIndex, askedAt: now })
-        .where(eq(brockRescue.brockId, today.id))
+    if (!quiz) {
+      if (today.status !== 'lost') throw new DomainError('no_quiz');
+      const items = toItems(pickQuiz(await seenQuestions(tx, playerId)));
+      [quiz] = await tx
+        .insert(brockQuiz)
+        .values({ brockId: today.id, items, currentIndex: 0, questionStartedAt: now })
         .returning();
     }
 
     const playerRow = await loadPlayer(tx, playerId, false);
     const rounds = await loadRounds(tx, today.id);
-    return buildState(now, day, today.status, playerRow, rounds, rescue);
+    return buildState(now, today, playerRow, rounds, quiz);
   });
 }
 
 /**
- * Answers the lifeline question (`choice` null means the clock ran out). Right, and in time:
- * the streak is restored and the Brock reopens for one more throw. Otherwise the loss stands.
+ * Answers question `index` of today's quiz (`choice` null means the clock ran out). Nothing says
+ * right or wrong until all five are answered. Five out of five revives the run with its score
+ * intact and a fresh, committed round.
  */
-export async function answerRescue(
+export async function answerQuiz(
   playerId: string,
-  choice: number | null,
+  input: { index: number; choice: number | null },
   now: Date = new Date(),
   database: Db = getDb(),
-): Promise<TodayState & { correct: boolean }> {
+): Promise<TodayState> {
   const day = utcDay(now);
 
   return database.transaction(async (tx) => {
-    const today = await lockToday(tx, playerId, day);
-    const [rescue] = await tx.select().from(brockRescue).where(eq(brockRescue.brockId, today.id));
-    if (!rescue) throw new DomainError('no_rescue');
-    if (rescue.status !== 'asked') throw new DomainError('rescue_closed');
+    let today = await lockToday(tx, playerId, day);
+    const [current] = await tx.select().from(brockQuiz).where(eq(brockQuiz.brockId, today.id));
+    if (!current) throw new DomainError('no_quiz');
+    if (current.status !== 'active') throw new DomainError('quiz_closed');
+    if (input.index !== current.currentIndex) throw new DomainError('stale_question');
 
-    const askedAt = rescue.askedAt?.getTime() ?? 0;
-    const inTime = now.getTime() <= askedAt + RESCUE_SECONDS * 1000 + RESCUE_GRACE_MS;
-    const correct = inTime && choice !== null && choice === rescue.answerIndex;
-
-    const [answered] = await tx
-      .update(brockRescue)
-      .set({ status: correct ? 'passed' : 'failed', chosenIndex: choice, answeredAt: now })
-      .where(eq(brockRescue.brockId, today.id))
+    const inTime = now.getTime() <= questionDeadline(current) + QUIZ_GRACE_MS;
+    const choice = inTime ? input.choice : null;
+    const [quiz] = await tx
+      .update(brockQuiz)
+      .set(answered(current, choice, now))
+      .where(eq(brockQuiz.brockId, today.id))
       .returning();
 
-    let status: BrockStatus = today.status;
-    let playerRow = await loadPlayer(tx, playerId, true);
     let rounds = await loadRounds(tx, today.id);
-
-    if (correct) {
-      // Put the streak back and reopen today's Brock with a fresh, committed round.
-      [playerRow] = await tx
-        .update(player)
-        .set({ currentStreak: rescue.streakBefore })
-        .where(eq(player.id, playerId))
+    if (quiz.status === 'passed') {
+      [today] = await tx
+        .update(brock)
+        .set({ status: 'pending', decidedAt: null })
+        .where(eq(brock.id, today.id))
         .returning();
-      status = 'pending';
-      await tx.update(brock).set({ status, decidedAt: null }).where(eq(brock.id, today.id));
       const [next] = await tx
         .insert(brockRound)
         .values(freshRound(today.id, rounds.length + 1))
@@ -341,6 +346,7 @@ export async function answerRescue(
       rounds = [...rounds, next];
     }
 
-    return { ...buildState(now, day, status, playerRow, rounds, answered), correct };
+    const playerRow = await loadPlayer(tx, playerId, false);
+    return buildState(now, today, playerRow, rounds, quiz);
   });
 }

@@ -1,736 +1,701 @@
 /**
- * The trivia lifeline's question bank: hard general knowledge, one right answer and three
- * plausible wrong ones. Ids are stable (a player is never shown the same question twice until
- * they've seen them all), so add new questions with new ids and never reuse an old one.
+ * The "win another life" question bank, themed on rock, paper and scissors (read broadly:
+ * geology, gems and rock music; paper, printing and books; blades, hairdressing and tailoring).
  *
- * Only include facts that are settled and unambiguous; a disputed answer feels unfair when a
- * streak is on the line.
+ * Ids are stable: a player never sees the same question twice until they've seen them all, so add
+ * new questions with new ids and never reuse an old one. Only include facts that are settled and
+ * unambiguous; a disputed answer feels unfair when a life is on the line.
  */
+export type Theme = 'rock' | 'paper' | 'scissors';
+
 export interface TriviaQuestion {
   id: string;
+  theme: Theme;
   question: string;
   answer: string;
   wrong: [string, string, string];
 }
 
-const q = (
-  id: string,
-  question: string,
-  answer: string,
-  wrong: [string, string, string],
-): TriviaQuestion => ({ id, question, answer, wrong });
+const make =
+  (theme: Theme) =>
+  (
+    id: string,
+    question: string,
+    answer: string,
+    wrong: [string, string, string],
+  ): TriviaQuestion => ({
+    id: `${theme}-${id}`,
+    theme,
+    question,
+    answer,
+    wrong,
+  });
+
+const rock = make('rock');
+const paper = make('paper');
+const scissors = make('scissors');
 
 export const QUESTIONS: TriviaQuestion[] = [
-  // ---------- science ----------
-  q('sci-tungsten', 'What is the chemical symbol for tungsten?', 'W', ['Tu', 'Tn', 'Tg']),
-  q('sci-tin', 'Which element has the chemical symbol Sn?', 'Tin', [
-    'Antimony',
-    'Strontium',
-    'Selenium',
+  // ---------------- ROCK: geology, minerals, gems, famous rocks, rock music ----------------
+  rock('igneous', 'Which type of rock forms when magma or lava cools and solidifies?', 'Igneous', [
+    'Sedimentary',
+    'Metamorphic',
+    'Evaporite',
   ]),
-  q('sci-lead', 'Which element has the chemical symbol Pb?', 'Lead', [
-    'Platinum',
-    'Palladium',
-    'Phosphorus',
+  rock('marble', 'Marble is the metamorphosed form of which rock?', 'Limestone', [
+    'Granite',
+    'Sandstone',
+    'Shale',
   ]),
-  q('sci-potassium', 'Which element has the chemical symbol K?', 'Potassium', [
-    'Krypton',
-    'Calcium',
-    'Phosphorus',
+  rock('slate', 'Slate forms when which rock is metamorphosed?', 'Shale', [
+    'Limestone',
+    'Basalt',
+    'Sandstone',
   ]),
-  q('sci-gold-79', 'Which element has atomic number 79?', 'Gold', [
-    'Silver',
-    'Platinum',
-    'Mercury',
+  rock('beach-sand', 'Which mineral makes up most of the sand on typical beaches?', 'Quartz', [
+    'Feldspar',
+    'Calcite',
+    'Mica',
   ]),
-  q('sci-liquid-metal', 'Which metal is liquid at standard room temperature (20°C)?', 'Mercury', [
-    'Gallium',
-    'Caesium',
-    'Sodium',
+  rock('graphite', 'Which soft form of pure carbon is used in pencil “lead”?', 'Graphite', [
+    'Galena',
+    'Talc',
+    'Molybdenite',
   ]),
-  q('sci-argon', 'What is the third most abundant gas in Earth’s dry atmosphere?', 'Argon', [
-    'Carbon dioxide',
-    'Neon',
-    'Helium',
+  rock('talc', 'Which mineral is the softest on the Mohs scale, at 1?', 'Talc', [
+    'Gypsum',
+    'Calcite',
+    'Mica',
   ]),
-  q('sci-crust', 'What is the most abundant element in Earth’s crust by mass?', 'Oxygen', [
-    'Silicon',
-    'Iron',
-    'Aluminium',
-  ]),
-  q('sci-universe', 'What is the most abundant element in the universe?', 'Hydrogen', [
-    'Helium',
-    'Oxygen',
-    'Carbon',
-  ]),
-  q('sci-mohs', 'On the Mohs scale, which mineral is the next hardest after diamond?', 'Corundum', [
+  rock('mohs-7', 'Which mineral sits at 7 on the Mohs hardness scale?', 'Quartz', [
     'Topaz',
-    'Quartz',
+    'Orthoclase feldspar',
+    'Corundum',
+  ]),
+  rock('mohs-inventor', 'Who devised the 1-to-10 scale of mineral hardness?', 'Friedrich Mohs', [
+    'Charles Richter',
+    'James Hutton',
+    'Charles Lyell',
+  ]),
+  rock('pyrite', 'Which mineral is commonly called “fool’s gold”?', 'Pyrite', [
+    'Galena',
+    'Mica',
+    'Bauxite',
+  ]),
+  rock('ruby', 'A ruby is a red variety of which mineral?', 'Corundum', [
     'Garnet',
-  ]),
-  q('sci-heisenberg', 'Who formulated the uncertainty principle?', 'Werner Heisenberg', [
-    'Niels Bohr',
-    'Erwin Schrödinger',
-    'Max Planck',
-  ]),
-  q('sci-neutron', 'Which subatomic particle did James Chadwick discover in 1932?', 'Neutron', [
-    'Proton',
-    'Electron',
-    'Positron',
-  ]),
-  q('sci-absolute-zero', 'What is absolute zero in degrees Celsius?', '−273.15', [
-    '−459.67',
-    '−373.15',
-    '−100',
-  ]),
-  q('sci-penicillin', 'Who discovered penicillin in 1928?', 'Alexander Fleming', [
-    'Louis Pasteur',
-    'Joseph Lister',
-    'Howard Florey',
-  ]),
-  q('sci-polio', 'Who developed the first polio vaccine, licensed in 1955?', 'Jonas Salk', [
-    'Albert Sabin',
-    'Louis Pasteur',
-    'Edward Jenner',
-  ]),
-  q('sci-first-nobel-woman', 'Who was the first woman to win a Nobel Prize?', 'Marie Curie', [
-    'Bertha von Suttner',
-    'Irène Joliot-Curie',
-    'Selma Lagerlöf',
-  ]),
-  q('sci-beagle', 'On which ship did Charles Darwin make his famous voyage?', 'HMS Beagle', [
-    'HMS Endeavour',
-    'HMS Bounty',
-    'HMS Victory',
-  ]),
-  q('sci-binary-13', 'What is the decimal number 13 written in binary?', '1101', [
-    '1011',
-    '1110',
-    '1001',
-  ]),
-  q('sci-sqrt-361', 'What is the square root of 361?', '19', ['17', '21', '23']),
-  q('sci-prime-89', 'What is the next prime number after 89?', '97', ['91', '93', '95']),
-  q('sci-dodecagon', 'How many sides does a dodecagon have?', '12', ['10', '11', '20']),
-  q('sci-zero-factorial', 'What is 0! (zero factorial)?', '1', ['0', 'Undefined', 'Infinity']),
-  q('sci-roman-1990', 'Which year is written MCMXC in Roman numerals?', '1990', [
-    '1890',
-    '1940',
-    '1960',
-  ]),
-  q('sci-sigma', 'Which Greek letter is used as the symbol for summation?', 'Sigma', [
-    'Pi',
-    'Delta',
-    'Omega',
-  ]),
-
-  // ---------- the human body ----------
-  q('body-stapes', 'What is the smallest bone in the human body?', 'Stapes', [
-    'Incus',
-    'Malleus',
-    'Hyoid',
-  ]),
-  q('body-femur', 'What is the longest bone in the human body?', 'Femur', [
-    'Tibia',
-    'Humerus',
-    'Fibula',
-  ]),
-  q('body-bones', 'How many bones are there in a typical adult human skeleton?', '206', [
-    '186',
-    '212',
-    '226',
-  ]),
-  q('body-teeth', 'How many teeth does a typical adult human have, including wisdom teeth?', '32', [
-    '28',
-    '30',
-    '36',
-  ]),
-  q('body-chromosome-pairs', 'How many pairs of chromosomes do humans normally have?', '23', [
-    '22',
-    '24',
-    '46',
-  ]),
-  q(
-    'body-cerebellum',
-    'Which part of the brain mainly coordinates balance and fine movement?',
-    'Cerebellum',
-    ['Medulla oblongata', 'Hypothalamus', 'Amygdala'],
-  ),
-  q('body-largest-organ', 'What is the largest organ of the human body?', 'Skin', [
-    'Liver',
-    'Lungs',
-    'Brain',
-  ]),
-  q(
-    'body-universal-donor',
-    'Which blood type is the universal donor for red blood cells?',
-    'O negative',
-    ['AB positive', 'O positive', 'A negative'],
-  ),
-  q('body-vitamin-d', 'Which vitamin does the skin make when exposed to sunlight?', 'Vitamin D', [
-    'Vitamin A',
-    'Vitamin C',
-    'Vitamin K',
-  ]),
-
-  // ---------- animals ----------
-  q('animal-octopus-hearts', 'How many hearts does an octopus have?', '3', ['1', '2', '4']),
-  q(
-    'animal-hippo',
-    'Which animals are the closest living relatives of the hippopotamus?',
-    'Whales',
-    ['Pigs', 'Elephants', 'Rhinoceroses'],
-  ),
-  q('animal-crows', 'What is a group of crows called?', 'A murder', [
-    'A parliament',
-    'A murmuration',
-    'A gaggle',
-  ]),
-  q(
-    'animal-peregrine',
-    'Which bird reaches the highest speed of any animal, in its hunting dive?',
-    'Peregrine falcon',
-    ['Golden eagle', 'Common swift', 'Gyrfalcon'],
-  ),
-  q('animal-lobster-legs', 'How many legs does a lobster have?', '10', ['6', '8', '12']),
-  q('animal-largest-shark', 'What is the largest living species of shark?', 'Whale shark', [
-    'Great white shark',
-    'Basking shark',
-    'Tiger shark',
-  ]),
-  q('animal-scotland', 'What is the national animal of Scotland?', 'Unicorn', [
-    'Red deer',
-    'Golden eagle',
-    'Highland cow',
-  ]),
-
-  // ---------- space ----------
-  q('space-shortest-day', 'Which planet has the shortest day in the Solar System?', 'Jupiter', [
-    'Saturn',
-    'Neptune',
-    'Mercury',
-  ]),
-  q('space-largest-moon', 'What is the largest moon in the Solar System?', 'Ganymede', [
-    'Titan',
-    'Callisto',
-    'Io',
-  ]),
-  q('space-triton', 'Triton is a moon of which planet?', 'Neptune', [
-    'Uranus',
-    'Saturn',
-    'Jupiter',
-  ]),
-  q('space-mars-moons', 'How many moons does Mars have?', '2', ['0', '1', '4']),
-  q('space-hottest', 'Which is the hottest planet in the Solar System?', 'Venus', [
-    'Mercury',
-    'Mars',
-    'Jupiter',
-  ]),
-  q(
-    'space-day-longer-year',
-    'On which planet is a day (one rotation) longer than its year?',
-    'Venus',
-    ['Mercury', 'Mars', 'Neptune'],
-  ),
-  q('space-most-moons', 'Which planet has the most known moons?', 'Saturn', [
-    'Jupiter',
-    'Uranus',
-    'Neptune',
-  ]),
-  q('space-andromeda', 'Which is the nearest large spiral galaxy to the Milky Way?', 'Andromeda', [
-    'Triangulum',
-    'Whirlpool',
-    'Sombrero',
-  ]),
-  q(
-    'space-event-horizon',
-    'What is the boundary around a black hole beyond which nothing can escape?',
-    'Event horizon',
-    ['Photon sphere', 'Accretion disk', 'Singularity'],
-  ),
-  q('space-gagarin', 'Who was the first person in space?', 'Yuri Gagarin', [
-    'Alexei Leonov',
-    'Alan Shepard',
-    'Valentina Tereshkova',
-  ]),
-  q('space-aldrin', 'Who was the second person to walk on the Moon?', 'Buzz Aldrin', [
-    'Michael Collins',
-    'Pete Conrad',
-    'Alan Shepard',
-  ]),
-  q('space-sputnik', 'What was the name of the first artificial satellite?', 'Sputnik 1', [
-    'Explorer 1',
-    'Vostok 1',
-    'Telstar',
-  ]),
-  q(
-    'space-apollo-13',
-    'Which Apollo mission reported “Houston, we’ve had a problem”?',
-    'Apollo 13',
-    ['Apollo 11', 'Apollo 12', 'Apollo 14'],
-  ),
-
-  // ---------- geography ----------
-  q('geo-q-states', 'Which letter appears in no US state name?', 'Q', ['X', 'Z', 'J']),
-  q(
-    'geo-time-zones',
-    'Which country, counting its overseas territories, spans the most time zones?',
-    'France',
-    ['Russia', 'United States', 'United Kingdom'],
-  ),
-  q('geo-kazakhstan', 'What is the capital of Kazakhstan?', 'Astana', [
-    'Almaty',
-    'Bishkek',
-    'Tashkent',
-  ]),
-  q('geo-new-zealand', 'What is the capital of New Zealand?', 'Wellington', [
-    'Auckland',
-    'Christchurch',
-    'Hamilton',
-  ]),
-  q('geo-canada', 'What is the capital of Canada?', 'Ottawa', ['Toronto', 'Montreal', 'Vancouver']),
-  q('geo-turkey', 'What is the capital of Turkey?', 'Ankara', ['Istanbul', 'Izmir', 'Bursa']),
-  q('geo-brazil', 'What is the capital of Brazil?', 'Brasília', [
-    'Rio de Janeiro',
-    'São Paulo',
-    'Salvador',
-  ]),
-  q('geo-morocco', 'What is the capital of Morocco?', 'Rabat', ['Casablanca', 'Marrakesh', 'Fez']),
-  q('geo-vietnam', 'What is the capital of Vietnam?', 'Hanoi', [
-    'Ho Chi Minh City',
-    'Huế',
-    'Da Nang',
-  ]),
-  q('geo-nigeria', 'What is the capital of Nigeria?', 'Abuja', ['Lagos', 'Kano', 'Ibadan']),
-  q('geo-myanmar', 'What is the capital of Myanmar?', 'Naypyidaw', ['Yangon', 'Mandalay', 'Bago']),
-  q('geo-mongolia', 'What is the capital of Mongolia?', 'Ulaanbaatar', [
-    'Erdenet',
-    'Darkhan',
-    'Hohhot',
-  ]),
-  q('geo-volga', 'What is the longest river in Europe?', 'Volga', ['Danube', 'Rhine', 'Dnieper']),
-  q('geo-baikal', 'What is the deepest lake in the world?', 'Lake Baikal', [
-    'Lake Tanganyika',
-    'Caspian Sea',
-    'Lake Superior',
-  ]),
-  q('geo-largest-desert', 'What is the largest desert in the world?', 'Antarctic Desert', [
-    'Sahara',
-    'Arctic Desert',
-    'Gobi',
-  ]),
-  q('geo-kilimanjaro', 'What is the highest mountain in Africa?', 'Kilimanjaro', [
-    'Mount Kenya',
-    'Mount Stanley',
-    'Ras Dashen',
-  ]),
-  q('geo-aconcagua', 'What is the highest mountain in South America?', 'Aconcagua', [
-    'Chimborazo',
-    'Ojos del Salado',
-    'Huascarán',
-  ]),
-  q('geo-algeria', 'What is the largest country in Africa by area?', 'Algeria', [
-    'DR Congo',
-    'Sudan',
-    'Libya',
-  ]),
-  q('geo-vatican', 'What is the smallest country in the world by area?', 'Vatican City', [
-    'Monaco',
-    'San Marino',
-    'Nauru',
-  ]),
-  q('geo-coastline', 'Which country has the longest coastline?', 'Canada', [
-    'Indonesia',
-    'Russia',
-    'Norway',
-  ]),
-  q('geo-nigeria-pop', 'Which African country has the largest population?', 'Nigeria', [
-    'Ethiopia',
-    'Egypt',
-    'DR Congo',
-  ]),
-  q('geo-tigris', 'Which river flows through Baghdad?', 'Tigris', ['Euphrates', 'Jordan', 'Karun']),
-  q('geo-petra', 'In which country is the ancient city of Petra?', 'Jordan', [
-    'Egypt',
-    'Syria',
-    'Lebanon',
-  ]),
-  q('geo-timbuktu', 'In which country is Timbuktu?', 'Mali', [
-    'Niger',
-    'Mauritania',
-    'Burkina Faso',
-  ]),
-  q('geo-gibraltar', 'Which strait separates Europe from Africa?', 'Strait of Gibraltar', [
-    'Bosphorus',
-    'Strait of Messina',
-    'Dardanelles',
-  ]),
-  q('geo-pyramids', 'Which country has the most pyramids?', 'Sudan', ['Egypt', 'Mexico', 'Peru']),
-  q('geo-edo', 'Which city was formerly known as Edo?', 'Tokyo', ['Kyoto', 'Osaka', 'Nara']),
-  q('geo-siam', 'Which country was formerly called Siam?', 'Thailand', [
-    'Myanmar',
-    'Cambodia',
-    'Laos',
-  ]),
-  q('geo-ceylon', 'Which country was formerly called Ceylon?', 'Sri Lanka', [
-    'Myanmar',
-    'Bangladesh',
-    'Malaysia',
-  ]),
-  q('geo-abyssinia', 'Which country was historically known as Abyssinia?', 'Ethiopia', [
-    'Eritrea',
-    'Somalia',
-    'Sudan',
-  ]),
-  q('geo-swiss-languages', 'How many national languages does Switzerland have?', '4', [
-    '2',
-    '3',
-    '5',
-  ]),
-  q('geo-nepal-flag', 'Which country’s national flag is not a rectangle?', 'Nepal', [
-    'Bhutan',
-    'Qatar',
-    'Sri Lanka',
-  ]),
-  q('geo-burj', 'In which country is the Burj Khalifa?', 'United Arab Emirates', [
-    'Qatar',
-    'Saudi Arabia',
-    'Kuwait',
-  ]),
-  q('geo-mandarin', 'Which language has the most native speakers?', 'Mandarin Chinese', [
-    'Spanish',
-    'English',
-    'Hindi',
-  ]),
-  q('geo-zloty', 'The złoty is the currency of which country?', 'Poland', [
-    'Hungary',
-    'Czech Republic',
-    'Bulgaria',
-  ]),
-
-  // ---------- history ----------
-  q('hist-berlin-wall', 'In which year did the Berlin Wall fall?', '1989', [
-    '1987',
-    '1990',
-    '1991',
-  ]),
-  q('hist-titanic', 'In which year did the Titanic sink?', '1912', ['1911', '1914', '1915']),
-  q('hist-hastings', 'In which year was the Battle of Hastings?', '1066', ['1056', '1086', '1166']),
-  q('hist-magna-carta', 'In which year was the Magna Carta sealed?', '1215', [
-    '1066',
-    '1265',
-    '1314',
-  ]),
-  q(
-    'hist-versailles',
-    'Which treaty formally ended the First World War between Germany and the Allies?',
-    'Treaty of Versailles',
-    ['Treaty of Paris', 'Treaty of Trianon', 'Treaty of Brest-Litovsk'],
-  ),
-  q('hist-augustus', 'Who was the first Roman emperor?', 'Augustus', [
-    'Julius Caesar',
-    'Nero',
-    'Tiberius',
-  ]),
-  q('hist-suleiman', 'Suleiman the Magnificent ruled which empire?', 'Ottoman Empire', [
-    'Mughal Empire',
-    'Safavid Empire',
-    'Byzantine Empire',
-  ]),
-  q(
-    'hist-armada',
-    'Who was England’s monarch when the Spanish Armada was defeated in 1588?',
-    'Elizabeth I',
-    ['Mary I', 'James I', 'Henry VIII'],
-  ),
-  q(
-    'hist-nz-vote',
-    'Which was the first country to give all women the vote in national elections, in 1893?',
-    'New Zealand',
-    ['Australia', 'Finland', 'Norway'],
-  ),
-  q('hist-machu-picchu', 'Which civilisation built Machu Picchu?', 'Inca', [
-    'Maya',
-    'Aztec',
-    'Olmec',
-  ]),
-  q(
-    'hist-cuban-crisis',
-    'Who was US president during the Cuban Missile Crisis?',
-    'John F. Kennedy',
-    ['Dwight D. Eisenhower', 'Lyndon B. Johnson', 'Richard Nixon'],
-  ),
-  q(
-    'hist-santa-maria',
-    'The Santa María was the flagship of which explorer?',
-    'Christopher Columbus',
-    ['Ferdinand Magellan', 'Vasco da Gama', 'John Cabot'],
-  ),
-  q('hist-amundsen', 'Who led the first expedition to reach the South Pole?', 'Roald Amundsen', [
-    'Robert Falcon Scott',
-    'Ernest Shackleton',
-    'Richard Byrd',
-  ]),
-  q('hist-art-of-war', 'Who is traditionally credited with writing The Art of War?', 'Sun Tzu', [
-    'Confucius',
-    'Laozi',
-    'Mencius',
-  ]),
-  q('hist-leviathan', 'Which philosopher wrote Leviathan (1651)?', 'Thomas Hobbes', [
-    'John Locke',
-    'Jean-Jacques Rousseau',
-    'David Hume',
-  ]),
-  q('hist-first-iphone', 'In which year was the first iPhone released?', '2007', [
-    '2005',
-    '2006',
-    '2008',
-  ]),
-
-  // ---------- arts and literature ----------
-  q('art-bosch', 'Who painted The Garden of Earthly Delights?', 'Hieronymus Bosch', [
-    'Pieter Bruegel the Elder',
-    'Jan van Eyck',
-    'Albrecht Dürer',
-  ]),
-  q(
-    'art-dali',
-    'Who painted The Persistence of Memory, with its melting clocks?',
-    'Salvador Dalí',
-    ['René Magritte', 'Max Ernst', 'Joan Miró'],
-  ),
-  q('art-vermeer', 'Who painted Girl with a Pearl Earring?', 'Johannes Vermeer', [
-    'Rembrandt',
-    'Frans Hals',
-    'Jan Steen',
-  ]),
-  q('art-munch', 'Who painted The Scream?', 'Edvard Munch', [
-    'Gustav Klimt',
-    'Egon Schiele',
-    'Wassily Kandinsky',
-  ]),
-  q('art-sistine', 'Who painted the ceiling of the Sistine Chapel?', 'Michelangelo', [
-    'Raphael',
-    'Leonardo da Vinci',
-    'Botticelli',
-  ]),
-  q('art-bilbao', 'Which architect designed the Guggenheim Museum in Bilbao?', 'Frank Gehry', [
-    'Zaha Hadid',
-    'Frank Lloyd Wright',
-    'Renzo Piano',
-  ]),
-  q('art-liberty', 'Who designed the Statue of Liberty?', 'Frédéric Auguste Bartholdi', [
-    'Gustave Eiffel',
-    'Auguste Rodin',
-    'Edgar Degas',
-  ]),
-  q('lit-solitude', 'Who wrote One Hundred Years of Solitude?', 'Gabriel García Márquez', [
-    'Mario Vargas Llosa',
-    'Jorge Luis Borges',
-    'Isabel Allende',
-  ]),
-  q(
-    'lit-poirot-debut',
-    'In which novel did Hercule Poirot first appear?',
-    'The Mysterious Affair at Styles',
-    ['The Murder on the Links', 'The Murder of Roger Ackroyd', 'Murder on the Orient Express'],
-  ),
-  q('lit-orwell', 'What was George Orwell’s real name?', 'Eric Arthur Blair', [
-    'Edward George Blair',
-    'Arthur Eric Bliss',
-    'George Edmund Orr',
-  ]),
-  q('lit-ishmael', 'Which novel opens with “Call me Ishmael”?', 'Moby-Dick', [
-    'Treasure Island',
-    'The Old Man and the Sea',
-    'Robinson Crusoe',
-  ]),
-  q('lit-brave-new-world', 'Who wrote Brave New World?', 'Aldous Huxley', [
-    'George Orwell',
-    'H. G. Wells',
-    'Ray Bradbury',
-  ]),
-  q('lit-gatsby-narrator', 'Who narrates The Great Gatsby?', 'Nick Carraway', [
-    'Tom Buchanan',
-    'Jay Gatsby',
-    'George Wilson',
-  ]),
-  q('lit-achebe', 'Who wrote Things Fall Apart?', 'Chinua Achebe', [
-    'Wole Soyinka',
-    'Ngũgĩ wa Thiong’o',
-    'Ben Okri',
-  ]),
-  q('lit-hudson', 'What is the name of Sherlock Holmes’s landlady?', 'Mrs Hudson', [
-    'Mrs Hughes',
-    'Mrs Patmore',
-    'Mrs Danvers',
-  ]),
-  q('lit-wuthering', 'Which Brontë wrote Wuthering Heights?', 'Emily', [
-    'Charlotte',
-    'Anne',
-    'Branwell',
-  ]),
-  q('lit-shylock', 'In which Shakespeare play does Shylock appear?', 'The Merchant of Venice', [
-    'Othello',
-    'Measure for Measure',
-    'The Tempest',
-  ]),
-  q('lit-longest-shakespeare', 'Which is Shakespeare’s longest play?', 'Hamlet', [
-    'King Lear',
-    'Richard III',
-    'Coriolanus',
-  ]),
-
-  // ---------- music, film and TV ----------
-  q('music-rite', 'Who composed The Rite of Spring?', 'Igor Stravinsky', [
-    'Sergei Prokofiev',
-    'Claude Debussy',
-    'Maurice Ravel',
-  ]),
-  q('music-carmen', 'Who composed the opera Carmen?', 'Georges Bizet', [
-    'Giuseppe Verdi',
-    'Giacomo Puccini',
-    'Jules Massenet',
-  ]),
-  q('music-four-seasons', 'Who composed The Four Seasons?', 'Antonio Vivaldi', [
-    'Johann Sebastian Bach',
-    'George Frideric Handel',
-    'Arcangelo Corelli',
-  ]),
-  q('music-beethoven', 'How many symphonies did Beethoven complete?', '9', ['7', '10', '12']),
-  q('music-dark-side', 'Which band released The Dark Side of the Moon?', 'Pink Floyd', [
-    'Led Zeppelin',
-    'The Who',
-    'Genesis',
-  ]),
-  q('music-pete-best', 'Who was the Beatles’ drummer before Ringo Starr?', 'Pete Best', [
-    'Stuart Sutcliffe',
-    'Jimmy Nicol',
-    'Brian Epstein',
-  ]),
-  q('music-queen-of-soul', 'Which singer was known as the Queen of Soul?', 'Aretha Franklin', [
-    'Diana Ross',
-    'Etta James',
-    'Whitney Houston',
-  ]),
-  q('film-wings', 'Which film won the first Academy Award for Best Picture?', 'Wings', [
-    'Sunrise',
-    'The Jazz Singer',
-    'Metropolis',
-  ]),
-  q('film-seven-samurai', 'Who directed Seven Samurai?', 'Akira Kurosawa', [
-    'Yasujirō Ozu',
-    'Kenji Mizoguchi',
-    'Hayao Miyazaki',
-  ]),
-  q('film-wakanda', 'What is the fictional African nation in Black Panther?', 'Wakanda', [
-    'Genovia',
-    'Zamunda',
-    'Sokovia',
-  ]),
-  q('film-chewbacca', 'What species is Chewbacca in Star Wars?', 'Wookiee', [
-    'Ewok',
-    'Hutt',
-    'Rodian',
-  ]),
-  q(
-    'film-phantom',
-    'Which is the longest-running show in Broadway history?',
-    'The Phantom of the Opera',
-    ['Cats', 'Chicago', 'The Lion King'],
-  ),
-
-  // ---------- sport and games ----------
-  q('sport-rugby-union', 'How many players does each rugby union team have on the field?', '15', [
-    '11',
-    '12',
-    '13',
-  ]),
-  q('sport-world-cups', 'Which country has won the most FIFA men’s World Cups?', 'Brazil', [
-    'Germany',
-    'Italy',
-    'Argentina',
-  ]),
-  q('sport-first-world-cup', 'Which country won the first FIFA World Cup, in 1930?', 'Uruguay', [
-    'Argentina',
-    'Brazil',
-    'Italy',
-  ]),
-  q('sport-barcelona', 'Which city hosted the 1992 Summer Olympics?', 'Barcelona', [
-    'Seoul',
-    'Atlanta',
-    'Sydney',
-  ]),
-  q('sport-athens', 'Which city hosted the first modern Olympic Games, in 1896?', 'Athens', [
-    'Paris',
-    'London',
-    'Rome',
-  ]),
-  q('sport-marathon', 'How long is a marathon?', '42.195 km', ['40 km', '42 km', '43.195 km']),
-  q('sport-albatross', 'In golf, what is three under par on a single hole called?', 'Albatross', [
-    'Eagle',
-    'Condor',
-    'Birdie',
-  ]),
-  q('sport-fosbury', 'In which event is the Fosbury Flop used?', 'High jump', [
-    'Pole vault',
-    'Diving',
-    'Gymnastics',
-  ]),
-  q('sport-snooker-black', 'How many points is the black ball worth in snooker?', '7', [
-    '5',
-    '6',
-    '10',
-  ]),
-  q('sport-clay', 'Which Grand Slam tennis tournament is played on clay?', 'French Open', [
-    'Wimbledon',
-    'US Open',
-    'Australian Open',
-  ]),
-  q('sport-chess-knight', 'In standard chess notation, which letter stands for the knight?', 'N', [
-    'K',
-    'Kn',
-    'H',
-  ]),
-
-  // ---------- food and everyday things ----------
-  q('food-marzipan', 'Which nut is the main ingredient of marzipan?', 'Almond', [
-    'Hazelnut',
-    'Pistachio',
-    'Cashew',
-  ]),
-  q('food-saffron', 'Which spice comes from the Crocus sativus flower?', 'Saffron', [
-    'Turmeric',
-    'Paprika',
-    'Cardamom',
-  ]),
-  q('food-coffee', 'Which country produces the most coffee?', 'Brazil', [
-    'Vietnam',
-    'Colombia',
-    'Ethiopia',
-  ]),
-  q('food-pecorino', 'Pecorino cheese is made from which animal’s milk?', 'Sheep', [
-    'Goat',
-    'Cow',
-    'Water buffalo',
-  ]),
-  q('food-halloumi', 'Halloumi cheese originates from which country?', 'Cyprus', [
-    'Greece',
-    'Turkey',
-    'Lebanon',
-  ]),
-  q('tech-http', 'What does HTTP stand for?', 'HyperText Transfer Protocol', [
-    'HyperText Transmission Protocol',
-    'HighText Transfer Protocol',
-    'Hyperlink Text Transfer Process',
-  ]),
-  q('tech-www', 'Who invented the World Wide Web?', 'Tim Berners-Lee', [
-    'Vint Cerf',
-    'Marc Andreessen',
-    'Linus Torvalds',
-  ]),
-  q('tech-python', 'Which programming language did Guido van Rossum create?', 'Python', [
+    'Spinel',
+    'Tourmaline',
+  ]),
+  rock('emerald', 'An emerald is a green variety of which mineral?', 'Beryl', [
+    'Corundum',
+    'Tourmaline',
+    'Olivine',
+  ]),
+  rock('amethyst', 'Amethyst is a purple variety of which mineral?', 'Quartz', [
+    'Fluorite',
+    'Corundum',
+    'Beryl',
+  ]),
+  rock('peridot', 'Peridot is the gem form of which mineral?', 'Olivine', [
+    'Garnet',
+    'Beryl',
+    'Zircon',
+  ]),
+  rock('april', 'Which gemstone is the modern birthstone for April?', 'Diamond', [
+    'Emerald',
     'Ruby',
-    'Perl',
-    'Java',
+    'Opal',
   ]),
+  rock(
+    'cullinan',
+    'What was the largest gem-quality rough diamond ever found, in South Africa in 1905?',
+    'The Cullinan',
+    ['The Hope Diamond', 'The Koh-i-Noor', 'The Regent'],
+  ),
+  rock(
+    'pumice',
+    'Which volcanic rock is so full of gas bubbles that it can float on water?',
+    'Pumice',
+    ['Obsidian', 'Basalt', 'Granite'],
+  ),
+  rock('obsidian', 'Obsidian is best described as what?', 'Volcanic glass', [
+    'A metamorphic rock',
+    'A fossil resin',
+    'A sedimentary rock',
+  ]),
+  rock('calcite', 'Which mineral mainly makes up stalactites in limestone caves?', 'Calcite', [
+    'Gypsum',
+    'Quartz',
+    'Halite',
+  ]),
+  rock('halite', 'What is the mineral name for rock salt?', 'Halite', [
+    'Gypsum',
+    'Calcite',
+    'Sylvite',
+  ]),
+  rock('gypsum', 'Plaster of Paris is made by heating which mineral?', 'Gypsum', [
+    'Calcite',
+    'Talc',
+    'Kaolinite',
+  ]),
+  rock('bauxite', 'Which rock is the main ore of aluminium?', 'Bauxite', [
+    'Hematite',
+    'Galena',
+    'Cassiterite',
+  ]),
+  rock('galena', 'Galena is the main ore of which metal?', 'Lead', ['Zinc', 'Tin', 'Silver']),
+  rock('cassiterite', 'Cassiterite is the main ore of which metal?', 'Tin', [
+    'Copper',
+    'Lead',
+    'Nickel',
+  ]),
+  rock('hematite', 'Hematite is an important ore of which metal?', 'Iron', [
+    'Copper',
+    'Manganese',
+    'Chromium',
+  ]),
+  rock(
+    'cretaceous',
+    'Which geological period ended with the extinction of the non-avian dinosaurs?',
+    'Cretaceous',
+    ['Jurassic', 'Triassic', 'Permian'],
+  ),
+  rock(
+    'pangaea',
+    'What is the name of the supercontinent that began breaking up around 200 million years ago?',
+    'Pangaea',
+    ['Gondwana', 'Laurasia', 'Rodinia'],
+  ),
+  rock(
+    'moment-magnitude',
+    'Which scale do seismologists now use instead of the Richter scale for large earthquakes?',
+    'Moment magnitude scale',
+    ['Mercalli scale', 'Beaufort scale', 'Fujita scale'],
+  ),
+  rock('vesuvius', 'Which volcano buried Pompeii in AD 79?', 'Vesuvius', [
+    'Etna',
+    'Stromboli',
+    'Vulcano',
+  ]),
+  rock(
+    'hutton',
+    'Which Scottish scientist is often called the father of modern geology?',
+    'James Hutton',
+    ['Charles Lyell', 'William Smith', 'Louis Agassiz'],
+  ),
+  rock(
+    'william-smith',
+    'Who produced the first geological map of a whole country, Britain, in 1815?',
+    'William Smith',
+    ['James Hutton', 'Charles Lyell', 'Mary Anning'],
+  ),
+  rock(
+    'anning',
+    'Fossil hunter Mary Anning made her famous finds around which English town?',
+    'Lyme Regis',
+    ['Whitby', 'Scarborough', 'Brighton'],
+  ),
+  rock('neolithic', 'Which part of the Stone Age is named the “new stone” age?', 'Neolithic', [
+    'Palaeolithic',
+    'Mesolithic',
+    'Chalcolithic',
+  ]),
+  rock('uluru-state', 'In which Australian state or territory is Uluru?', 'Northern Territory', [
+    'Western Australia',
+    'South Australia',
+    'Queensland',
+  ]),
+  rock('uluru-rock', 'Uluru is made mainly of which rock?', 'Arkose sandstone', [
+    'Granite',
+    'Basalt',
+    'Limestone',
+  ]),
+  rock('gibraltar-rock', 'The Rock of Gibraltar is made mainly of which rock?', 'Limestone', [
+    'Granite',
+    'Basalt',
+    'Sandstone',
+  ]),
+  rock(
+    'gibraltar-apes',
+    'Which animals famously live wild on the Rock of Gibraltar?',
+    'Barbary macaques',
+    ['Rock hyraxes', 'Chamois', 'Mouflon'],
+  ),
+  rock('causeway', 'The Giant’s Causeway’s hexagonal columns are made of which rock?', 'Basalt', [
+    'Granite',
+    'Sandstone',
+    'Limestone',
+  ]),
+  rock('rushmore', 'Mount Rushmore’s presidents are carved into which rock?', 'Granite', [
+    'Marble',
+    'Sandstone',
+    'Basalt',
+  ]),
+  rock(
+    'preseli',
+    'Stonehenge’s smaller “bluestones” were brought from which hills?',
+    'Preseli Hills',
+    ['Cotswolds', 'Mendip Hills', 'Brecon Beacons'],
+  ),
+  rock('rosetta-museum', 'In which museum is the Rosetta Stone displayed?', 'British Museum', [
+    'The Louvre',
+    'Egyptian Museum, Cairo',
+    'Metropolitan Museum of Art',
+  ]),
+  rock('rosetta-scripts', 'How many different scripts are inscribed on the Rosetta Stone?', '3', [
+    '2',
+    '4',
+    '5',
+  ]),
+  rock('scone', 'The Stone of Scone is also known as the Stone of what?', 'Destiny', [
+    'Kings',
+    'Coronation',
+    'Courage',
+  ]),
+  rock(
+    'blarney',
+    'Visitors to which Irish castle kiss a stone for “the gift of the gab”?',
+    'Blarney Castle',
+    ['Kilkenny Castle', 'Bunratty Castle', 'Cahir Castle'],
+  ),
+  rock('cashel', 'In which country is the Rock of Cashel?', 'Ireland', [
+    'Scotland',
+    'Wales',
+    'England',
+  ]),
+  rock(
+    'curling',
+    'Granite for Olympic curling stones famously comes from which Scottish island?',
+    'Ailsa Craig',
+    ['Skye', 'Arran', 'Iona'],
+  ),
+  rock(
+    'plymouth',
+    'Plymouth Rock is traditionally where passengers of which ship landed in 1620?',
+    'Mayflower',
+    ['Speedwell', 'Susan Constant', 'Endeavour'],
+  ),
+  rock('alcatraz', 'Which former island prison was nicknamed “The Rock”?', 'Alcatraz', [
+    'Robben Island',
+    'Rikers Island',
+    'Devil’s Island',
+  ]),
+  rock(
+    'the-rock-uni',
+    'Dwayne “The Rock” Johnson played college football for which university?',
+    'University of Miami',
+    ['Florida State', 'USC', 'Alabama'],
+  ),
+  rock('rocky-city', 'In the film Rocky, which city is Rocky Balboa from?', 'Philadelphia', [
+    'Pittsburgh',
+    'Boston',
+    'Detroit',
+  ]),
+  rock('back-in-black', 'Which band released the album Back in Black?', 'AC/DC', [
+    'Def Leppard',
+    'Kiss',
+    'Motörhead',
+  ]),
+  rock('hall-of-fame', 'In which city is the Rock and Roll Hall of Fame?', 'Cleveland', [
+    'Memphis',
+    'Nashville',
+    'Detroit',
+  ]),
+  rock(
+    'rolling-stones',
+    'The Rolling Stones took their name from a song by which bluesman?',
+    'Muddy Waters',
+    ['Chuck Berry', 'Howlin’ Wolf', 'Bo Diddley'],
+  ),
+
+  // ---------------- PAPER: papermaking, printing, books, money, origami, pop culture ----------------
+  paper('invented', 'In which country was paper invented?', 'China', ['Egypt', 'Japan', 'Persia']),
+  paper(
+    'cai-lun',
+    'Who is traditionally credited with inventing paper, around AD 105?',
+    'Cai Lun',
+    ['Bi Sheng', 'Zhang Heng', 'Shen Kuo'],
+  ),
+  paper('papyrus', 'What was papyrus made from?', 'A reed-like water plant', [
+    'Animal skin',
+    'Tree bark',
+    'Rice straw',
+  ]),
+  paper('word-paper', 'The word “paper” comes from which ancient writing material?', 'Papyrus', [
+    'Parchment',
+    'Vellum',
+    'Pergamon',
+  ]),
+  paper('vellum', 'Fine vellum is traditionally made from what?', 'Calfskin', [
+    'Papyrus reed',
+    'Cotton rag',
+    'Mulberry bark',
+  ]),
+  paper('pergamon', 'The word “parchment” comes from which ancient city?', 'Pergamon', [
+    'Petra',
+    'Byblos',
+    'Alexandria',
+  ]),
+  paper(
+    'byblos',
+    'The ancient paper-trading port of Byblos gave its name to which word?',
+    'Bible',
+    ['Book', 'Library', 'Papyrus'],
+  ),
+  paper(
+    'washi',
+    'Traditional Japanese washi paper is usually made from the bark of which plant?',
+    'Kōzo (paper mulberry)',
+    ['Bamboo', 'Cherry', 'Cedar'],
+  ),
+  paper('a4', 'What are the dimensions of a sheet of A4 paper?', '210 × 297 mm', [
+    '216 × 279 mm',
+    '200 × 300 mm',
+    '220 × 310 mm',
+  ]),
+  paper('a0', 'How many A4 sheets make up one sheet of A0?', '16', ['8', '12', '32']),
+  paper('ratio', 'What is the ratio of the sides of every A-series paper size?', '1 : √2', [
+    '2 : 3',
+    '1 : 1.5',
+    'The golden ratio',
+  ]),
+  paper('gsm', 'In paper weights, what does “gsm” stand for?', 'Grams per square metre', [
+    'Grain strength measure',
+    'Gloss surface measure',
+    'Grams per sheet made',
+  ]),
+  paper('octavo', 'A sheet folded to make 8 leaves (16 pages) gives which book format?', 'Octavo', [
+    'Quarto',
+    'Folio',
+    'Duodecimo',
+  ]),
+  paper('mache', 'What does the French “papier-mâché” literally mean?', 'Chewed paper', [
+    'Folded paper',
+    'Glued paper',
+    'Torn paper',
+  ]),
+  paper(
+    'crane',
+    'In Japanese tradition, folding a thousand of which origami bird grants a wish?',
+    'Crane',
+    ['Swan', 'Dove', 'Heron'],
+  ),
+  paper(
+    'kirigami',
+    'Kirigami differs from origami because it also involves what?',
+    'Cutting the paper',
+    ['Gluing the paper', 'Painting the paper', 'Wetting the paper'],
+  ),
+  paper('gutenberg-city', 'In which city did Johannes Gutenberg print his famous Bible?', 'Mainz', [
+    'Strasbourg',
+    'Cologne',
+    'Nuremberg',
+  ]),
+  paper(
+    'caxton',
+    'Who set up the first printing press in England, in the 1470s?',
+    'William Caxton',
+    ['Wynkyn de Worde', 'Thomas Malory', 'Richard Pynson'],
+  ),
+  paper(
+    'diamond-sutra',
+    'What is the world’s oldest surviving dated printed book, from AD 868?',
+    'The Diamond Sutra',
+    ['The Gutenberg Bible', 'The Book of Kells', 'The Jikji'],
+  ),
+  paper('kells', 'In which library is the Book of Kells kept?', 'Trinity College Dublin', [
+    'The British Library',
+    'The Bodleian Library',
+    'National Library of Scotland',
+  ]),
+  paper('isbn', 'What does ISBN stand for?', 'International Standard Book Number', [
+    'International Serial Book Number',
+    'Indexed Standard Book Number',
+    'International Standard Binding Number',
+  ]),
+  paper('isbn-digits', 'How many digits does a modern ISBN have?', '13', ['10', '12', '16']),
+  paper('penguin', 'Who founded Penguin Books in 1935?', 'Allen Lane', [
+    'John Murray',
+    'Victor Gollancz',
+    'Stanley Unwin',
+  ]),
+  paper(
+    'fahrenheit',
+    'Who wrote Fahrenheit 451, named after the temperature at which book paper supposedly burns?',
+    'Ray Bradbury',
+    ['George Orwell', 'Aldous Huxley', 'Philip K. Dick'],
+  ),
+  paper('paper-towns', 'Who wrote the novel Paper Towns?', 'John Green', [
+    'Rainbow Rowell',
+    'David Levithan',
+    'Stephen Chbosky',
+  ]),
+  paper(
+    'anne-frank',
+    'Whose diary was written in a red-and-white checked autograph book?',
+    'Anne Frank',
+    ['Samuel Pepys', 'Virginia Woolf', 'Frida Kahlo'],
+  ),
+  paper('ft', 'Which newspaper is famously printed on salmon-pink paper?', 'Financial Times', [
+    'The Times',
+    'The Wall Street Journal',
+    'The Economist',
+  ]),
+  paper(
+    'dollar',
+    'US dollar banknotes are printed on paper made mainly of what?',
+    'Cotton and linen',
+    ['Wood pulp', 'Polymer plastic', 'Hemp and silk'],
+  ),
+  paper(
+    'polymer',
+    'Which country introduced the first polymer (plastic) banknotes, in 1988?',
+    'Australia',
+    ['Canada', 'New Zealand', 'United Kingdom'],
+  ),
+  paper('hundred', 'Whose portrait is on the US $100 bill?', 'Benjamin Franklin', [
+    'George Washington',
+    'Alexander Hamilton',
+    'Ulysses S. Grant',
+  ]),
+  paper('rand', 'The rand is the paper currency of which country?', 'South Africa', [
+    'Namibia',
+    'Botswana',
+    'Zimbabwe',
+  ]),
+  paper('post-it', 'Which company invented Post-it notes?', '3M', ['Avery', 'Staples', 'Xerox']),
+  paper('kleenex', 'Which company makes Kleenex tissues?', 'Kimberly-Clark', [
+    'Procter & Gamble',
+    'Georgia-Pacific',
+    '3M',
+  ]),
+  paper('litmus', 'Blue litmus paper turns which colour in acid?', 'Red', [
+    'Green',
+    'Yellow',
+    'Purple',
+  ]),
+  paper('anniversary', 'Paper is the traditional gift for which wedding anniversary?', 'First', [
+    'Second',
+    'Fifth',
+    'Tenth',
+  ]),
+  paper(
+    'paper-moon',
+    'Who won an Oscar for Paper Moon, becoming the youngest competitive winner?',
+    'Tatum O’Neal',
+    ['Jodie Foster', 'Drew Barrymore', 'Linda Blair'],
+  ),
+  paper('paper-planes', 'Which artist had a hit with “Paper Planes”?', 'M.I.A.', [
+    'Santigold',
+    'Lily Allen',
+    'Kate Nash',
+  ]),
+  paper('paper-mario', 'Paper Mario first appeared on which games console?', 'Nintendo 64', [
+    'GameCube',
+    'Super Nintendo',
+    'Wii',
+  ]),
+  paper(
+    'dunder',
+    'In the US version of The Office, what is the name of the paper company?',
+    'Dunder Mifflin',
+    ['Wernham Hogg', 'Sabre', 'Staples'],
+  ),
+  paper(
+    'wernham',
+    'In the UK version of The Office, what is the name of the paper company?',
+    'Wernham Hogg',
+    ['Dunder Mifflin', 'Slough Paper Co.', 'Hogg & Partners'],
+  ),
+
+  // ---------------- SCISSORS: blades, cutting tools, hairdressing, tailoring, pop culture ----------------
+  scissors(
+    'romans',
+    'Which civilisation is generally credited with pivoted, cross-bladed scissors?',
+    'The Romans',
+    ['The Egyptians', 'The Chinese', 'Renaissance Italians'],
+  ),
+  scissors(
+    'sheffield',
+    'Which English city is famous for its steel, cutlery and scissor-making?',
+    'Sheffield',
+    ['Birmingham', 'Manchester', 'Leeds'],
+  ),
+  scissors('solingen', 'Which German city is known as the “City of Blades”?', 'Solingen', [
+    'Essen',
+    'Stuttgart',
+    'Dortmund',
+  ]),
+  scissors(
+    'fiskars',
+    'Fiskars, maker of orange-handled scissors, comes from which country?',
+    'Finland',
+    ['Sweden', 'Denmark', 'Norway'],
+  ),
+  scissors('pinking', 'What kind of edge do pinking shears cut?', 'Zigzag', [
+    'Rolled',
+    'Frayed',
+    'Perforated',
+  ]),
+  scissors(
+    'metzenbaum',
+    'What are surgical Metzenbaum scissors mainly used for?',
+    'Dissecting delicate tissue',
+    ['Cutting bandages', 'Cutting sutures', 'Cutting bone'],
+  ),
+  scissors(
+    'tailors-ham',
+    'In sewing, what is a “tailor’s ham”?',
+    'A firm cushion for pressing curved seams',
+    ['A cut of pork', 'A tailor’s dummy', 'A measuring stick'],
+  ),
+  scissors('savile-row', 'In which city is Savile Row, home of bespoke tailoring?', 'London', [
+    'Milan',
+    'Paris',
+    'Edinburgh',
+  ]),
+  scissors('no1-savile', 'Which tailor is at No. 1 Savile Row?', 'Gieves & Hawkes', [
+    'Henry Poole',
+    'Huntsman',
+    'Anderson & Sheppard',
+  ]),
+  scissors('sassoon', 'Which hairdresser created the 1960s “five-point cut”?', 'Vidal Sassoon', [
+    'Paul Mitchell',
+    'John Frieda',
+    'Nicky Clarke',
+  ]),
+  scissors(
+    'number-one',
+    'How long does a “number 1” clipper guard leave hair?',
+    '⅛ inch (about 3 mm)',
+    ['1 mm', '¼ inch (about 6 mm)', '½ inch (about 13 mm)'],
+  ),
+  scissors('rachel', 'Which TV show gave its name to the 1990s haircut “the Rachel”?', 'Friends', [
+    'Glee',
+    'Ally McBeal',
+    'Seinfeld',
+  ]),
+  scissors(
+    'barber-pole',
+    'The red and white barber’s pole originally advertised which service?',
+    'Bloodletting and surgery',
+    ['A royal warrant', 'A tailors’ guild', 'A public bath'],
+  ),
+  scissors('sweeney', 'Who is “the demon barber of Fleet Street”?', 'Sweeney Todd', [
+    'Figaro',
+    'Fagin',
+    'Jack Wild',
+  ]),
+  scissors(
+    'figaro',
+    'What is the name of the barber in Rossini’s The Barber of Seville?',
+    'Figaro',
+    ['Almaviva', 'Bartolo', 'Basilio'],
+  ),
+  scissors('burton', 'Who directed Edward Scissorhands?', 'Tim Burton', [
+    'Terry Gilliam',
+    'Sam Raimi',
+    'Joel Schumacher',
+  ]),
+  scissors('depp', 'Who played the title role in Edward Scissorhands?', 'Johnny Depp', [
+    'Jim Carrey',
+    'Gary Oldman',
+    'Christian Slater',
+  ]),
+  scissors('price', 'In Edward Scissorhands, who played Edward’s inventor?', 'Vincent Price', [
+    'Christopher Lee',
+    'Peter Cushing',
+    'Alan Arkin',
+  ]),
+  scissors(
+    'krueger',
+    'Freddy Krueger, with his bladed glove, first appeared in which film?',
+    'A Nightmare on Elm Street',
+    ['Friday the 13th', 'Halloween', 'Scream'],
+  ),
+  scissors(
+    'scissor-sisters',
+    'Which band had a 2006 hit with “I Don’t Feel Like Dancin’”?',
+    'Scissor Sisters',
+    ['The Killers', 'Franz Ferdinand', 'Keane'],
+  ),
+  scissors('guillotine', 'The guillotine is named after which man?', 'Joseph-Ignace Guillotin', [
+    'Antoine Louis',
+    'Maximilien Robespierre',
+    'Charles-Henri Sanson',
+  ]),
+  scissors(
+    'daisho',
+    'The katana and which shorter sword together form the samurai’s daishō?',
+    'Wakizashi',
+    ['Tantō', 'Tachi', 'Nodachi'],
+  ),
+  scissors(
+    'excalibur',
+    'In many versions of the legend, who gives King Arthur the sword Excalibur?',
+    'The Lady of the Lake',
+    ['Merlin', 'Morgan le Fay', 'Guinevere'],
+  ),
+  scissors(
+    'victorinox',
+    'Victorinox, maker of the Swiss Army knife, combines “Victoria” with which word?',
+    'Inox (stainless steel)',
+    ['Innovation', 'Knox', 'Nox'],
+  ),
+  scissors('opinel', 'Opinel folding knives come from which country?', 'France', [
+    'Italy',
+    'Spain',
+    'Switzerland',
+  ]),
+  scissors('bowie', 'The Bowie knife is named after whom?', 'Jim Bowie', [
+    'David Bowie',
+    'Davy Crockett',
+    'Kit Carson',
+  ]),
+  scissors(
+    'mezzaluna',
+    'What does the name of the curved “mezzaluna” chopping blade mean in Italian?',
+    'Half moon',
+    ['Little knife', 'Double edge', 'Rocking blade'],
+  ),
+  scissors(
+    'topiary',
+    'What is the art of clipping shrubs into ornamental shapes called?',
+    'Topiary',
+    ['Bonsai', 'Espalier', 'Ikebana'],
+  ),
+  scissors(
+    'golden-shears',
+    'Which country hosts the Golden Shears sheep-shearing championships?',
+    'New Zealand',
+    ['Australia', 'Wales', 'Scotland'],
+  ),
+  scissors('budding', 'Who invented the lawnmower, in 1830?', 'Edwin Budding', [
+    'John Deere',
+    'Joseph Bramah',
+    'James Ransome',
+  ]),
+  scissors(
+    'gillette',
+    'King C. Gillette is known for inventing what?',
+    'The disposable safety-razor blade',
+    ['The straight razor', 'The electric shaver', 'Aerosol shaving foam'],
+  ),
+  scissors('schick', 'Who patented the first electric razor, in 1928?', 'Jacob Schick', [
+    'King C. Gillette',
+    'Alfred Braun',
+    'Gerard Philips',
+  ]),
+  scissors('occam', 'What does Occam’s razor favour?', 'The simplest explanation', [
+    'The oldest explanation',
+    'The most detailed explanation',
+    'The most popular explanation',
+  ]),
+  scissors(
+    'chelae',
+    'What is the scientific name for the pincer claws of crabs and lobsters?',
+    'Chelae',
+    ['Mandibles', 'Pedipalps', 'Chelicerae'],
+  ),
 ];
