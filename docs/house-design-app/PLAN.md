@@ -1,603 +1,852 @@
 # Hearth — Build Plan
 
-> **Revision 2 (replaces Revision 1 entirely).** Pinterest is gone, along with the property-wide scope, floorplans, room photos and mock-ups. The MVP now does one job: **get two (or more) people to agree on a room's style in under 5 minutes.** Everyone swipes the *same* curated deck, and a synthesis engine turns the swipes into exact matches, a named "bridge" style, compromise pieces and buy links. Floorplans and mock-ups move to v2 (§15).
+> **Revision 3.** Fixes the gaps in Revision 2: a weekend validation test before any code (§2); how people find the app (§4: solo style quiz, shareable boards, partner links, SEO pages); a revenue model that doesn't rely on affiliate links alone (§5); room context so suggestions fit real homes (R14–R16); together mode, both pass-the-phone and live reveal (R17–R18); a board that works with zero exact matches (R19); framing that never produces a winner and a loser (R20–R22); a personal style card for each person (R23); retention through the next room, a shopping list with "bought it" ticks and price-drop alerts (R24–R26); and a data flywheel that improves suggestions over time (§12).
+>
+> **Revision 2** replaced Revision 1 (Pinterest, floorplans, mock-ups) with the couples style-consensus MVP.
 
-**Hearth** (working name) is a mobile-first web app. Partner A starts a room project ("Living Room") and sends a link or QR code. Partner B opens it and starts swiping straight away, with no app to download and no account to create. Each person swipes about 12 whole-room photos (the vibe check) and then about 18 individual products (sofas, rugs, lighting…), and can spend up to 3 vetoes on hard deal-breakers. When everyone has finished, both see one shared board:
+**Hearth** (working name) is a mobile-first web app that gets two (or up to four) people to agree on a room's style in under 5 minutes. Everyone swipes the same curated deck: about 12 whole-room photos (the vibe check), then about 18 products (sofas, rugs, lighting…), with 3 vetoes for deal-breakers. A synthesis engine turns the swipes into a shared board: exact matches, a named **bridge style** (e.g. *"Warm Industrial"*) with the evidence behind it, compromise pieces that fit the room you actually have, and buy links.
 
-- **Agreed:** pieces everyone swiped right on, with buy buttons
-- **Your bridge style:** a named hybrid such as *"Warm Industrial"*, with the reasoning and what each person brings to it
-- **Compromise picks:** catalogue pieces that score well for *both* people, even if neither swiped them
-- **You both love / you differ on:** shared and clashing elements (dark wood, brass, clean lines…)
-- **Vetoes:** each person's deal-breakers, which are excluded from every suggestion
+People can use it three ways:
 
-An optional 8-card **tie-breaker round** lets both people swipe the compromise picks, which turns "suggested" into "agreed".
+- **Remote:** you start, then send a link or QR code. Your partner swipes on their own phone, no account needed.
+- **Together, two phones:** both swipe at the same time and reveal the result together.
+- **Together, one phone:** pass the phone; the app hides your choices between turns.
 
-This document covers everything needed to build the MVP: the product rules, every technology, the external accounts, the catalogue pipeline, the algorithms, every file, the build order, the metrics and the risks. No code exists yet. Each phase ends with acceptance criteria.
+This document covers everything needed to validate and build the MVP: the validation test, the product rules, growth, revenue, the technology, accounts, the catalogue pipeline, the algorithms, the data flywheel, every file, the build order, metrics, costs and risks. No code exists yet. Each phase ends with acceptance criteria.
 
 > This plan sits in the `brock` repo only because that's where it was written. Hearth is a separate app: start a new repo (e.g. `rcon-tech/hearth`) and copy this file in as its `PLAN.md`. It reuses the Brock stack (Next.js 16, Drizzle, Postgres, Vitest, Playwright, Vercel + Neon), and Brock's "no account until you need one" approach.
 
 ---
 
-## 1. Product thesis (what we're testing)
+## 1. Product thesis and success metrics
 
 - Inspiration tools (Pinterest, Instagram) produce endless boards but no decisions. Planning tools (Homestyler, Planner 5D) need spatial setup before you get to style. Style quizzes (e.g. Havenly's Style Shuffle) are single-user.
-- Nobody **reconciles two people's tastes**. When A leans Industrial and B leans Minimalist, today's tools show zero overlap. Hearth finds the shared elements and proposes a bridge.
-- Making the second person sign up kills the loop, so **partner B never needs an account**.
+- Nobody **reconciles two people's tastes**. When A leans Industrial and B leans Minimalist, today's tools show zero overlap. Hearth finds the shared elements and proposes a bridge that fits the room they actually have.
+- The second person is usually the less engaged one, so **partner B never needs an account** and is done in about 3 minutes.
 
-The MVP succeeds if (measured in PostHog, §11):
+The MVP succeeds if (measured in PostHog, §15):
 
 | Metric | Target |
 |---|---|
-| Invited partners who finish swiping | ≥ 60% |
-| Median time from partner B opening the link to the board being ready | ≤ 5 min |
-| Boards rated "this helped us agree" (thumbs on the board) | ≥ 60% 👍 |
-| Boards with ≥ 1 buy-button click | ≥ 25% |
+| Invited partners who finish swiping (remote mode) | ≥ 60% |
+| Median time from partner B starting to the board being ready | ≤ 5 min |
+| Boards rated "this helped us agree" | ≥ 60% 👍 |
+| Boards with ≥ 1 buy click | ≥ 25% |
+| Solo quiz takers who invite someone (§4.1) | ≥ 30% |
+| Boards shared publicly (§4.2) | ≥ 10% |
+| Projects that start a second room within 30 days (R24) | ≥ 15% |
 
 ---
 
-## 2. Product rules (decide these first)
+## 2. Validate before building (Phase −1: one or two weekends, no code)
+
+The riskiest question isn't technical. It's whether couples find a bridge board useful. Test that by hand first.
+
+**Steps**
+
+1. **Pick 30 cards by hand:** 12 living-room photos from Unsplash and 18 products from retailer sites, covering at least 8 styles. These become the first real catalogue items later.
+2. **Make a form** (Google Forms or Tally): one page per card, "Yes / No", plus "Anything that's a hard no for you?" at the end. Each person fills it in separately, with their first name and a shared couple code.
+3. **Recruit 10–15 couples** who are moving, renovating or moving in together: friends, friends of friends, local Facebook/WhatsApp groups, a post on r/HousingUK or similar. Offer a £10 voucher for a 15-minute follow-up call.
+4. **Make each couple's board by hand** (about 30 min each): list double-yeses in a spreadsheet, ask Claude (in chat) to propose a bridge style and 8 compromise pieces from a product list you paste in, then lay it out as a one-page PDF or web page. Also note any "what's staying / pets / small room" comments they made.
+5. **Follow-up call (15 min)**, same questions every time:
+   - Did this help you agree? (1–5)
+   - Did you learn anything about each other's taste?
+   - Did either of you find it a chore?
+   - Did you want the product links? Did you buy anything?
+   - Would you pay for a version that shows these in a photo of your room? How much?
+   - How would you have found an app like this?
+6. **Talk to 3–5 businesses** (estate agents, letting agents, a new-build sales office, an interior designer): would they give this to clients? Would they pay, and how?
+7. **Scan competitors** for an hour: App Store, Play Store, Product Hunt, "couples interior design swipe app". Note how anything similar differs.
+
+**Go / no-go**
+
+| Signal | Go if |
+|---|---|
+| "Helped us agree" score | ≥ 7 of 10 couples give 4 or 5 |
+| Wanted product links | ≥ 5 of 10 asked for or clicked them |
+| Partner found it a chore | ≤ 3 of 10 |
+| A business wants to try it | ≥ 1 says yes to a pilot |
+
+If the bridge board doesn't help, stop or change the idea before writing code. If it does, the form answers become **real-world test fixtures** for the engine (`tests/fixtures/concierge/`), and the calls tell you which acquisition channel (§4) to lead with.
+
+---
+
+## 3. Product rules (decide these first)
+
+### Projects and people
 
 | # | Rule | Default | Why |
 |---|---|---|---|
-| R1 | Project | **One room** (room type + optional name + optional budget band). A user can have many. | Matches "resolve this room" |
-| R2 | Who starts | Creator signs in with **Google** (so they can come back and get the "they've finished" email). | The person who cares most has a reason to sign in |
-| R3 | Who joins | Anyone with the link/QR, as a **guest**: they type a first name and swipe. Guests can "Save with Google" later and keep their swipes. | No sign-up before value |
-| R4 | Participants | 2 by default, up to **4** (e.g. a teenager's bedroom, a house share). All the maths is N-person. | Couples first, without hard-coding 2 |
-| R5 | Invite link | Unguessable token, valid 14 days, until the project has 4 participants; the creator can revoke and regenerate. Also shown as a QR code. | Easy to share in person or over chat |
-| R6 | Room types at launch | **Living room, bedroom, dining room** | Furniture-led rooms swipe well. Kitchens and bathrooms are mostly fixtures; add them later. |
-| R7 | Decks | **Macro**: 12 whole-room photos. **Micro**: 18 products across fixed category quotas (§7.2). Everyone in a project gets the **same cards**, in their own shuffled order. | The same cards make exact matches possible; shuffling avoids order bias |
-| R8 | Swipe | Right = yes, left = no. Undo the last swipe. No "maybe": forced choice gives a cleaner signal and is faster. | Speed |
-| R9 | Vetoes | **3 per person per project**. A veto is a hard "no" on a card, and you can optionally say *why* by tapping one of its tags ("it's the velvet"). A vetoed item is never suggested; a vetoed **attribute** removes every item carrying it from compromise picks. | The deal-breaker layer from the brief, made more useful than a single card |
-| R10 | Privacy until reveal | You can't see anyone else's swipes until **you** have finished. The board appears once everyone who joined has finished, or when the creator presses "Show results now" (needs ≥ 2 finished). | Prevents anchoring on the partner's choices |
-| R11 | Tie-breaker round | After the board appears, an optional 8-card round of compromise picks. Mutual yes → moves into **Agreed**. Can be repeated twice. | Turns suggestions into agreement |
-| R12 | Buying | Product cards link through `/go/[itemId]`, which logs the click and redirects to the **affiliate link**. Affiliate disclosure on every board and in the footer. | Revenue + UK ASA/CMA (and US FTC) disclosure rules |
-| R13 | Budget band | Optional at project creation: £ / ££ / £££ (thresholds per category in config). Filters micro deck and compromise picks. | Stops "you both love a £6k sofa" |
+| R1 | Project | **One room**: room type + optional name + optional budget band + room context (R14–R16). | "Resolve this room" |
+| R2 | Who starts | **Anyone, as a guest.** Google sign-in is offered when it's useful: to get the "board ready" email, to save across devices, or for price alerts. | The solo quiz (§4.1) has to start with zero friction too |
+| R3 | Who joins | Anyone with the link or QR, as a guest: type a first name and swipe. "Save with Google" later keeps their swipes. | No sign-up before value |
+| R4 | Participants | 2 by default, up to **4**. All the maths is N-person. | Couples first, without hard-coding 2 |
+| R5 | Invite link | Unguessable token, valid 14 days, until the project has 4 participants; revocable. Also shown as a QR code. | — |
+| R6 | Room types at launch | **Living room, bedroom, dining room** | Furniture-led rooms swipe well; kitchens and bathrooms are mostly fixtures |
+
+### Swiping
+
+| # | Rule | Default | Why |
+|---|---|---|---|
+| R7 | Decks | **Macro**: 12 whole-room photos. **Micro**: 18 products across category quotas (§10.1). Everyone in a project gets the **same cards** in their own shuffled order. | Same cards make exact matches possible |
+| R8 | Swipe | Right = yes, left = no, undo the last swipe. No "maybe". | Speed and a cleaner signal |
+| R9 | Vetoes | **3 per person**. A veto is a hard no on a card, optionally with *why* by tapping one of its tags ("it's the velvet"). Vetoed items are never suggested; a vetoed attribute removes every item carrying it from compromise picks. | Deal-breakers |
+| R10 | Privacy until reveal | Nobody sees anyone else's swipes until they've finished themselves. The board appears when everyone who joined has finished, or when someone presses "Show results now" (needs ≥ 2 finished). | Prevents anchoring |
+| R11 | Tie-breaker round | Optional 8-card round of compromise picks after the board appears. Mutual yes moves an item into Agreed. Max 2 rounds. | Turns suggestions into agreement |
+| R12 | Buying | Product links go through `/go/[itemId]` (logs the click, redirects to the affiliate link). Affiliate disclosure on every board, share page and email. | Revenue + UK ASA/CMA (and US FTC) rules |
+| R13 | Budget band | Optional £ / ££ / £££ (thresholds per category in config); filters micro deck and compromise picks. | Stops "you both love a £6k sofa" |
+
+### Room context (fixes "real rooms aren't empty")
+
+Asked in a skippable 3-question step after choosing the room. Anyone in the project can edit it until the board is revealed. Each answer takes one tap.
+
+| # | Rule | Default | How it's used |
+|---|---|---|---|
+| R14 | **What's staying** | Pick categories you're keeping (sofa, rug, dining table…) and optionally the colour and material of each from chips ("grey · fabric"). | Kept categories are **removed from the micro deck and compromise picks**, so the deck spends its cards on things you'll actually buy. Kept items' colours/materials become **anchors**: compromise items that go with them get a small boost and a "Goes with your grey sofa" badge, and the bridge rationale mentions them. |
+| R15 | **Household** | Toggles: dog, cat, young kids. | Soft penalties on items tagged with practicality risks (§10.1: `delicate`, `light_fabric`, `loop_pile`, `glass_top`, `sharp_corners`), with a "may not suit pets/kids" badge and a "hide these" switch on the board. Never hard exclusions, because some people with dogs still want velvet. |
+| R16 | **Tight spaces** | Optional maximum width per category, e.g. "sofa ≤ 200 cm", "rug ≤ 160 × 230". | Items with known dimensions over the limit are excluded. Items with unknown dimensions show "Check the size" rather than being excluded, since many feeds lack dimensions. |
+
+### Together mode (fixes "they're sitting on the same sofa")
+
+| # | Rule | Default | Why |
+|---|---|---|---|
+| R17 | **Pass the phone** | At project start, "How are you doing this?" → *Send a link* / *Together on our own phones* / *Together on this phone*. On one phone, each person types a name and swipes in turn; a full-screen **handoff screen** ("Pass to Sam, no peeking") hides the previous person's progress. Both people's swipes live in one browser session (R17 participants have no account of their own until one of them signs in). | Partner B doesn't even need to open a link |
+| R18 | **Live reveal** | When everyone has finished (any mode), each person sees "Ready to see your board?". The board reveals with a short animated countdown on every phone once **all** have tapped Ready, or after anyone taps "Reveal now" 30 seconds later. Implemented with polling (2 s), no websockets. | The reveal is the fun part; doing it together makes it a moment |
+
+### The board (fixes "zero matches" and "who won")
+
+| # | Rule | Default | Why |
+|---|---|---|---|
+| R19 | **Board layout adapts** | **≥ 3 exact product matches:** lead with *Agreed*. **Fewer:** lead with the *bridge style* and **evidence**: for each shared element, the cards each person said yes to that contain it ("You both said yes to black metal: Rich ✓ these 2, Sam ✓ these 3"). The words "0 matches" never appear. Instead: "No exact matches, which is normal with 30 cards. Here's where your tastes meet." | Different tastes are the core use case, not a failure |
+| R20 | **No scores, no winners** | The board never shows percentages, per-person fit scores or "X% compatible". Compromise picks show "Works for both of you". | Showing who compromised more makes the argument worse |
+| R21 | **Everyone sees themselves in it** | The engine guarantees each person **brings at least one element** to the bridge (§11.3 step 6) and selects compromise picks so satisfaction is **balanced** between people (§11.3 step 7). The board's "What you each bring" section names one or two things per person. | Fairness that people can see |
+| R22 | **Vetoes are anonymous on the board** | Shown as "Off the table: velvet, glass coffee tables", not attributed to a person. | Avoids blame |
+| R23 | **Personal result for each person** | The moment you finish swiping, you see **your own** style card ("You lean Japandi, with a soft spot for brass") while you wait, without seeing your partner's swipes (R10 still holds). | Instant reward for the reluctant partner; also the hook for the solo quiz (§4.1) |
+
+### After the board (fixes "used once, then forgotten")
+
+| # | Rule | Default | Why |
+|---|---|---|---|
+| R24 | **Next room** | "Do the bedroom next" on the board creates a new project with the **same people already joined** and the household context copied. Half its macro deck is drawn from near the previous bridge style, half stays diverse (the same cards for everyone, as R7 requires). | A second session, and a smarter deck |
+| R25 | **Shopping list** | Agreed and kept-for-later items form a shopping list. "Email us this list" sends it to every participant who has given an email; each link goes through `/go`. Tick "We bought this". | Couples buy weeks later, often on another device; an emailed list keeps those purchases on an affiliate link. "Bought it" also tells us how many purchases affiliate reports miss. |
+| R26 | **Price-drop alerts** | Opt-in on the shopping list ("Tell us if anything drops in price"). Needs a signed-in email. Weekly digest at most; one-click unsubscribe. | Brings people back at the moment they're most likely to buy |
 
 ---
 
-## 3. Technology (every piece)
+## 4. Growth: how Partner A finds Hearth
 
-### 3.1 App
+### 4.1 Solo style quiz (main top-of-funnel)
+
+`/quiz`: "What's your living room style? 30 swipes, 3 minutes." It's the same project and swipe flow with one participant. The ending is the personal style card (R23) plus one clear next step: **"Now find out how your style fits with your partner's"** → the invite panel. Single-user style quizzes are already what people search for and share; Hearth's twist is the second step.
+
+- Shareable personal result image (`/r/[id]/me/opengraph-image.tsx`): style name, palette swatches, three product thumbnails.
+- Copy is written for the partner receiving the link: "Rich took the style quiz and wants to know how your tastes compare. 3 minutes, no sign-up."
+
+### 4.2 Shareable boards
+
+"Share our board" creates a public read-only page `/s/[shareId]`: bridge name, tagline, palette, agreed and compromise products (with disclosure), and **no** swipes, vetoes or (by default) names. Its Open Graph image (built with `next/og`) is designed to look good in WhatsApp and Instagram stories. The page's call to action: "Find your shared style". Share links can be revoked.
+
+> Share images use palette swatches and **product** images (check each affiliate programme's creative-use terms), not Unsplash photos, because Unsplash's API terms require hotlinking their URLs rather than re-hosting the images in generated graphics.
+
+### 4.3 Partner links (estate agents, developers, designers)
+
+Each partner gets a co-branded landing page `/with/[partnerSlug]` ("A moving-in gift from Smith & Co") and a tracked link. Projects started from it carry `ref_partner`, and partners get a monthly usage report (admin page). Phase −1 conversations decide which partner type to approach first. Start with 2–3 local pilots; no revenue share in the MVP, just usage numbers to make the case later (§5).
+
+### 4.4 SEO pages (slow but compounding)
+
+- `/styles/[style]`: what the style is, example rooms (hotlinked Unsplash), products from the catalogue, "Take the quiz".
+- `/combine/[pair]` for the ~60 most common style pairs, e.g. "Industrial + Minimalist: how to combine them". Content is computed from the engine itself (the maximin bridge between the two style centroids, the shared attributes, compromise products), with the wording drafted by Claude **offline and reviewed by you before publishing**. These match how people actually search when they disagree.
+- `sitemap.ts` lists them all.
+
+### 4.5 Loops already inside the product
+
+Every partner B is a potential A for their friends; every board offers "Next room" (R24); the share page and the personal result are both entry points.
+
+---
+
+## 5. Revenue
+
+Affiliate commission alone is thin: homeware commissions are often single-digit percentages, purchases happen weeks later, and many are made in shops. So the MVP **tests four revenue lines at once**, cheaply, and the launch data decides which one to build properly.
+
+| Line | MVP version | What it tells you |
+|---|---|---|
+| **1. Affiliate** | `/go` links + emailed shopping list (R25) + price-drop alerts (R26) + "Bought it" ticks | Real revenue per board, and how much attribution leaks (bought-it ticks vs affiliate-reported sales) |
+| **2. Paid "See it in your room"** | **Fake door**: a button on the board, "See this in a photo of your room, £4.99". Tapping it explains it's coming soon, charges nothing, and offers a waitlist. | Willingness to pay for the v2 mock-up feature (§19), which is also the costliest feature to run, so it should be paid |
+| **3. Designers (B2B)** | `/designers` page: "Run Hearth with your clients, branded" + interest form (practice size, clients/month, what they'd pay). | Whether a subscription business exists |
+| **4. Partners (B2B2C)** | Partner links (§4.3) with usage reports | Whether estate agents/developers will pay for a branded moving-in gift |
+
+Rules: fake doors always say plainly that the feature isn't available yet, and never take payment details. **Commercial terms never affect ranking**: no paid placement, and a retailer's commission rate is used only to decide which retailers to curate, never to rank items. Trust is the product.
+
+Unit economics (illustrative; replace every number with real ones from Phase −1 and your programme terms):
+
+```
+revenue per finished board ≈ P(buy click) × P(purchase | click, attributed) × average order × commission
+                           ≈ 0.25         × 0.15                            × £350          × 5%   ≈ £0.66
+```
+
+Costs per board are about $0.01 (§17), so affiliate revenue is profitable per user but small. The fake doors and B2B interest decide where the real business is.
+
+---
+
+## 6. Technology (every piece)
+
+### 6.1 App
 
 | Layer | Choice | Version target | Purpose |
 |---|---|---|---|
 | Language | TypeScript | 5.9 | Everything |
 | Runtime | Node.js | 24 (`.nvmrc`), engines `>=22` | Server, scripts |
 | Package manager | pnpm | 10 | — |
-| Framework | Next.js (App Router) | 16 | Pages, Server Actions, route handlers, `after()` for post-response work, `proxy.ts` |
+| Framework | Next.js (App Router) | 16 | Pages, Server Actions, route handlers, `after()`, `proxy.ts`, `next/og` image generation, `sitemap.ts` |
 | UI | React | 19 | — |
 | Styling | Tailwind CSS | 4 | — |
-| Components | shadcn/ui (Radix primitives, copied into `src/components/ui`) | latest CLI | Buttons, dialogs, sheets, toasts, tabs, avatars |
+| Components | shadcn/ui (Radix primitives, copied into `src/components/ui`) | latest CLI | — |
 | Icons | lucide-react | latest | — |
-| Swipe physics | **motion** (formerly Framer Motion) + **@use-gesture/react** | 12 / 10 | Drag, fling, spring-back, card stack animation |
+| Swipe physics | **motion** (formerly Framer Motion) + **@use-gesture/react** | 12 / 10 | Drag, fling, card stack, reveal countdown |
 | Client data | TanStack Query | 5 | Polling project state, optimistic swipes |
 | Validation | Zod | 4 | Inputs, env, AI output, feed rows |
-| QR codes | `qrcode` | 1.5 | Server-rendered SVG QR for the invite link |
+| QR codes | `qrcode` | 1.5 | Invite QR as SVG |
 
-### 3.2 Data, auth, email, analytics
+### 6.2 Data, auth, email, analytics
 
 | Layer | Choice | Version target | Purpose |
 |---|---|---|---|
-| Database | PostgreSQL + **pgvector** | Postgres 16, pgvector 0.8 | All data + catalogue embeddings, style centroids |
-| ORM / migrations | Drizzle ORM + drizzle-kit | 0.45 / 0.31 | Schema, `vector()` columns, `cosineDistance()` |
+| Database | PostgreSQL + **pgvector** | Postgres 16, pgvector 0.8 | All data, catalogue embeddings, style centroids |
+| ORM / migrations | Drizzle ORM + drizzle-kit | 0.45 / 0.31 | — |
 | Driver | postgres.js | 3 | — |
-| Auth | **Better Auth**: Google social provider + **anonymous plugin** + Drizzle adapter | 1.x | Google sign-in for creators; guest sessions for partners, linkable to Google later without losing data |
-| Email | **Resend** (+ React Email templates) | latest | One email: "Sam has finished — your board is ready" to the creator |
-| Product analytics | **PostHog** (`posthog-js`, `posthog-node`), cookieless mode until consent | latest | Funnels for the §1 metrics |
+| Auth | **Better Auth**: Google provider + **anonymous plugin** + Drizzle adapter | 1.x | Guests by default, Google when useful, guest → Google linking keeps data |
+| Email | **Resend** + React Email | latest | Board ready, shopping list, price-drop digest (with unsubscribe) |
+| Product analytics | **PostHog** (cookieless until consent) | latest | Funnels, fake-door clicks |
 | Errors | Sentry (`@sentry/nextjs`) | latest | — |
-| Scheduled jobs | **Vercel Cron** → route handler | — | Nightly product-feed refresh (price/stock) |
+| Scheduled jobs | **Vercel Cron** → route handlers | — | Feed refresh, price alerts, item stats |
 
-No job queue is needed: deck building and synthesis are fast in-process maths over pre-computed embeddings. The only live AI call (naming the bridge style) runs in `after()` once the response has been sent, and the board polls until it's there.
+No job queue: deck building and synthesis are fast in-process maths over pre-computed embeddings. The only live AI call (naming the bridge) runs in `after()`, and the board polls until it's there.
 
-### 3.3 Catalogue sources and AI (mostly offline)
+### 6.3 Catalogue sources and AI
 
 | Job | Service | Detail | When |
 |---|---|---|---|
-| Whole-room photos (macro) | **Unsplash API** (Pexels API as a second source) | Free; licence allows use and modification; API terms require hotlinking their URLs, attribution ("Photo by X on Unsplash") and pinging the `download_location` when a photo is used | Import script; production-access approval from Unsplash before launch |
-| Products (micro) | **Awin** product feeds (UK affiliate network; add Rakuten/Impact/CJ for other retailers or regions) | CSV/XML feeds give title, image, price, stock, deep link with affiliate tracking. You must be approved by each retailer's programme on Awin. | Import script + nightly refresh |
-| Ad-hoc products | **Skimlinks** (optional) | Turns any retailer URL into an affiliate link, for hand-curated items not in a feed | Admin |
-| Tagging every catalogue item | **Claude API** (`@anthropic-ai/sdk`) via **Message Batches** (50% cheaper) | `claude-opus-5-5`, effort `low`, structured output: style weights, materials, colours, finishes, lines/shape, era, category, room types, quality flags | Offline, once per item |
-| Image embeddings ("CLIP-like") | **Voyage AI** multimodal embeddings (`voyageai`) | `voyage-multimodal-3` (1024-d; use the newest multimodal model when you start). Image + short text in one vector. | Offline, once per item |
-| Naming the bridge style + rationale | Claude API | `claude-opus-5-5`, effort `low`, structured output, server-side refusal fallback (`betas: ["server-side-fallback-2026-07-01"]`, `fallbacks: "default"`) | Live, once per board (version) |
+| Whole-room photos | **Unsplash API** (Pexels as a second source) | Licence allows use and modification; API terms require hotlinking, attribution and pinging `download_location` when a photo is shown | Import script; production approval before launch |
+| Products | **Awin** product feeds (add Rakuten/Impact/CJ for other retailers or regions) | Title, image, description, price, stock, affiliate deep link | Import + nightly refresh |
+| Ad-hoc products | **Skimlinks** (optional) | Affiliate links for any retailer URL | Admin |
+| Tagging catalogue items | **Claude API** (`@anthropic-ai/sdk`) via **Message Batches** | `claude-opus-5-5`, effort `low`, structured output: style weights, materials, colours, lines, finishes, mood, **practicality risks**, **dimensions parsed from the description**, category, room types, quality flags | Offline, once per item |
+| Image embeddings | **Voyage AI** multimodal (`voyageai`) | `voyage-multimodal-3` (1024-d; use the newest multimodal model when you start) | Offline, once per item; text search in admin |
+| Naming the bridge | Claude API | `claude-opus-5-5`, effort `low`, structured output, server-side refusal fallback (`betas: ["server-side-fallback-2026-07-01"]`, `fallbacks: "default"`) | Live, once per board version |
+| SEO pair pages | Claude API | `claude-opus-5-5`, effort `medium`, structured output; **human review before publish** | Offline |
 
-> **Why Voyage instead of raw CLIP:** the catalogue is embedded offline, so either works. Voyage keeps everything in TypeScript with no GPU or Python, and it embeds text into the same space, which lets the admin tools search the catalogue for "dark wood" or "brass". If you'd rather self-host, an open SigLIP/CLIP model in a one-off Python script producing the same `vector` column is a drop-in swap. Keep the dimension in one constant.
+> **Why Voyage, not raw CLIP:** everything is embedded offline, so either works. Voyage keeps the stack in TypeScript and embeds text in the same space (admin search for "brass floor lamp"). An open SigLIP/CLIP model in a one-off Python script is a drop-in swap; keep the dimension in one constant.
 
-### 3.4 Quality and delivery
+### 6.4 Quality and delivery
 
 | Layer | Choice | Purpose |
 |---|---|---|
-| Unit + integration | Vitest 3 (`unit`, `integration` projects) | Algorithms, DB |
-| HTTP mocking | MSW 2 | Fake Anthropic, Voyage, Unsplash, Resend in tests |
-| E2E | Playwright (two browser contexts = two partners) | Full flow |
+| Unit + integration | Vitest 3 (`unit`, `integration`) | Algorithms, DB |
+| HTTP mocking | MSW 2 | Fake Anthropic, Voyage, Unsplash, Resend |
+| E2E | Playwright (multiple browser contexts = multiple partners) | Full flows |
 | Lint / format / types | ESLint 9, Prettier 3, `tsc --noEmit` | — |
-| CI | GitHub Actions (Postgres + pgvector service container) | — |
-| Scripts runner | `tsx` | Catalogue import/tag/embed scripts |
-| Feed parsing | `csv-parse` | Awin CSV feeds |
+| CI | GitHub Actions (Postgres + pgvector service) | — |
+| Scripts | `tsx` | Catalogue, stats and SEO scripts |
+| Feed parsing | `csv-parse` | Awin feeds |
 | Local DB | Docker Compose, `pgvector/pgvector:pg16` | Dev :5432, test :5433 |
-| Hosting | Vercel (app + Cron) + Neon Postgres (`CREATE EXTENSION vector`) | — |
+| Hosting | Vercel (app + Cron) + Neon Postgres | — |
 
 ---
 
-## 4. Accounts and keys (Day 0)
+## 7. Accounts and keys (Day 0)
 
-Start the approvals first: Unsplash and the affiliate programmes have lead time.
+Start approvals first; Unsplash and the affiliate programmes have lead time.
 
-1. **Google Cloud** → Google Auth Platform → consent screen (External) → Web OAuth client. Redirect URIs: `http://localhost:3000/api/auth/callback/google`, `https://<domain>/api/auth/callback/google`. Scopes `openid email profile` (no verification review needed).
-2. **Unsplash** → unsplash.com/developers → new app (starts in demo mode with a low hourly limit) → apply for **production** once the swipe screen shows attribution correctly (they review screenshots).
-3. **Awin** → sign up as a **publisher** → add your site and promotional method → apply to the programmes of the homeware retailers you want → once approved, create a product-feed download URL. Approval for each programme is manual and some retailers want an existing live site: launch the site with a landing page early.
-4. **Anthropic** console → API key, monthly spend limit.
+1. **Google Cloud** → Google Auth Platform → consent screen (External) → Web OAuth client. Redirect URIs: `http://localhost:3000/api/auth/callback/google`, `https://<domain>/api/auth/callback/google`. Scopes `openid email profile`.
+2. **Unsplash** developers → new app (demo mode) → apply for production once attribution shows correctly.
+3. **Awin** → publisher sign-up → apply to homeware retailers' programmes (manual; some want a live site, so ship the landing page in Phase 0) → product-feed URLs.
+4. **Anthropic** → API key, monthly spend limit.
 5. **Voyage AI** → API key.
-6. **Resend** → API key, verify your sending domain (DNS records).
-7. **PostHog** → project (EU cloud if you're UK/EU-based) → project API key.
+6. **Resend** → API key, verify the sending domain.
+7. **PostHog** → project (EU cloud if UK/EU-based).
 8. **Neon** → database `hearth` → `CREATE EXTENSION IF NOT EXISTS vector;`.
-9. **Vercel** → import repo, set env vars, add the cron (§9.1 `vercel.ts`).
-10. **Sentry** → Next.js project → DSN.
-11. Secrets: `openssl rand -base64 32` for `BETTER_AUTH_SECRET` and `CRON_SECRET`.
+9. **Vercel** → import repo, env vars, crons (`vercel.ts`).
+10. **Sentry** → DSN.
+11. Secrets: `openssl rand -base64 32` for `BETTER_AUTH_SECRET`, `CRON_SECRET`, `UNSUBSCRIBE_SECRET`.
 
 ### Environment variables (`.env.example`)
 
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL`, `TEST_DATABASE_URL` | App DB, test DB (wiped by tests) |
+| `DATABASE_URL`, `TEST_DATABASE_URL` | App DB, test DB |
 | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | Sessions |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google sign-in |
-| `ANTHROPIC_API_KEY` | Tagging + bridge naming |
-| `VOYAGE_API_KEY` | Embeddings (scripts only) |
+| `ANTHROPIC_API_KEY` | Tagging, bridge naming, SEO drafts |
+| `VOYAGE_API_KEY` | Embeddings |
 | `UNSPLASH_ACCESS_KEY` | Photo import + download pings |
-| `AWIN_FEED_URLS` | Comma-separated feed download URLs |
-| `RESEND_API_KEY`, `EMAIL_FROM` | Notification email |
+| `AWIN_FEED_URLS` | Comma-separated feed URLs |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Email |
+| `UNSUBSCRIBE_SECRET` | Signs one-click unsubscribe links |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Analytics |
 | `SENTRY_DSN` | Errors |
-| `CRON_SECRET` | Vercel Cron calls the refresh route with `Authorization: Bearer <CRON_SECRET>` |
-| `ADMIN_EMAILS` | Comma-separated Google emails allowed into `/admin` |
-| `E2E_TEST_AUTH` | `1` only in E2E: enables `/api/test/sign-in` (route refuses in production) |
+| `CRON_SECRET` | Vercel Cron bearer token |
+| `ADMIN_EMAILS` | Google emails allowed into `/admin` |
+| `E2E_TEST_AUTH` | `1` only in E2E; enables `/api/test/sign-in` (refused in production) |
 
 ---
 
-## 5. Architecture
+## 8. Architecture
 
 ```
-            ┌──────────── OFFLINE (scripts, run by you) ─────────────┐
- Unsplash ─►│ import-photos ─┐                                        │
- Awin    ──►│ import-feed  ──┼─► catalogue_item (draft)               │
-            │                ├─► tag-catalogue   (Claude Batches)     │
-            │                ├─► embed-catalogue (Voyage)             │
-            │                └─► build-style-centroids                │
-            │ /admin/catalogue: review → status = live                │
-            └─────────────────────────────────────────────────────────┘
+            ┌──────────── OFFLINE (scripts) ───────────────────────────┐
+ Unsplash ─►│ import-photos ─┐                                          │
+ Awin    ──►│ import-feed  ──┼─► catalogue_item (draft)                 │
+            │                ├─► tag-catalogue (Claude Batches)         │
+            │                ├─► embed-catalogue (Voyage)               │
+            │                ├─► build-style-centroids                  │
+            │                └─► generate-pair-pages (Claude → review)  │
+            │ /admin/catalogue review → live                            │
+            └───────────────────────────────────────────────────────────┘
                                    │ Postgres + pgvector
-            ┌──────────── ONLINE (Next.js on Vercel) ─────────────────┐
- Partner A ─► create project ─► deck builder (pure TS) ─► project.decks
-            ─► share link / QR
- Partner B ─► /j/[token] ─► guest session ─► swipe macro → micro (+ vetoes)
- last finisher ─► synthesis (pure TS, ms) ─► after(): Claude names bridge
-            ─► board ─► tie-breaker round ─► /go/[id] affiliate redirect
- Vercel Cron (nightly) ─► refresh feeds: price, stock, retire dead items
+            ┌──────────── ONLINE (Next.js on Vercel) ───────────────────┐
+ /quiz, /, /with/[partner], /styles, /combine, /s/[share]  (entry points)
+   └─► create project (guest) ─► room context ─► mode: link | 2 phones | 1 phone
+         ─► deck builder (pure TS, uses item_stats) ─► swipe ─► personal result
+         ─► all finished ─► Ready? ─► synthesis (pure TS, ms) ─► reveal
+         ─► after(): Claude names bridge ─► board ─► tie-breaker ─► share
+         ─► shopping list / bought it / alerts / next room / fake doors
+ Vercel Cron: 03:17 feeds refresh · 04:17 price alerts · 05:17 item stats
 ```
 
 Rules of the road:
 
-- **All per-user maths is deterministic TypeScript** in `src/lib/engine/`, unit-tested with synthetic vectors. AI is used only (a) offline to understand the catalogue and (b) once per board to *name and explain* a result the maths already chose. So the AI can't invent a match, and a failed AI call only costs the nice wording (the board falls back to the taxonomy name).
-- **Every project-scoped action calls `requireParticipant(projectId)`.** Guests are real (anonymous) Better Auth users, so there's one permission path.
-- Swipes are written one by one (idempotent upsert on `(participant_id, item_id)`) so closing the tab mid-deck loses nothing.
+- **All per-user maths is deterministic TypeScript** in `src/lib/engine/`, unit-tested with synthetic and real (Phase −1) data. AI only (a) understands the catalogue offline and (b) names and explains a result the maths already chose. A failed AI call costs only the wording.
+- **Every project action calls `requireParticipant(projectId, participantId?)`.** Guests are anonymous Better Auth users. In pass-the-phone mode one session controls several participants, and the check confirms the session is their host.
+- Swipes are idempotent upserts, so a closed tab loses nothing.
 
 ---
 
-## 6. Data model
+## 9. Data model
 
 Ids are app-generated `text` except Better Auth's tables. All tables have `created_at`.
 
-### 6.1 Auth (generated by the Better Auth CLI)
+### 9.1 Auth (Better Auth CLI)
 
 `user` (…, `is_anonymous`), `session`, `account`, `verification`.
 
-### 6.2 Catalogue
+### 9.2 Catalogue and stats
 
 | Table | Columns | Notes |
 |---|---|---|
-| `catalogue_item` | id, tier `macro|micro`, room_types text[], category (micro only, §7.1), title, image_url, image_w, image_h, source `unsplash|pexels|awin|manual`, source_id, attribution_name, attribution_url, unsplash_download_location, retailer, price_pence, currency, product_url, affiliate_url, in_stock bool, status `draft|live|retired`, tags jsonb (§7.1 shape), primary_style, style_weights jsonb (`{style: 0..1}`), embedding `vector(1024)`, tagged_at, embedded_at, last_seen_in_feed_at | Unique (source, source_id). HNSW index on embedding (cosine). GIN on room_types. |
-| `style` | slug (PK), name, description, centroid `vector(1024)`, item_count | ~25 rows, rebuilt by script |
+| `retailer` | id, name, network `awin|skimlinks|manual`, commission_note, cookie_days | Used for curation decisions only, never ranking |
+| `catalogue_item` | id, tier `macro|micro`, room_types text[], category, title, description, image_url, image_w, image_h, source, source_id, attribution_name, attribution_url, unsplash_download_location, retailer_id, price_pence, currency, product_url, affiliate_url, in_stock, **width_cm, depth_cm, height_cm** (nullable), status `draft|live|retired`, tags jsonb, primary_style, style_weights jsonb, embedding `vector(1024)`, tagged_at, embedded_at, last_seen_in_feed_at | Unique (source, source_id); HNSW on embedding; GIN on room_types |
+| `style` | slug, name, description, centroid `vector(1024)`, item_count | ~25 rows |
+| `style_pair_page` | pair_slug (e.g. `industrial--minimalist`), bridge_style, shared_attributes jsonb, item_ids text[], title, intro, body, status `draft|published`, reviewed_at | SEO pages (§4.4) |
+| `item_stats` | item_id, exposures, rights, tiebreak_shown, tiebreak_mutual_yes, clicks, bought, updated_at | Nightly aggregate (§12) |
 
-### 6.3 Projects and people
+### 9.3 Projects, people, swipes
 
 | Table | Columns | Notes |
 |---|---|---|
-| `project` | id, room_type, name, budget_band (nullable), created_by → user, macro_deck text[], micro_deck text[], deck_seed, reveal_forced_at (nullable) | Decks frozen at creation (R7) |
-| `project_invite` | id, project_id, token_hash, expires_at, revoked_at | Raw token only in the link |
-| `participant` | id, project_id, user_id, display_name, role `creator|partner`, joined_at, macro_done_at, micro_done_at, vetoes_left (default 3) | Unique (project_id, user_id); max 4 per project (checked in a transaction) |
-| `swipe` | participant_id, item_id, round `macro|micro|bridge`, value smallint (−1/1), decision_ms int, position int, created_at, updated_at | PK (participant_id, item_id, round) |
-| `veto` | id, participant_id, item_id, attribute (nullable, e.g. `material:velvet`) | Counts against `vetoes_left` |
-| `synthesis` | project_id, version, inputs_hash, status `computing|ready`, result jsonb (§7.4 shape), bridge_name, tagline, rationale, contributions jsonb, ai_model, computed_at | Latest version is shown; recomputed when swipes/vetoes change after reveal (e.g. tie-breaker) |
-| `bridge_round` | id, project_id, synthesis_version, item_ids text[], created_at | Max 2 per project |
-| `board_feedback` | project_id, participant_id, helpful bool | The "this helped us agree" thumbs |
-| `outbound_click` | id, item_id, project_id, participant_id (nullable), created_at | Affiliate clicks |
+| `project` | id, room_type, name, budget_band, context jsonb (§9.4), mode `remote|together_devices|together_one_device`, created_by → user, previous_project_id (nullable), ref_partner (nullable), macro_deck text[], micro_deck text[], deck_seed, revealed_at | Decks frozen at creation |
+| `project_invite` | id, project_id, token_hash, expires_at, revoked_at | |
+| `participant` | id, project_id, user_id (nullable for pass-the-phone participants), host_user_id (the session that controls them), display_name, role `creator|partner`, joined_at, macro_done_at, micro_done_at, ready_at, vetoes_left (3), email (nullable, for shopping list/alerts) | Unique (project_id, user_id) where user_id not null; max 4 per project |
+| `swipe` | participant_id, item_id, round `macro|micro|bridge`, value (−1/1), decision_ms, position, created_at, updated_at | PK (participant_id, item_id, round) |
+| `veto` | id, participant_id, item_id, attribute (nullable) | |
+| `bridge_round` | id, project_id, synthesis_version, item_ids text[] | Max 2 |
+
+### 9.4 `project.context` shape
+
+```ts
+{
+  keeping: { category: Category; colour?: Colour; material?: Material }[];
+  household: { dog: boolean; cat: boolean; youngKids: boolean };
+  maxSize: { category: Category; widthCm?: number; depthCm?: number }[];
+  hidePracticalRisks: boolean; // the board's "hide these" switch
+}
+```
+
+### 9.5 Board, sharing, retention, revenue
+
+| Table | Columns | Notes |
+|---|---|---|
+| `synthesis` | project_id, version, inputs_hash, status `computing|ready`, result jsonb (§11.3 output), bridge_name, tagline, rationale, contributions jsonb, ai_model, computed_at | Latest version shown |
+| `board_feedback` | project_id, participant_id, helpful bool | |
+| `share_link` | id, project_id, created_by, show_names bool, revoked_at | Public `/s/[id]` |
+| `shopping_list_item` | project_id, item_id, source `agreed|tiebreak|saved`, bought_at (nullable), bought_by_participant_id | R25 |
+| `price_alert` | id, user_id, project_id, item_id, baseline_price_pence, last_notified_at, unsubscribed_at | R26 |
+| `outbound_click` | id, item_id, project_id, participant_id, surface `board|share|email|seo`, created_at | |
+| `referral_partner` | slug, name, logo_url, contact_email, active | §4.3 |
+| `waitlist` | id, email, feature `see_in_room|designers`, project_id (nullable), details jsonb | Fake doors (§5) |
 
 ---
 
-## 7. Catalogue pipeline (offline)
+## 10. Catalogue pipeline (offline)
 
-### 7.1 Taxonomy (`src/lib/taxonomy.ts`)
+### 10.1 Taxonomy (`src/lib/taxonomy.ts`)
 
-- **Room types:** living_room, bedroom, dining_room (kitchen, bathroom, office, kids_room reserved for later).
+- **Room types:** living_room, bedroom, dining_room (others reserved).
 - **Styles (~25):** industrial, minimalist, japandi, scandinavian, mid_century, modern_farmhouse, coastal, boho, traditional, art_deco, maximalist, rustic, contemporary, mediterranean, wabi_sabi, hollywood_regency, french_country, transitional, organic_modern, eclectic, cottagecore, warm_minimal, brutalist, shaker, retro_70s.
-- **Attribute families** (the "elements" both people can share):
+- **Attribute families:**
   - `material`: oak, walnut, dark_wood, light_wood, rattan, cane, marble, travertine, concrete, linen, boucle, velvet, leather, wool, jute, metal_black, brass, chrome, glass, ceramic
   - `colour`: white, cream, beige, greige, grey, charcoal, black, sage, olive, terracotta, rust, navy, blush, mustard, multicolour
   - `line`: clean_lines, curved, chunky, slim_legs, tufted, rounded_edges, geometric, ornate
   - `finish`: matte, gloss, distressed, natural, lacquered
   - `mood`: airy, cosy, dramatic, calm, playful, earthy
-- **Micro categories** (living room quota in brackets): sofa (3), armchair (2), coffee_table (2), rug (3), ceiling_light (1), floor_lamp (1), table_lamp (1), storage (2), side_table (1), decor (2). Bedroom and dining have their own quotas in `src/lib/engine/quotas.ts`.
+  - `practical` (risks, R15): delicate, light_fabric, loop_pile, glass_top, sharp_corners, high_maintenance
+- **Household rules** (`src/lib/engine/household.ts`): dog/cat → penalise `delicate`, `light_fabric`, `loop_pile`, `high_maintenance`; young kids → penalise `glass_top`, `sharp_corners`, `delicate`, `light_fabric`.
+- **Colour harmony** (`src/lib/engine/harmony.ts`): a small hand-written table of which colours/materials sit well with each anchor (e.g. grey → charcoal, white, sage, navy, light_wood, black). Used for R14 boosts.
+- **Micro category quotas** (living room): sofa 3, armchair 2, coffee_table 2, rug 3, ceiling_light 1, floor_lamp 1, table_lamp 1, storage 2, side_table 1, decor 2. Kept categories (R14) have their quota redistributed to the remaining categories.
 
-### 7.2 Scripts (run locally against prod DB, or as a protected admin action)
+### 10.2 Scripts
 
 | Script | Does |
 |---|---|
-| `scripts/import-photos.ts --room living_room --query "living room interior" --pages 10` | Unsplash search → upsert `catalogue_item` (tier macro, status draft), store attribution + download_location. Skips images < 1600px or portrait-only-wrong-aspect (keep 4:5–3:4 portrait, best on phones). |
-| `scripts/import-feed.ts` | Downloads each `AWIN_FEED_URLS` feed, maps rows with Zod (title, image, price, stock, deep link, merchant category) → candidate micro items (draft). Category mapping from merchant categories via `src/lib/catalogue/category-map.ts`; unmapped rows skipped and counted. |
-| `scripts/tag-catalogue.ts` | All items with `tagged_at IS NULL` → one Claude Batches request per item (image by URL + title) → validate against `ItemTagsSchema` → write tags, primary_style, style_weights. Rejects (status retired) items flagged `not_a_room`, `watermark`, `cluttered`, `cut_out_poor`. |
-| `scripts/embed-catalogue.ts` | Items with `embedded_at IS NULL` → Voyage multimodal (image + "{title}. {primary_style}. {top tags}") in chunks → write embedding. |
-| `scripts/build-style-centroids.ts` | For each style: weighted mean of live items' embeddings (weight = style_weights[style], only ≥ 0.5) → normalise → `style.centroid`. Prints item counts; a style with < 15 items gets a warning. |
-| `scripts/seed-dev.ts` | Loads `tests/fixtures/catalogue.json` (≈ 120 items with synthetic 1024-d vectors) for local dev and E2E, no API keys needed. |
+| `scripts/import-photos.ts --room living_room --query "living room interior" --pages 10` | Unsplash search → draft macro items with attribution; keeps portrait 4:5–3:4, ≥ 1600 px |
+| `scripts/import-feed.ts` | Downloads Awin feeds → Zod-validated rows → draft micro items (category from `category-map.ts`; unmapped rows counted and skipped) |
+| `scripts/tag-catalogue.ts` | Untagged items → Claude Batches (image + title + description) → `ItemTagsSchema` (styles, attributes, practical risks, dimensions if stated, flags) → write; retires items flagged `not_a_room`, `watermark`, `cluttered`, `poor_cutout` |
+| `scripts/embed-catalogue.ts` | Unembedded items → Voyage (image + "{title}. {primary_style}. {top tags}") |
+| `scripts/build-style-centroids.ts` | Weighted mean of live items per style; warns on < 15 items |
+| `scripts/generate-pair-pages.ts` | For the ~60 most common style pairs (from `item_stats` once there's traffic, a hand list before): compute bridge + shared attributes + items with the engine, ask Claude for title/intro/body → `style_pair_page` drafts for review in admin |
+| `scripts/import-concierge.ts` | Turns Phase −1 form exports into `tests/fixtures/concierge/*.json` (real swipes against real items) |
+| `scripts/seed-dev.ts` | Fixture catalogue with synthetic vectors; no API keys needed |
 
-**Launch catalogue target:** per room type ≈ 150 live macro photos and ≈ 400 live micro products, spread across styles (the admin page shows a style × category coverage grid so gaps are visible).
+**Launch catalogue target:** per room type ≈ 150 live photos and ≈ 400 live products, spread across styles (the admin coverage grid shows gaps), with dimensions known for ≥ 50% of sofas, rugs and tables.
 
-### 7.3 Admin review (`/admin/catalogue`)
+### 10.3 Admin (`/admin`)
 
-Grid of draft items with their tags, filterable by room/tier/style/category. Actions: approve (→ live), retire, edit tags, set room types. Bulk approve. Coverage grid. Text search via Voyage text embedding ("brass floor lamp") — the only online Voyage call, admin only.
+- `/admin/catalogue`: review drafts, edit tags/dimensions, approve, retire, bulk; coverage grid; text search via Voyage.
+- `/admin/pages`: review and publish `style_pair_page` drafts.
+- `/admin/partners`: create partner links, see usage per partner.
+- `/admin/metrics`: DB-backed counts (funnel, clicks vs bought-it, fake-door sign-ups) as a PostHog backup.
 
-### 7.4 Nightly refresh (`/api/cron/refresh-feeds`)
+### 10.4 Nightly jobs (Vercel Cron)
 
-Re-download feeds, update price/stock/affiliate_url by (source, source_id). Items missing from the feed for 3 nights → `retired`. Out-of-stock items stay in history but are excluded from decks and compromise picks; on an existing board they show "Out of stock" without a buy button.
-
----
-
-## 8. The engine (all pure TypeScript, `src/lib/engine/`)
-
-Notation: `e(i)` is item i's normalised embedding; `P` the set of participants; `L_p`, `D_p` the items p swiped right/left on (macro and micro; macro swipes weight ×1.5 because a whole room says more about overall taste).
-
-### 8.1 Deck building (at project creation)
-
-- **Macro (12 photos):** live macro items for the room type. Pick by **farthest-point sampling** over embeddings, starting from a seeded random item, with a constraint that the 12 cover ≥ 8 distinct `primary_style`s. Diversity is what lets 12 swipes locate someone's taste.
-- **Micro (18 products):** for each category quota (§7.1), live in-stock items in budget band, farthest-point sampling within the category so the 3 sofas look different from each other.
-- Each participant gets the same cards in their own seeded shuffle (macro always before micro).
-
-### 8.2 Taste profile per person
-
-- **Taste vector:** `t_p = normalise( mean_w(e(L_p)) − 0.5 · mean_w(e(D_p)) )` (weighted means; Rocchio-style).
-- **Attribute affinity:** for each attribute a on cards p has seen, `n` = exposures, `k` = right swipes; `aff_p(a) = (k + 1)/(n + 2) − 0.5` (Laplace-smoothed, range −0.5..+0.5). Ignore attributes with `n < 2`.
-- **Top styles:** rank styles by `cos(t_p, centroid_s)`; keep the top 3 with scores.
-- **Confidence:** fraction of macro swipes that agree with the top style's direction; shown as "strong / mixed taste". Low confidence makes the board suggest the tie-breaker round more prominently.
-
-### 8.3 Synthesis (when the board is revealed, and after each tie-breaker round)
-
-1. **Exact matches ("double rights"):** items every participant swiped right on, minus vetoed items. Micro matches → **Agreed** with buy buttons; macro matches → "Rooms you both loved".
-2. **Shared elements:** attributes with `aff_p(a) ≥ 0.2` for every p. Ranked by min affinity. → "You both love: dark wood · clean lines · brass".
-3. **Conflicts:** attributes where one person ≥ 0.2 and another ≤ −0.2. → "You differ on: velvet · navy".
-4. **Bridge style (maximin):** `bridge = argmax_s  min_p cos(t_p, centroid_s)`. The style the *least happy* person likes most. If every person's own top style is the same style, the board says "You already agree: Japandi" instead.
-5. **Compromise picks:** candidate pool = live, in-stock, in-budget micro items for the room type (whole catalogue, not just the deck), excluding vetoed items, items carrying a vetoed attribute, and items anyone swiped left on.
-   `s_p(i) = cos(e(i), t_p) + 0.3 · mean_{a ∈ tags(i)} aff_p(a)`; `score(i) = min_p s_p(i)` (maximin again: an item both people are OK with beats one person loves and the other hates).
-   Take the top 12 by score with **MMR** diversity (λ = 0.7) and at most 2 per category. Use a pgvector prefilter (top 300 nearest to the mean of the taste vectors) so this stays fast.
-6. **Hybrid rooms:** top 4 macro photos by the same maximin score → "Rooms in your bridge style".
-7. **Write** `synthesis.result` (all ids + scores + attributes) with `status = computing`, respond, then in `after()`:
-8. **Name it (Claude):** input = each person's display name + top styles, the bridge style, shared elements, conflicts, and the compromise picks' tags. Output (`BridgeNameSchema`): `{ name (≤ 3 words, built from taxonomy vocabulary, e.g. "Warm Industrial"), tagline (≤ 12 words), rationale (≤ 60 words), contributions: [{ participant, brings (≤ 15 words) }] }`. Validated; on failure or refusal, fall back to the bridge style's taxonomy name and a template sentence. Set `status = ready`.
-
-All of steps 1–6 take milliseconds. The `inputs_hash` (hash of all swipes + vetoes) skips recomputing when nothing changed.
-
-### 8.4 Tie-breaker round
-
-8 cards: the top 8 compromise picks nobody has swiped yet. Both people swipe them (same flow, round `bridge`). Mutual yes → Agreed. Then re-run synthesis (version + 1). Max 2 rounds per project.
-
-### 8.5 Test fixture that captures the whole idea
-
-`tests/fixtures/industrial-vs-minimalist.json`: a synthetic catalogue where A swipes right only on industrial items and B only on minimalist ones. **No exact matches.** Expected: shared elements include `clean_lines` and `metal_black` (present in both styles' fixture items); the bridge style is `warm_minimal`, whose fixture centroid sits between the two, not either person's own top style; every compromise pick scores ≥ 0.4 for both. This is the demo case in the pitch, so it's a regression test.
+- `refresh-feeds` (03:17 UTC): price, stock, affiliate URL by (source, source_id); retire after 3 missing nights; out-of-stock items leave decks and picks but stay on existing boards marked "Out of stock".
+- `price-alerts` (04:17 UTC): price drops ≥ 10% from baseline on alerted items → one digest per user per week at most.
+- `item-stats` (05:17 UTC): recompute `item_stats` (§12).
 
 ---
 
-## 9. Every file
+## 11. The engine (pure TypeScript, `src/lib/engine/`)
+
+Notation: `e(i)` is item i's normalised embedding; `P` the participants; `L_p`, `D_p` the items p swiped right/left on (macro weighted ×1.5).
+
+### 11.1 Deck building (at project creation)
+
+- **Context first:** drop kept categories (R14) and redistribute their quota; apply budget band (R13) and size limits (R16) to the micro pool.
+- **Informative cards only:** skip items whose `item_stats` show ≥ 50 exposures and a right-rate above 0.9 or below 0.1 (everyone agrees, so they tell us nothing).
+- **Macro (12):** farthest-point sampling over embeddings from a seeded start, covering ≥ 8 primary styles. For a next-room project (R24): 6 by farthest-point sampling + 6 nearest the previous bridge centroid.
+- **Micro (18):** per category quota, farthest-point sampling within the category.
+- Same cards for everyone, each in their own seeded shuffle.
+
+### 11.2 Taste profile per person (also drives the personal result, R23)
+
+- Taste vector `t_p = normalise( mean_w(e(L_p)) − 0.5 · mean_w(e(D_p)) )`.
+- Attribute affinity `aff_p(a) = (k + 1)/(n + 2) − 0.5` over n exposures and k right swipes; ignored when n < 2.
+- Top 3 styles by `cos(t_p, centroid_s)`; the top 2 positive attributes → "You lean Japandi, with a soft spot for brass".
+- Confidence: share of macro swipes consistent with the top style. Low confidence makes the board suggest the tie-breaker more strongly.
+
+### 11.3 Synthesis
+
+1. **Exact matches:** items every participant swiped right on, minus vetoes and kept categories.
+2. **Shared elements:** attributes with `aff_p(a) ≥ 0.2` for every p, ranked by the smallest affinity.
+3. **Conflicts:** one person ≥ 0.2 and another ≤ −0.2.
+4. **Evidence (R19):** for each shared element, the cards each person liked that carry it (up to 3 each).
+5. **Bridge style (maximin):** `argmax_s min_p cos(t_p, centroid_s)`. If everyone's own top style is the same, "You already agree".
+6. **Everyone brings something (R21):** for each person, their highest-affinity attribute that is (a) not in conflicts and (b) present in the candidate pool. If no compromise pick will carry it, reserve one pick slot for the best-scoring item that does.
+7. **Compromise picks:** candidates = live, in-stock, in-budget, size-fitting micro items for the room type (whole catalogue), excluding vetoed items, items with vetoed attributes, items anyone swiped left on, and kept categories. Prefilter with pgvector (300 nearest the mean taste vector). Score per person:
+   `s_p(i) = cos(e(i), t_p) + 0.3 · mean_{a ∈ tags(i)} aff_p(a)`
+   then
+   `base(i) = min_p s_p(i) + 0.1 · anchor_match(i) − 0.15 · household_risk(i) + 0.15 · (mutual_yes_rate(i) − global_rate)`
+   (anchor_match from R14 harmony, household_risk from R15, mutual_yes_rate from `item_stats`, smoothed). If `hidePracticalRisks` is on, risky items are excluded instead of penalised.
+   **Balanced greedy selection** of 12: at each step pick the item maximising `min_p (cumulative_p + s_p(i))`, combined with MMR diversity (λ = 0.7) and at most 2 per category, after placing the reserved R21 items. This keeps total satisfaction even between people instead of letting one person's favourites dominate.
+8. **Hybrid rooms:** top 4 macro photos by the same maximin score.
+9. **Layout decision (R19):** `lead = exactMicroMatches ≥ 3 ? "agreed" : "bridge"`.
+10. Persist with `status = computing`, respond, then in `after()`:
+11. **Name it (Claude):** input = names, each person's top styles, the bridge style, shared elements, conflicts, each person's "brings" attributes (step 6), kept items, household flags, and the picks' tags. Output (`BridgeNameSchema`): `{ name (≤ 3 words from the taxonomy vocabulary), tagline (≤ 12 words), rationale (≤ 60 words, mentions kept items if any), contributions: [{ participant, brings (≤ 15 words, positive framing, no comparison) }] }`. Prompt rules: no scores, no "won", no "compromised more", no blame. Validated; fallback to the taxonomy name and template sentences. Then `status = ready`.
+
+All steps except 11 take milliseconds. `inputs_hash` skips recomputing when nothing changed.
+
+### 11.4 Tie-breaker
+
+8 cards: the top compromise picks nobody has swiped. Mutual yes → Agreed + shopping list. Re-run synthesis (version + 1). Max 2 rounds.
+
+### 11.5 Regression fixtures
+
+- `industrial-vs-minimalist.json` (synthetic): no exact matches → lead = bridge; shared elements include `clean_lines` and `metal_black`; bridge = `warm_minimal` (whose centroid sits between them); every pick works for both (`s_p ≥ 0.4`); each person has ≥ 1 "brings" attribute; satisfaction gap between the two ≤ 0.1.
+- `keeping-grey-sofa.json`: no sofas in deck or picks; ≥ 3 picks badged "Goes with your grey sofa".
+- `dog-household.json`: no `light_fabric` boucle in the top 6 picks; hidden entirely when the switch is on.
+- `concierge/*.json` (real Phase −1 data): the engine's bridge matches the one you made by hand, or the difference is explainable; this becomes the eval set when tuning weights.
+
+---
+
+## 12. Data flywheel
+
+Every project produces labelled data no competitor has: which cards people with different tastes **both** accept.
+
+| Signal | Collected from | Used for |
+|---|---|---|
+| Right-rate per item | `swipe` | Dropping uninformative cards from decks (§11.1) |
+| Tie-breaker mutual-yes rate | `swipe` round `bridge` | A learned "works for couples" boost in compromise scoring (§11.3 step 7) |
+| Clicks, bought-it | `outbound_click`, `shopping_list_item` | Spotting great bridge items; measuring affiliate leakage |
+| Helpful 👍/👎 per board | `board_feedback` | Tuning the weights (0.3, 0.1, 0.15) against the concierge + real boards |
+| Most common style pairs | `synthesis` | Which `/combine/[pair]` SEO pages to write first |
+
+Computed nightly into `item_stats` (cheap SQL aggregates, all smoothed with priors so new items aren't punished). Only aggregates are used; the privacy page says so. A trained ranking model is a later step once there are thousands of boards.
+
+---
+
+## 13. Every file
 
 ✱ = generated by a tool.
 
-### 9.1 Root
+### 13.1 Root
 
 | File | Purpose |
 |---|---|
-| `package.json` | Scripts: `dev`, `build`, `vercel-build` (migrate on prod, then build), `lint`, `format`, `typecheck`, `db:up`, `db:generate`, `db:migrate`, `db:studio`, `db:seed` (`tsx scripts/seed-dev.ts`), `catalogue:photos`, `catalogue:feed`, `catalogue:tag`, `catalogue:embed`, `catalogue:centroids`, `test`, `test:integration`, `test:e2e` |
+| `package.json` | Scripts: `dev`, `build`, `vercel-build` (migrate on prod, then build), `lint`, `format`, `typecheck`, `db:up`, `db:generate`, `db:migrate`, `db:studio`, `db:seed`, `catalogue:photos`, `catalogue:feed`, `catalogue:tag`, `catalogue:embed`, `catalogue:centroids`, `pages:generate`, `concierge:import`, `test`, `test:integration`, `test:e2e` |
 | `pnpm-lock.yaml` ✱ | — |
 | `.nvmrc` | `24` |
-| `.env.example` | §4 vars, empty |
+| `.env.example` | §7 vars |
 | `.gitignore`, `.prettierrc`, `.prettierignore` | — |
-| `eslint.config.mjs` | Next + TS |
+| `eslint.config.mjs` | — |
 | `tsconfig.json` | Strict, `@/*` → `src/*` |
-| `next.config.ts` | `images.remotePatterns` for `images.unsplash.com` and feed image hosts; Sentry wrapper |
-| `vercel.ts` | Cron: `/api/cron/refresh-feeds` daily at 03:17 UTC |
-| `postcss.config.mjs` | Tailwind 4 |
-| `components.json` | shadcn/ui |
-| `drizzle.config.ts` | — |
-| `docker-compose.yml` | `pgvector/pgvector:pg16` dev (:5432) + test (:5433, tmpfs) |
-| `vitest.config.ts` | `unit` + `integration` projects |
-| `playwright.config.ts` | `next dev` with `E2E_TEST_AUTH=1`, seeded fixture catalogue |
+| `next.config.ts` | `images.remotePatterns` (Unsplash, feed hosts); Sentry |
+| `vercel.ts` | Three crons (§10.4) |
+| `postcss.config.mjs`, `components.json`, `drizzle.config.ts` | — |
+| `docker-compose.yml` | pgvector dev + test |
+| `vitest.config.ts`, `playwright.config.ts` | — |
 | `instrumentation.ts`, `sentry.client.config.ts`, `sentry.server.config.ts` | Sentry |
-| `README.md` | Setup, catalogue pipeline, testing, deploying |
+| `README.md` | Setup, catalogue pipeline, crons, testing, deploying |
 | `PLAN.md` | This file |
 
-### 9.2 CI and migrations
+### 13.2 CI and migrations
 
 | File | Purpose |
 |---|---|
-| `.github/workflows/ci.yml` | lint + typecheck + unit; integration (pgvector service, migrate); e2e (seeded catalogue) |
+| `.github/workflows/ci.yml` | lint + typecheck + unit; integration; e2e |
 | `.github/pull_request_template.md` | — |
 | `drizzle/0000_extensions.sql` | `CREATE EXTENSION IF NOT EXISTS vector;` |
-| `drizzle/0001_init.sql` ✱ | All tables (§6) |
-| `drizzle/0002_indexes.sql` | HNSW on `catalogue_item.embedding`, GIN on `room_types`, partial index on live in-stock items |
+| `drizzle/0001_init.sql` ✱ | All tables (§9) |
+| `drizzle/0002_indexes.sql` | HNSW, GIN, partial live/in-stock index |
 | `drizzle/meta/*` ✱ | — |
 
-### 9.3 `src/db/`
+### 13.3 `src/db/`
 
 | File | Purpose |
 |---|---|
 | `src/db/index.ts` | Client + `drizzle()` |
-| `src/db/schema/auth.ts` ✱ | Better Auth tables |
-| `src/db/schema/catalogue.ts` | `catalogue_item`, `style` |
+| `src/db/schema/auth.ts` ✱ | Better Auth |
+| `src/db/schema/catalogue.ts` | `retailer`, `catalogue_item`, `style`, `style_pair_page`, `item_stats` |
 | `src/db/schema/projects.ts` | `project`, `project_invite`, `participant` |
 | `src/db/schema/swipes.ts` | `swipe`, `veto`, `bridge_round` |
-| `src/db/schema/synthesis.ts` | `synthesis`, `board_feedback` |
-| `src/db/schema/clicks.ts` | `outbound_click` |
+| `src/db/schema/board.ts` | `synthesis`, `board_feedback`, `share_link` |
+| `src/db/schema/commerce.ts` | `shopping_list_item`, `price_alert`, `outbound_click` |
+| `src/db/schema/growth.ts` | `referral_partner`, `waitlist` |
 | `src/db/schema/index.ts` | Re-exports |
 
-### 9.4 `src/lib/` — server logic
+### 13.4 `src/lib/`: server logic
 
 | File | Purpose |
 |---|---|
-| `src/lib/env.ts` | Zod-parsed env |
-| `src/lib/ids.ts` | `newId()` |
-| `src/lib/errors.ts` | `AppError`, `NotFound`, `Forbidden`, `Conflict` |
-| `src/lib/auth.ts` | `betterAuth({ socialProviders: { google }, plugins: [anonymous({ onLinkAccount })] })` — `onLinkAccount` moves a guest's participants to their Google user |
-| `src/lib/auth-client.ts` | Browser client (`signIn.social`, `signIn.anonymous`) |
-| `src/lib/session.ts` | `getSession()`, `requireSession()`, `requireAdmin()` |
-| `src/lib/permissions.ts` | `requireParticipant(projectId)`, `requireCreator(projectId)` |
-| `src/lib/crypto.ts` | `randomToken()`, `sha256()` |
-| `src/lib/taxonomy.ts` | §7.1 + Zod enums |
-| `src/lib/budget.ts` | Budget bands → price limits per category |
-| `src/lib/projects.ts` | Create project (builds decks), list mine, rename, delete |
-| `src/lib/invites.ts` | Create/revoke invite, accept (join as participant, max 4) |
-| `src/lib/swipes.ts` | Record/undo swipe, mark round done, record veto |
-| `src/lib/reveal.ts` | Is the board revealed? (R10) |
-| `src/lib/board.ts` | Assemble the board view-model from the latest synthesis + items |
-| `src/lib/project-state.ts` | Polling payload: participants, progress, reveal, synthesis status |
-| `src/lib/notify.ts` | Send "board ready" email (Resend), once per project |
-| `src/lib/analytics.ts` | Server-side PostHog capture helper |
-| `src/lib/unsplash.ts` | Search, map to catalogue rows, `trackDownload()` (called when a photo enters a deck) |
-| `src/lib/catalogue/feeds.ts` | Download + parse Awin feeds (csv-parse + Zod) |
-| `src/lib/catalogue/category-map.ts` | Merchant category → our category |
-| `src/lib/catalogue/upsert.ts` | Upsert items by (source, source_id) |
-| `src/lib/catalogue/refresh.ts` | Nightly price/stock/retire logic |
-| `src/lib/ai/anthropic.ts` | Client, `CLAUDE_MODEL = "claude-opus-5-5"`, `parseStructured()` helper (stop_reason/refusal checks) |
-| `src/lib/ai/schemas.ts` | `ItemTagsSchema`, `BridgeNameSchema` |
-| `src/lib/ai/prompts/tag-item.ts` | Tagging system prompt (taxonomy, cached) + per-item content |
-| `src/lib/ai/prompts/bridge-name.ts` | Naming prompt |
-| `src/lib/ai/tag-batch.ts` | Build/poll/collect a tagging batch |
-| `src/lib/ai/bridge-name.ts` | `nameBridge(input)` with fallback |
+| `src/lib/env.ts` | Zod env |
+| `src/lib/ids.ts`, `src/lib/errors.ts`, `src/lib/crypto.ts` | Ids, errors, tokens/hashes/HMAC for unsubscribe |
+| `src/lib/auth.ts` | Better Auth (Google + anonymous with `onLinkAccount` moving participants, alerts and shopping ticks to the Google user) |
+| `src/lib/auth-client.ts` | Browser client |
+| `src/lib/session.ts` | `getSession`, `requireSession`, `requireAdmin` |
+| `src/lib/permissions.ts` | `requireParticipant(projectId, participantId?)` incl. host check for pass-the-phone |
+| `src/lib/taxonomy.ts` | §10.1 + Zod enums |
+| `src/lib/budget.ts` | Budget bands |
+| `src/lib/context.ts` | Validate/update `project.context` (R14–R16) |
+| `src/lib/projects.ts` | Create (incl. solo quiz and next room), list, rename, delete |
+| `src/lib/invites.ts` | Create, revoke, accept |
+| `src/lib/together.ts` | Add pass-the-phone participants, handoff state, `ready_at`, reveal timing (R17–R18) |
+| `src/lib/swipes.ts` | Swipe, undo, veto, finish round |
+| `src/lib/reveal.ts` | Reveal rules (R10, R18) |
+| `src/lib/board.ts` | Board view-model incl. lead section and evidence |
+| `src/lib/personal-result.ts` | Personal style card (R23) |
+| `src/lib/project-state.ts` | Polling payload |
+| `src/lib/share.ts` | Create/revoke share links, public view-model (no swipes/vetoes/names unless chosen) |
+| `src/lib/shopping-list.ts` | List, bought-it, email list |
+| `src/lib/alerts.ts` | Subscribe/unsubscribe, find price drops, build digests |
+| `src/lib/partners.ts` | Partner lookup, attribution, usage report |
+| `src/lib/waitlist.ts` | Fake-door sign-ups |
+| `src/lib/notify.ts` | Board-ready, shopping-list and price-drop emails (Resend) |
+| `src/lib/analytics.ts` | Server-side PostHog |
+| `src/lib/unsplash.ts` | Search, mapping, `trackDownload()` |
+| `src/lib/catalogue/feeds.ts`, `category-map.ts`, `upsert.ts`, `refresh.ts` | Feed import + nightly refresh |
+| `src/lib/stats/item-stats.ts` | Nightly aggregation + smoothing (§12) |
+| `src/lib/seo/pair-pages.ts` | Compute pair content with the engine; load published pages |
+| `src/lib/ai/anthropic.ts` | Client, `CLAUDE_MODEL = "claude-opus-5-5"`, `parseStructured()` (stop-reason/refusal checks) |
+| `src/lib/ai/schemas.ts` | `ItemTagsSchema`, `BridgeNameSchema`, `PairPageSchema` |
+| `src/lib/ai/prompts/tag-item.ts`, `bridge-name.ts`, `pair-page.ts` | Prompts (taxonomy prefix cached) |
+| `src/lib/ai/tag-batch.ts`, `bridge-name.ts`, `pair-page.ts` | Calls + fallbacks |
 | `src/lib/embeddings/voyage.ts` | `embedItems()`, `embedText()` |
-| `src/lib/engine/vector.ts` | `dot`, `cosine`, `normalise`, `mean`, `weightedMean` |
+| `src/lib/engine/vector.ts` | Vector maths |
 | `src/lib/engine/rng.ts` | Seeded PRNG + shuffle |
-| `src/lib/engine/quotas.ts` | Micro category quotas per room type |
-| `src/lib/engine/deck.ts` | §8.1 farthest-point sampling + style coverage |
-| `src/lib/engine/profile.ts` | §8.2 taste vector, affinities, top styles, confidence |
-| `src/lib/engine/matches.ts` | §8.3 steps 1–3 |
-| `src/lib/engine/bridge.ts` | §8.3 step 4 maximin style |
-| `src/lib/engine/compromise.ts` | §8.3 steps 5–6 scoring + MMR |
-| `src/lib/engine/synthesise.ts` | Orchestrates the engine, computes `inputs_hash` |
-| `src/lib/engine/tiebreak.ts` | §8.4 card selection |
-| `src/lib/synthesis.ts` | Load inputs from DB, run engine, persist, schedule naming in `after()` |
-| `src/lib/validation.ts` | Zod schemas for every action/route input |
+| `src/lib/engine/quotas.ts` | Category quotas + redistribution for kept categories |
+| `src/lib/engine/constraints.ts` | Budget, size limits, kept categories (R13, R14, R16) |
+| `src/lib/engine/household.ts` | Practicality penalties (R15) |
+| `src/lib/engine/harmony.ts` | Anchor colour/material harmony (R14) |
+| `src/lib/engine/deck.ts` | §11.1 |
+| `src/lib/engine/profile.ts` | §11.2 |
+| `src/lib/engine/matches.ts` | §11.3 steps 1–3 |
+| `src/lib/engine/evidence.ts` | §11.3 step 4 |
+| `src/lib/engine/bridge.ts` | §11.3 step 5 |
+| `src/lib/engine/contributions.ts` | §11.3 step 6 |
+| `src/lib/engine/compromise.ts` | §11.3 steps 7–8 (scoring, balanced greedy, MMR) |
+| `src/lib/engine/synthesise.ts` | Orchestration, layout decision, `inputs_hash` |
+| `src/lib/engine/tiebreak.ts` | §11.4 |
+| `src/lib/synthesis.ts` | Load inputs, run engine, persist, name in `after()` |
+| `src/lib/validation.ts` | Zod inputs for every action/route |
 
-### 9.5 `src/app/` — routes
+### 13.5 `src/app/`: routes
 
 | File | Purpose |
 |---|---|
-| `src/app/layout.tsx` | Shell, fonts, providers, toaster, footer with affiliate disclosure |
-| `src/app/globals.css` | Tailwind + theme tokens |
-| `src/app/providers.tsx` | TanStack Query, PostHog provider |
-| `src/app/manifest.ts`, `src/app/icon.svg`, `src/app/apple-icon.png` | Installable PWA |
-| `src/app/page.tsx` | Landing: "Settle your room style together in 5 minutes" → Start |
-| `src/app/start/page.tsx` | Pick room type, optional name + budget → sign in with Google if needed → create |
-| `src/app/start/actions.ts` | `createProject` |
-| `src/app/projects/page.tsx` | My projects (status per project) |
-| `src/app/r/[projectId]/page.tsx` | Project hub: participants + progress, invite link + QR + share button, "Start/continue swiping", board link when revealed, "Show results now" (creator) |
-| `src/app/r/[projectId]/actions.ts` | `regenerateInvite`, `revokeInvite`, `forceReveal`, `deleteProject` |
-| `src/app/r/[projectId]/swipe/page.tsx` | Swipe flow: macro → "Halfway! Now the pieces" interstitial → micro → done |
-| `src/app/r/[projectId]/swipe/actions.ts` | `recordSwipe`, `undoSwipe`, `recordVeto`, `finishRound` |
-| `src/app/r/[projectId]/board/page.tsx` | The shared board |
-| `src/app/r/[projectId]/board/actions.ts` | `startTiebreak`, `boardFeedback` |
-| `src/app/r/[projectId]/tiebreak/page.tsx` | Tie-breaker swipes (reuses the swipe stack) |
-| `src/app/j/[token]/page.tsx` | Join: "Rich wants your take on the Living Room" → first name → Go |
-| `src/app/j/[token]/actions.ts` | `joinProject` (anonymous sign-in if no session) |
-| `src/app/go/[itemId]/route.ts` | Log `outbound_click`, 302 to `affiliate_url` (`rel="sponsored nofollow"` on links) |
-| `src/app/admin/catalogue/page.tsx` | Catalogue review + coverage grid |
-| `src/app/admin/catalogue/actions.ts` | Approve, retire, edit tags, bulk |
-| `src/app/admin/metrics/page.tsx` | Simple DB-backed counts (projects, completion, clicks) as a PostHog backup |
-| `src/app/privacy/page.tsx`, `src/app/disclosure/page.tsx` | Privacy (guest data, analytics) + affiliate disclosure |
+| `src/app/layout.tsx`, `globals.css`, `providers.tsx` | Shell, theme, TanStack Query + PostHog, footer disclosure |
+| `src/app/manifest.ts`, `icon.svg`, `apple-icon.png` | PWA |
+| `src/app/sitemap.ts`, `src/app/robots.ts` | SEO |
+| `src/app/page.tsx` | Landing: "Settle your room style together in 5 minutes" → Start together / Take the quiz |
+| `src/app/quiz/page.tsx` | Solo quiz entry: pick room → swipe (§4.1) |
+| `src/app/start/page.tsx`, `src/app/start/actions.ts` | Room type, name, budget → `createProject` |
+| `src/app/projects/page.tsx` | My projects |
+| `src/app/r/[projectId]/setup/page.tsx`, `actions.ts` | Room context (R14–R16) + mode choice (R17) |
+| `src/app/r/[projectId]/page.tsx`, `actions.ts` | Hub: participants, progress, invite panel, Ready/reveal, links |
+| `src/app/r/[projectId]/swipe/page.tsx`, `actions.ts` | Swipe flow incl. pass-the-phone handoff screens |
+| `src/app/r/[projectId]/me/page.tsx` | Personal result (R23) |
+| `src/app/r/[projectId]/me/opengraph-image.tsx` | Shareable personal result image |
+| `src/app/r/[projectId]/reveal/page.tsx` | Ready? → synchronised countdown (R18) |
+| `src/app/r/[projectId]/board/page.tsx`, `actions.ts` | Board; tie-breaker, feedback, share, shopping list, alerts, next room, fake door |
+| `src/app/r/[projectId]/tiebreak/page.tsx` | Tie-breaker swipes |
+| `src/app/j/[token]/page.tsx`, `actions.ts` | Join as guest |
+| `src/app/s/[shareId]/page.tsx` | Public share page |
+| `src/app/s/[shareId]/opengraph-image.tsx` | Share image |
+| `src/app/with/[partner]/page.tsx` | Partner co-branded landing |
+| `src/app/styles/[style]/page.tsx` | Style SEO page |
+| `src/app/combine/[pair]/page.tsx` | Style-pair SEO page |
+| `src/app/designers/page.tsx`, `actions.ts` | Designers fake door + interest form |
+| `src/app/go/[itemId]/route.ts` | Click log + affiliate redirect (`?s=board|share|email|seo`) |
+| `src/app/unsubscribe/[token]/route.ts` | One-click unsubscribe (also used as the `List-Unsubscribe` header URL) |
+| `src/app/admin/catalogue/page.tsx`, `actions.ts` | Catalogue review |
+| `src/app/admin/pages/page.tsx`, `actions.ts` | SEO page review/publish |
+| `src/app/admin/partners/page.tsx`, `actions.ts` | Partner links + usage |
+| `src/app/admin/metrics/page.tsx` | DB-backed metrics |
+| `src/app/privacy/page.tsx`, `src/app/disclosure/page.tsx` | Privacy (guests, analytics, aggregates) + affiliate disclosure |
 | `src/app/not-found.tsx`, `src/app/error.tsx` | — |
-| `src/app/api/auth/[...all]/route.ts` | Better Auth handler |
+| `src/app/api/auth/[...all]/route.ts` | Better Auth |
 | `src/app/api/projects/[projectId]/state/route.ts` | Polling JSON |
-| `src/app/api/projects/[projectId]/qr/route.ts` | Invite QR as SVG |
-| `src/app/api/cron/refresh-feeds/route.ts` | Nightly refresh (checks `CRON_SECRET`) |
-| `src/app/api/test/sign-in/route.ts` | E2E-only |
-| `src/proxy.ts` | Redirect signed-out users away from `/projects`, `/start` (create step), `/admin` |
+| `src/app/api/projects/[projectId]/qr/route.ts` | QR SVG |
+| `src/app/api/cron/refresh-feeds/route.ts`, `price-alerts/route.ts`, `item-stats/route.ts` | Crons (check `CRON_SECRET`) |
+| `src/app/api/test/sign-in/route.ts` | E2E only |
+| `src/proxy.ts` | Protects `/projects`, `/admin` |
 
-### 9.6 `src/components/`
+### 13.6 `src/components/`
 
 | File | Purpose |
 |---|---|
-| `src/components/ui/*` ✱ | shadcn: button, card, dialog, sheet, input, label, select, tabs, sonner, avatar, badge, progress, skeleton, tooltip |
-| `src/components/Header.tsx` | Logo, user menu / "Save with Google" for guests |
-| `src/components/RoomTypePicker.tsx` | Big tappable room tiles |
-| `src/components/BudgetPicker.tsx` | £ / ££ / £££ |
-| `src/components/InvitePanel.tsx` | Copy link, native share (`navigator.share`), QR |
-| `src/components/ParticipantProgress.tsx` | Avatars with "12/30 swiped" / "done" |
-| `src/components/SwipeDeck.tsx` | Card stack: gestures, fling thresholds, keyboard ←/→, buttons, undo, image preloading (next 3), progress |
-| `src/components/SwipeCard.tsx` | Full-bleed image, title/price (micro), attribution (macro) |
-| `src/components/VetoSheet.tsx` | Confirm veto + optional "what's the deal-breaker?" tag chips, tokens left |
-| `src/components/RoundInterstitial.tsx` | Macro → micro transition |
-| `src/components/WaitingForOthers.tsx` | After finishing: share again, "we'll email you" |
-| `src/components/board/BridgeStyleHero.tsx` | Bridge name, tagline, rationale, contributions, hybrid room photos |
-| `src/components/board/AgreedItems.tsx` | Exact micro matches with buy buttons |
+| `src/components/ui/*` ✱ | shadcn: button, card, dialog, sheet, input, label, select, switch, tabs, sonner, avatar, badge, progress, skeleton, tooltip |
+| `src/components/Header.tsx` | Logo, user menu / "Save with Google" |
+| `src/components/RoomTypePicker.tsx`, `BudgetPicker.tsx` | Setup |
+| `src/components/context/KeepingPicker.tsx` | Categories + colour/material chips (R14) |
+| `src/components/context/HouseholdPicker.tsx` | Dog / cat / kids (R15) |
+| `src/components/context/SizeLimits.tsx` | Optional max sizes (R16) |
+| `src/components/ModePicker.tsx` | Link / two phones / one phone (R17) |
+| `src/components/InvitePanel.tsx` | Copy, native share, QR; partner-facing copy |
+| `src/components/ParticipantProgress.tsx` | Avatars + progress |
+| `src/components/SwipeDeck.tsx` | Gestures, keyboard, buttons, undo, preloading, progress, "≈ 3 min" estimate |
+| `src/components/SwipeCard.tsx` | Image, title/price, attribution, "Goes with your grey sofa" |
+| `src/components/HandoffScreen.tsx` | Pass-the-phone cover screen (R17) |
+| `src/components/VetoSheet.tsx` | Veto + optional reason chips |
+| `src/components/RoundInterstitial.tsx` | Macro → micro |
+| `src/components/MyStyleCard.tsx` | Personal result (R23) |
+| `src/components/RevealCountdown.tsx` | Ready + countdown (R18) |
+| `src/components/board/BridgeStyleHero.tsx` | Name, tagline, rationale, hybrid rooms |
+| `src/components/board/EvidenceStrip.tsx` | "You both said yes to…" with each person's cards (R19) |
+| `src/components/board/WhatYouEachBring.tsx` | Contributions (R21) |
+| `src/components/board/AgreedItems.tsx` | Exact matches |
 | `src/components/board/LovedRooms.tsx` | Exact macro matches |
-| `src/components/board/SharedElements.tsx` | "You both love" / "You differ on" chips |
-| `src/components/board/CompromisePicks.tsx` | Compromise products with per-person fit bars |
-| `src/components/board/Vetoes.tsx` | Each person's deal-breakers |
-| `src/components/board/TiebreakCta.tsx` | Start tie-breaker |
-| `src/components/board/BoardFeedback.tsx` | "Did this help you agree?" 👍/👎 |
-| `src/components/ProductCard.tsx` | Image, retailer, price, stock, Buy (→ `/go/[id]`) |
-| `src/components/Attribution.tsx` | Unsplash/Pexels credit with links |
-| `src/components/AffiliateNotice.tsx` | Inline disclosure |
-| `src/components/admin/CatalogueGrid.tsx`, `src/components/admin/CoverageGrid.tsx`, `src/components/admin/TagEditor.tsx` | Admin |
-| `src/hooks/useProjectState.ts` | Polls state (3 s while someone's swiping, stops when revealed) |
-| `src/emails/BoardReady.tsx` | React Email template |
+| `src/components/board/SharedElements.tsx` | Shared / differ chips |
+| `src/components/board/CompromisePicks.tsx` | "Works for both of you", anchor and household badges, hide switch |
+| `src/components/board/OffTheTable.tsx` | Anonymous vetoes (R22) |
+| `src/components/board/ShoppingList.tsx` | Bought-it, email list, alerts opt-in (R25–R26) |
+| `src/components/board/TiebreakCta.tsx`, `NextRoomCta.tsx`, `ShareBoard.tsx`, `BoardFeedback.tsx` | Board actions |
+| `src/components/FakeDoor.tsx` | "See it in your room" coming-soon + waitlist (§5) |
+| `src/components/PartnerBanner.tsx` | Co-branding on partner-started projects |
+| `src/components/ProductCard.tsx` | Product, price, stock, Buy |
+| `src/components/Attribution.tsx`, `AffiliateNotice.tsx` | Credits and disclosure |
+| `src/components/admin/CatalogueGrid.tsx`, `CoverageGrid.tsx`, `TagEditor.tsx`, `PairPageEditor.tsx` | Admin |
+| `src/hooks/useProjectState.ts` | Polling (2 s in together mode / while swiping; stops after reveal) |
+| `src/emails/BoardReady.tsx`, `ShoppingList.tsx`, `PriceDrop.tsx` | React Email templates (unsubscribe footer on the last two) |
 
-### 9.7 `scripts/`
+### 13.7 `scripts/`
 
-`scripts/import-photos.ts`, `scripts/import-feed.ts`, `scripts/tag-catalogue.ts`, `scripts/embed-catalogue.ts`, `scripts/build-style-centroids.ts`, `scripts/seed-dev.ts` (§7.2).
+`import-photos.ts`, `import-feed.ts`, `tag-catalogue.ts`, `embed-catalogue.ts`, `build-style-centroids.ts`, `generate-pair-pages.ts`, `import-concierge.ts`, `seed-dev.ts` (§10.2).
 
-### 9.8 `tests/`
+### 13.8 `tests/`
 
 | File | Purpose |
 |---|---|
-| `tests/setup/msw.ts` | MSW server |
-| `tests/mocks/anthropic.ts`, `voyage.ts`, `unsplash.ts`, `resend.ts` | Fake APIs |
-| `tests/fixtures/catalogue.json` | ≈ 120 items, synthetic vectors, tags (also the dev seed) |
-| `tests/fixtures/industrial-vs-minimalist.json` | §8.5 |
+| `tests/setup/msw.ts`, `tests/mocks/{anthropic,voyage,unsplash,resend}.ts` | Fakes |
+| `tests/fixtures/catalogue.json` | Synthetic catalogue (also the dev seed) |
+| `tests/fixtures/industrial-vs-minimalist.json`, `keeping-grey-sofa.json`, `dog-household.json` | §11.5 |
+| `tests/fixtures/concierge/*.json` | Real Phase −1 data |
 | `tests/fixtures/awin-feed.csv` | Sample feed incl. bad rows |
-| `tests/helpers/db.ts` | Reset + factories |
-| `tests/helpers/vectors.ts` | Build synthetic vectors near given anchors |
-| `tests/unit/vector.test.ts` | Maths helpers |
-| `tests/unit/deck.test.ts` | Same cards for all, coverage constraint, quotas, budget filter, determinism by seed |
-| `tests/unit/profile.test.ts` | Taste vector direction, Laplace affinity, confidence |
-| `tests/unit/matches.test.ts` | Double rights, vetoes excluded, shared/conflict thresholds |
-| `tests/unit/bridge.test.ts` | Maximin picks the in-between style; "already agree" case |
-| `tests/unit/compromise.test.ts` | Vetoed attributes excluded, left-swiped excluded, MMR diversity, ≤ 2 per category |
-| `tests/unit/synthesise.test.ts` | §8.5 fixture end to end; N = 3 participants |
-| `tests/unit/feeds.test.ts` | Parsing, category mapping, bad rows skipped |
-| `tests/unit/ai-schemas.test.ts` | Valid/invalid AI outputs; fallback naming |
-| `tests/integration/invites.test.ts` | Join, max 4, expiry, revoke |
-| `tests/integration/swipes.test.ts` | Idempotent swipes, undo, veto tokens can't go below 0 |
-| `tests/integration/reveal.test.ts` | Hidden until finished; force reveal needs ≥ 2 finished |
-| `tests/integration/guest-upgrade.test.ts` | Guest links Google, keeps participant + swipes |
-| `tests/integration/access-control.test.ts` | Non-participants get 404 everywhere |
-| `tests/integration/refresh.test.ts` | Price/stock update, retire after 3 misses |
-| `tests/e2e/two-partners.spec.ts` | A creates → B joins in a second context → both swipe → board shows a match, a bridge name and compromise picks |
-| `tests/e2e/veto.spec.ts` | Veto with attribute → no compromise pick carries it |
-| `tests/e2e/tiebreak.spec.ts` | Tie-breaker mutual yes moves into Agreed |
-| `tests/e2e/mobile-swipe.spec.ts` | Touch-drag swipe on a phone viewport |
+| `tests/helpers/db.ts`, `tests/helpers/vectors.ts` | Factories, synthetic vectors |
+| `tests/unit/vector.test.ts` | — |
+| `tests/unit/deck.test.ts` | Same cards for all; kept categories removed and quotas redistributed; size/budget filters; uninformative cards skipped; next-room seeding; determinism |
+| `tests/unit/profile.test.ts` | Taste vector, affinities, personal result text inputs |
+| `tests/unit/matches.test.ts`, `evidence.test.ts` | Double rights, shared/conflicts, evidence lists |
+| `tests/unit/bridge.test.ts` | Maximin, "already agree" |
+| `tests/unit/contributions.test.ts` | Everyone brings ≥ 1 element |
+| `tests/unit/compromise.test.ts` | Exclusions, anchors, household penalties/hide, balanced selection gap, MMR, ≤ 2 per category |
+| `tests/unit/synthesise.test.ts` | All §11.5 fixtures incl. concierge; N = 3 |
+| `tests/unit/board-layout.test.ts` | Lead section switch; "0 matches" never rendered |
+| `tests/unit/item-stats.test.ts` | Smoothing, thresholds |
+| `tests/unit/feeds.test.ts`, `ai-schemas.test.ts` | Parsing; AI output validation and fallbacks; naming prompt guard (no scores/winner words) |
+| `tests/integration/invites.test.ts`, `swipes.test.ts`, `reveal.test.ts` | Core rules |
+| `tests/integration/together.test.ts` | Pass-the-phone host permissions; Ready + reveal timing |
+| `tests/integration/guest-upgrade.test.ts` | Guest → Google keeps participants, list, alerts |
+| `tests/integration/share.test.ts` | Public view hides swipes/vetoes/names; revoke |
+| `tests/integration/alerts.test.ts` | Drop detection, weekly cap, unsubscribe |
+| `tests/integration/next-room.test.ts` | Same people joined, context copied |
+| `tests/integration/refresh.test.ts`, `access-control.test.ts` | Feeds; non-participants 404 |
+| `tests/e2e/remote-partners.spec.ts` | A creates → B joins via link → both swipe → reveal → board |
+| `tests/e2e/pass-the-phone.spec.ts` | One context, two people, handoff hides progress |
+| `tests/e2e/live-reveal.spec.ts` | Two contexts reveal together after both tap Ready |
+| `tests/e2e/solo-quiz.spec.ts` | Quiz → personal result → invite → partner finishes → board |
+| `tests/e2e/no-match-board.spec.ts` | Opposite swipes → bridge-led board with evidence |
+| `tests/e2e/context.spec.ts` | Keeping sofa → no sofa cards; dog → badges + hide |
+| `tests/e2e/share.spec.ts`, `veto.spec.ts`, `tiebreak.spec.ts`, `mobile-swipe.spec.ts` | — |
 
 ---
 
-## 10. Build order
+## 14. Build order
 
-### Phase 0 — Skeleton (½ day)
+### Phase −1: Validate (1–2 weekends, no code)
 
-- [ ] Next.js app, pnpm, Tailwind, shadcn, ESLint/Prettier, Vitest, Playwright, MSW, CI, Docker Compose with pgvector, `env.ts`.
-- [ ] Deploy a landing page to Vercel + Neon (needed early for the Awin/Unsplash applications).
+§2. **Gate:** don't start Phase 1 unless the go/no-go table passes (Phase 0 can run in parallel, since the landing page helps affiliate applications anyway).
 
-**Done when:** CI is green and the landing page is live on your domain.
+### Phase 0: Skeleton (½ day)
 
-### Phase 1 — Catalogue pipeline (4–5 days, plus your curation time)
+Next.js, pnpm, Tailwind, shadcn, lint/format, Vitest, Playwright, MSW, CI, Docker Compose, `env.ts`; landing page live on your domain with a waitlist form.
 
-- [ ] Taxonomy, catalogue schema, import scripts (Unsplash, Awin), tagging (Batches), embeddings, style centroids, dev seed.
-- [ ] `/admin/catalogue` review + coverage grid.
-- [ ] Curate the living room first: ≈ 150 photos + ≈ 400 products live, every style with ≥ 15 items.
+**Done when:** CI is green and the landing page is live.
 
-**Done when:** the coverage grid for living room has no empty style × tier cells; spot-check 30 random items and agree with ≥ 27 of their tags.
+### Phase 1: Catalogue (5 days + curation)
 
-### Phase 2 — Projects, sign-in, guests, invites (2 days)
+Taxonomy (incl. practical tags and dimensions), schema, import scripts, tagging, embeddings, centroids, admin catalogue, dev seed, concierge import. Curate the living room first.
 
-- [ ] Better Auth (Google + anonymous + link), `/start`, `/projects`, project hub, invite link + QR + share, `/j/[token]`, permissions.
+**Done when:** the living-room coverage grid has no empty style × tier cells; 27 of 30 spot-checked items have tags you agree with; ≥ 50% of sofas/rugs/tables have dimensions.
 
-**Done when:** on prod, you create a Living Room project, scan the QR on another phone, type a name, and appear on the hub as the second participant without creating an account; a third browser without the link gets 404.
+### Phase 2: Projects, guests, context (3 days)
 
-### Phase 3 — Swiping (3 days)
+Better Auth (guests + Google + linking), `/start`, `/quiz`, setup page (room context + mode choice), hub, invites + QR, permissions.
 
-- [ ] Deck builder + tests, `SwipeDeck` (gestures, keyboard, buttons, undo, preloading), persistence, interstitial, vetoes with attribute chips, waiting screen, Unsplash download pings.
+**Done when:** on a phone, you can start the quiz with no account, set "keeping a grey sofa, we have a dog", and invite a second phone that joins with just a name.
 
-**Done when:** 30 swipes take under 3 minutes on a mid-range phone with no image pop-in; closing the tab mid-deck and reopening resumes at the right card; a 4th veto is impossible.
+### Phase 3: Swiping, together mode, personal result (4 days)
 
-### Phase 4 — Synthesis and the board (4 days)
+Deck builder (context, stats filter, next-room seeding), `SwipeDeck`, vetoes, interstitial, pass-the-phone handoff, personal result + its share image, Ready + reveal countdown.
 
-- [ ] Engine (profile, matches, bridge, compromise) test-first with the §8.5 fixture; persistence; naming in `after()` with fallback; board UI; `/go` redirect + disclosure; "board ready" email.
+**Done when:** 30 swipes take under 3 minutes on a mid-range phone; pass-the-phone never shows the previous person's choices; two phones reveal within a second of each other; no sofa cards appear when you're keeping the sofa.
 
-**Done when:** you and someone with clearly different taste get a board with a bridge name you both find plausible, ≥ 8 compromise picks, no vetoed items, and working buy links that register clicks; `synthesise.test.ts` passes.
+### Phase 4: Engine and board (5 days)
 
-### Phase 5 — Tie-breaker round (1–2 days)
+Engine test-first against all §11.5 fixtures (including concierge data); persistence; naming in `after()` with fallback; adaptive board layout, evidence, what-you-each-bring, anonymous vetoes, badges and hide switch; `/go`; board-ready email.
 
-**Done when:** a mutual yes in the tie-breaker moves the item into Agreed and the board version increments; a third round isn't offered.
+**Done when:** an Industrial-vs-Minimalist test couple gets a bridge-led board that never says "0 matches", in which both people see something of theirs; on your concierge fixtures the engine's bridge matches (or plausibly beats) the one you made by hand.
 
-### Phase 6 — Bedroom + dining, analytics, launch (3 days)
+### Phase 5: Tie-breaker (1–2 days)
 
-- [ ] Curate bedroom and dining catalogues; PostHog funnels for §1 (cookieless until consent); Sentry; nightly refresh cron; privacy + disclosure pages; accessibility pass (buttons for every gesture, alt text from tags, contrast); README.
+**Done when:** a mutual yes moves an item into Agreed and onto the shopping list; a third round isn't offered.
 
-**Done when:** all E2E specs pass; 5 real couples complete a project unassisted and the funnel dashboard shows their times.
+### Phase 6: Growth (3 days)
 
-**Rough total:** ~3 weeks of engineering + several days of catalogue curation.
+Share page + OG images, partner landing pages + admin + attribution, `/styles` and `/combine` pages with the generate/review/publish flow, sitemap.
+
+**Done when:** a shared board link previews nicely in WhatsApp; a project started from `/with/[partner]` shows up in that partner's report; 10 reviewed pair pages are published and listed in the sitemap.
+
+### Phase 7: Retention and revenue (3 days)
+
+Shopping list + email + bought-it, price alerts + unsubscribe, next room, "See it in your room" fake door, designers page, `item_stats` cron and its use in decks and scoring.
+
+**Done when:** a 10% price drop on an alerted item sends one digest with a working unsubscribe; "Next room" creates a project with both people already in it; fake-door taps and sign-ups appear in admin metrics.
+
+### Phase 8: Launch (3 days)
+
+Bedroom and dining catalogues, PostHog funnels (§15), Sentry, crons live, privacy/disclosure, accessibility pass (buttons for every gesture, alt text from tags, contrast, reduced-motion countdown), README.
+
+**Done when:** all E2E specs pass; 5 new couples (not from Phase −1) complete a project unassisted, at least one in each mode.
+
+**Rough total:** ~5½ weeks of engineering + catalogue curation, after the validation weekend(s).
 
 ---
 
-## 11. Analytics events (PostHog)
+## 15. Analytics events (PostHog)
 
-`project_created` (room_type, budget_band) · `invite_shared` (method: copy/share/qr) · `invite_opened` · `partner_joined` · `swipe` (round, value, decision_ms — sampled) · `veto_used` (with_attribute) · `round_finished` (round, duration_ms) · `board_revealed` (participants, exact_matches, forced) · `bridge_named` (ai_ok/fallback) · `tiebreak_started/finished` · `board_feedback` (helpful) · `buy_clicked` (retailer, category, price band) · `guest_upgraded`.
+- **Acquisition:** `landing_viewed` (source: direct/partner/seo/share), `quiz_started`, `project_created` (room_type, mode, has_context, ref_partner), `share_page_viewed`, `seo_page_viewed`.
+- **Activation:** `invite_shared` (copy/share/qr), `invite_opened`, `partner_joined`, `context_set` (fields), `swipe` (sampled), `veto_used`, `round_finished` (duration_ms), `personal_result_viewed`, `personal_result_shared`, `quiz_to_invite`.
+- **The moment:** `ready_tapped`, `board_revealed` (participants, mode, lead: agreed/bridge, exact_matches), `bridge_named` (ai_ok/fallback), `board_feedback` (helpful).
+- **After:** `tiebreak_finished`, `board_shared`, `shopping_list_emailed`, `bought_marked`, `price_alert_subscribed`, `price_alert_clicked`, `next_room_started`, `buy_clicked` (surface, retailer, price band).
+- **Revenue tests:** `fake_door_tapped` (see_in_room), `waitlist_joined` (feature), `designer_form_submitted`.
 
-Funnel: project_created → invite_opened → partner_joined → round_finished(micro, partner) → board_revealed → board_feedback / buy_clicked.
+Dashboards: core funnel (§1), quiz → invite → board, mode comparison (completion and helpfulness by mode), board lead type vs helpfulness (does the no-match layout work?), revenue tests.
 
 ---
 
-## 12. Running locally
+## 16. Running locally
 
 ```bash
 pnpm install
-cp .env.example .env        # only DATABASE_URL, TEST_DATABASE_URL, BETTER_AUTH_*, GOOGLE_* needed for dev
+cp .env.example .env        # DATABASE_URL, TEST_DATABASE_URL, BETTER_AUTH_*, GOOGLE_* are enough for dev
 pnpm db:up && pnpm db:migrate
-pnpm db:seed                # fixture catalogue, no API keys needed
+pnpm db:seed                # fixture catalogue, no API keys
 pnpm dev                    # http://localhost:3000
 ```
 
-The catalogue scripts need the Anthropic, Voyage, Unsplash and Awin keys; run them against a branch DB on Neon first.
+Catalogue and page scripts need the Anthropic, Voyage, Unsplash and Awin keys; run them against a Neon branch first. Test pass-the-phone in one browser window and live reveal in two (e.g. a normal and a private window).
 
 ---
 
-## 13. Costs
+## 17. Costs
 
 | Item | Cost | Notes |
 |---|---|---|
-| Tagging the catalogue (≈ 1,700 items at launch, Batches) | ≈ $10 one-off | Opus 5.5 at effort `low`; new items only afterwards |
+| Phase −1 | ≈ £100–150 | Vouchers for 10–15 couples |
+| Tagging the catalogue (≈ 1,700 items, Batches) | ≈ $10 one-off | New items only afterwards |
 | Embeddings | < $1 one-off | |
+| SEO pair pages (60) | ≈ $2 one-off | Plus your review time |
 | Bridge naming | ≈ $0.01 per board version | The only per-user AI cost |
 | Unsplash, Awin, PostHog, Resend, Sentry, Neon, Vercel | Free tiers cover the MVP | Check limits before a launch spike |
 
-Marginal cost per couple is about a cent, which suits an affiliate revenue model.
+Revenue per board: see the formula in §5.
 
 ---
 
-## 14. Risks
+## 18. Risks
 
 | # | Risk | Mitigation |
 |---|---|---|
-| R1 | **The catalogue is the product.** Bad or samey cards make the synthesis meaningless. | Budget real curation time; coverage grid; spot-check tags; retire weak images ruthlessly. |
-| R2 | **Affiliate approvals.** Retailers on Awin approve publishers manually; some want an established site. | Launch the landing page in Phase 0; apply widely; Skimlinks as a fallback for any retailer. The MVP works without revenue: buy buttons can be plain links at first. |
-| R3 | **Unsplash terms.** Hotlinking, attribution and download pings are mandatory; production access is reviewed. | Built into `SwipeCard`/`Attribution` and the deck builder from day one. Pexels as a second source. |
-| R4 | **30 swipes is a thin signal.** | Diverse decks (farthest-point sampling), macro weighted ×1.5, Laplace smoothing, a confidence indicator, and the tie-breaker round to firm things up. |
-| R5 | **Partner B drop-off.** | One tap + first name to start; progress bar; total under 3 minutes; measured as the top funnel metric. |
-| R6 | **Stale prices / dead links.** | Nightly refresh; hide buy buttons when out of stock; retire after 3 missing nights. |
-| R7 | **UK/EU privacy (guests, analytics).** | Guest data is just a name + swipes; PostHog cookieless until consent; delete project deletes swipes; privacy page. |
-| R8 | **AI names something silly.** | Name constrained to taxonomy vocabulary, validated, with a deterministic fallback; the maths never depends on it. |
-| R9 | **Someone already built this.** | Before Phase 1, spend an hour searching the App Store / Play Store / Product Hunt for "couples interior swipe" apps and note how they differ. The reconciliation layer (bridge style + maximin compromise) is the part to protect. |
+| R1 | Couples don't find the bridge useful | Phase −1 gate before any engine work |
+| R2 | The catalogue is samey or wrong | Curation time, coverage grid, spot checks, uninformative-card filter |
+| R3 | Nobody finds the app | Four channels from day one (§4), measured separately; Phase −1 says which to lead with |
+| R4 | Affiliate revenue is too thin | Three other revenue lines tested by fake doors and B2B conversations (§5); plain links work if approvals lag |
+| R5 | Suggestions don't fit real homes | Room context (R14–R16); "Check the size" when dimensions are unknown; hide-risky switch |
+| R6 | One partner feels they lost | No scores, balanced selection, everyone brings something, anonymous vetoes, naming prompt rules, unit-tested (R20–R22) |
+| R7 | Partner B drops off | Pass-the-phone, 3-minute decks, personal result reward, partner-facing invite copy; completion by mode tracked |
+| R8 | 30 swipes is a thin signal | Diverse decks, smoothing, evidence on the board, tie-breaker, item stats over time |
+| R9 | Unsplash/affiliate terms | Hotlinking, attribution and download pings built in; share images use product images, not Unsplash; disclosure everywhere |
+| R10 | Email compliance (UK PECR/GDPR) | Alerts and lists are opt-in; one-click unsubscribe + `List-Unsubscribe` header; board-ready email is transactional to the creator only |
+| R11 | Thin AI SEO pages hurt rankings | Content computed from real catalogue data, every page reviewed before publishing, start with 10–20 not 60 |
+| R12 | Fake doors feel deceptive | Say "coming soon" immediately, never ask for payment details, offer a waitlist |
+| R13 | Someone already built this | Competitor scan in Phase −1; the reconciliation layer (bridge, balance, evidence) is the part to protect |
 
 ---
 
-## 15. After the MVP (v2 ideas)
+## 19. After the MVP (v2)
 
-- **See it in your room:** upload a photo of the real room and render the agreed board into it with an image-editing model (the mock-up pipeline from Revision 1: Claude writes the brief, an image model renders, Vercel Blob stores).
-- **Floorplans:** read a floorplan to know room sizes and filter products that won't fit.
-- **Whole-home projects:** several rooms sharing one taste profile, so the second room starts with a smarter deck.
-- **Adaptive decks:** a second macro round chosen from where the two taste vectors disagree most.
-- **More rooms:** kitchen and bathroom (finish- and fixture-led decks).
-- **"Add your own" cards:** paste a product link or screenshot into the deck for the partner to swipe.
+- **See it in your room** (if the fake door converts): upload a room photo and render the agreed board into it with an image-editing model (Claude writes the brief, an image model renders, Vercel Blob stores). Paid, per §5.
+- **Designer plan** (if the interest form converts): branded projects, client list, designers' own product lists.
+- **Floorplans:** read a floorplan to fill in R16 sizes automatically.
+- **Whole-home profile:** one shared taste profile across rooms.
+- **Adaptive decks:** a second macro round chosen where the taste vectors disagree most.
+- **Kitchen and bathroom** decks (finish- and fixture-led).
+- **"Add your own" cards:** paste a product link or screenshot for the partner to swipe.
+- **Learned ranking** from the flywheel data once there are thousands of boards.
 - **Native app** if the web funnel proves out.
