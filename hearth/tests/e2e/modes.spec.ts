@@ -29,6 +29,8 @@ test('one phone: people take turns, the handoff hides progress, and the board ap
   await expect(page.getByText(/You lean|style/i)).toHaveCount(0);
 
   await page.getByRole('link', { name: 'I’m Sam' }).click();
+  // Wait for the swipe page: until then the URL is still /handoff, which looks "finished".
+  await page.waitForURL(/\/swipe\?as=/);
   await swipeDeck(page, (t) => MINIMAL.test(t));
   // Everyone has finished on one phone, so there is nothing to wait for.
   await page.goto(page.url().replace(/\/(me|handoff).*/, '/board'));
