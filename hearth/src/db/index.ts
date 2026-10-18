@@ -4,6 +4,7 @@ import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import { migrate as migratePglite } from 'drizzle-orm/pglite/migrator';
 import { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
+import fs from 'node:fs';
 import path from 'node:path';
 import postgres from 'postgres';
 import { env } from '@/lib/env';
@@ -42,6 +43,7 @@ async function createDb(): Promise<Db> {
     url === 'pglite://memory'
       ? undefined
       : (url?.replace(/^pglite:\/\//, '') ?? path.join(process.cwd(), '.data', 'pglite'));
+  if (dataDir) fs.mkdirSync(path.dirname(dataDir), { recursive: true });
   const client = new PGlite({ dataDir, extensions: { vector } });
   await client.waitReady;
   await client.exec('CREATE EXTENSION IF NOT EXISTS vector');

@@ -44,6 +44,8 @@ export const projectInvite = pgTable('project_invite', {
     .notNull()
     .references(() => project.id, { onDelete: 'cascade' }),
   tokenHash: text('token_hash').notNull().unique(),
+  /** The token encrypted at rest, so the creator can see the same link again. */
+  tokenEnc: text('token_enc'),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -1,5 +1,5 @@
 {
-  "id": "32bd8d74-49f8-4905-8284-79456d9f9f63",
+  "id": "145e712f-0b82-4fe8-8ad1-cfcbe9ab80cd",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1183,6 +1183,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "token_enc": {
+          "name": "token_enc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "expires_at": {
           "name": "expires_at",

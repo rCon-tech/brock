@@ -68,12 +68,8 @@ export async function removeParticipant(
 }
 
 /** Wording for the "remind them" share sheet (R31). */
-export function reminderMessage(opts: {
-  fromName: string;
-  roomLabel: string;
-  url: string;
-}): string {
-  return `${opts.fromName} is waiting on you for the ${opts.roomLabel.toLowerCase()}. It takes about 3 minutes: ${opts.url}`;
+export function reminderText(opts: { fromName: string; roomLabel: string }): string {
+  return `${opts.fromName} is waiting on you for the ${opts.roomLabel.toLowerCase()}. It takes about 3 minutes.`;
 }
 
 export function isStalled(p: { macroDoneAt: Date | null; microDoneAt: Date | null }): boolean {

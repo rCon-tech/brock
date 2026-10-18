@@ -151,3 +151,18 @@ export async function loadItemCards(db: Db, ids: string[]): Promise<Map<string, 
   }
   return out;
 }
+
+const MIN_PHOTOS = 12;
+const MIN_PRODUCTS = 18;
+
+/** Room types with enough live cards to build a deck, so we never offer a room we can't serve. */
+export async function availableRoomTypes(db: Db, candidates: readonly string[]): Promise<string[]> {
+  const out: string[] = [];
+  for (const room of candidates) {
+    const items = await loadEngineItems(db, room);
+    const photos = items.filter((i) => i.tier === 'macro').length;
+    const products = items.filter((i) => i.tier === 'micro').length;
+    if (photos >= MIN_PHOTOS && products >= MIN_PRODUCTS) out.push(room);
+  }
+  return out;
+}

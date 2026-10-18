@@ -48,3 +48,31 @@ export async function requireCreator(db: Db, projectId: string, userId: string):
     throw new Forbidden('Only the person who started this can do that.');
   return access;
 }
+
+/** For endpoints that only know a participant id: it must be one this session controls. */
+export async function requireHost(
+  db: Db,
+  participantId: string,
+  userId: string,
+): Promise<ParticipantRow> {
+  const [row] = await db
+    .select()
+    .from(participant)
+    .where(and(eq(participant.id, participantId), eq(participant.hostUserId, userId)));
+  if (!row) throw new NotFound();
+  return row;
+}
+
+/** Anyone who controls at least one person in the project. Non-members get a 404. */
+export async function requireMember(
+  db: Db,
+  projectId: string,
+  userId: string,
+): Promise<ParticipantRow[]> {
+  const hosted = await db
+    .select()
+    .from(participant)
+    .where(and(eq(participant.projectId, projectId), eq(participant.hostUserId, userId)));
+  if (hosted.length === 0) throw new NotFound();
+  return hosted;
+}

@@ -164,6 +164,7 @@ CREATE TABLE "project_invite" (
 	"id" text PRIMARY KEY NOT NULL,
 	"project_id" text NOT NULL,
 	"token_hash" text NOT NULL,
+	"token_enc" text,
 	"expires_at" timestamp with time zone NOT NULL,
 	"revoked_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,

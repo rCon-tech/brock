@@ -1,4 +1,4 @@
-import { count } from 'drizzle-orm';
+import { count, sql } from 'drizzle-orm';
 import { catalogueItem, retailer, style } from '@/db/schema';
 import type { Db } from '@/db';
 import { computeCentroids } from '@/lib/engine/centroids';
@@ -17,6 +17,8 @@ export async function seedCatalogue(db: Db, options: SeedOptions = {}): Promise<
     .values({ id: SEED_RETAILER, name: 'Seed Home', network: 'manual' })
     .onConflictDoNothing();
 
+  // Building the vector index once at the end is much faster than updating it row by row.
+  await db.execute(sql`drop index if exists catalogue_item_embedding_idx`);
   for (let i = 0; i < items.length; i += BATCH) {
     await db
       .insert(catalogueItem)
@@ -50,6 +52,10 @@ export async function seedCatalogue(db: Db, options: SeedOptions = {}): Promise<
       )
       .onConflictDoNothing();
   }
+
+  await db.execute(
+    sql`create index if not exists catalogue_item_embedding_idx on catalogue_item using hnsw (embedding vector_cosine_ops)`,
+  );
 
   const centroids = computeCentroids(
     items.map((s) => ({

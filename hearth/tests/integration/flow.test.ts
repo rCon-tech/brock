@@ -328,10 +328,10 @@ describe('the tie-breaker (R11)', () => {
         })),
       );
     await answer(c.rich, round.itemIds.slice(0, 3));
-    expect(await afterBridgeSwipes(db, c.projectId)).toBe(false); // Sam still owes answers
+    expect((await afterBridgeSwipes(db, c.projectId)).rebuilt).toBe(false); // Sam still owes answers
     expect((await tiebreakState(db, c.projectId, c.sam)).remaining).toHaveLength(8);
     await answer(c.sam, round.itemIds.slice(0, 2));
-    expect(await afterBridgeSwipes(db, c.projectId)).toBe(true);
+    expect((await afterBridgeSwipes(db, c.projectId)).rebuilt).toBe(true);
 
     const board = (await getBoard(db, c.projectId, c.rich))!;
     expect(board.version).toBe(2);

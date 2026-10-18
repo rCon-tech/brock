@@ -1,7 +1,8 @@
-import { and, count, eq, isNull, gt } from 'drizzle-orm';
+import { and, count, desc, eq, gt, isNull } from 'drizzle-orm';
 import { participant, project, projectInvite, user } from '@/db/schema';
 import type { Db } from '@/db';
-import { randomToken, sha256 } from '@/lib/crypto';
+import { decrypt, encrypt, randomToken, sha256 } from '@/lib/crypto';
+import { env } from '@/lib/env';
 import { Conflict, NotFound } from '@/lib/errors';
 import { newId } from '@/lib/ids';
 
@@ -15,6 +16,7 @@ export async function createInvite(db: Db, projectId: string): Promise<string> {
     id: newId(),
     projectId,
     tokenHash: sha256(token),
+    tokenEnc: encrypt(token, env.BETTER_AUTH_SECRET),
     expiresAt: new Date(Date.now() + INVITE_DAYS * 86_400_000),
   });
   return token;
@@ -112,4 +114,24 @@ export async function acceptInvite(
     });
     return { projectId: info.projectId, participantId: id };
   });
+}
+
+/** The link the creator shares: the newest live invite, or a fresh one if none is left. */
+export async function currentInviteToken(db: Db, projectId: string): Promise<string> {
+  const live = await db
+    .select()
+    .from(projectInvite)
+    .where(
+      and(
+        eq(projectInvite.projectId, projectId),
+        isNull(projectInvite.revokedAt),
+        gt(projectInvite.expiresAt, new Date()),
+      ),
+    )
+    .orderBy(desc(projectInvite.createdAt));
+  for (const invite of live) {
+    const token = invite.tokenEnc ? decrypt(invite.tokenEnc, env.BETTER_AUTH_SECRET) : null;
+    if (token) return token;
+  }
+  return createInvite(db, projectId);
 }

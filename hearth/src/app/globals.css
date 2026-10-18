@@ -1,0 +1,119 @@
+@import 'tailwindcss';
+
+/*
+ * Hearth: calm, warm and home-like. Light only, with every colour set explicitly.
+ */
+@theme {
+  --color-cream: #f7f1e8;
+  --color-paper: #fffdf9;
+  --color-ink: #26211c;
+  --color-muted: #6b6258;
+  --color-clay: #b4553a;
+  --color-clay-dark: #8f3f28;
+  --color-sage: #5f7e5d;
+  --color-sage-soft: #e3ebdf;
+  --color-sand: #e6dac8;
+  --color-blush: #f4dfd5;
+  --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  background: var(--color-cream);
+}
+
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-clay);
+  outline-offset: 2px;
+}
+
+@layer components {
+  .gutter {
+    padding-inline: 1rem;
+  }
+
+  .btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition select-none disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-clay text-paper shadow-sm hover:bg-clay-dark;
+  }
+  .btn-secondary {
+    @apply border border-sand bg-paper text-ink hover:bg-blush;
+  }
+  .btn-ghost {
+    @apply text-muted hover:bg-sand/60 hover:text-ink;
+  }
+  .btn-danger {
+    @apply border border-clay/40 bg-paper text-clay-dark hover:bg-blush;
+  }
+  .btn-sm {
+    @apply min-h-9 px-3.5 py-1.5 text-xs;
+  }
+
+  .card {
+    @apply rounded-2xl border border-sand bg-paper shadow-[0_1px_0_rgb(0_0_0/0.03)];
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full bg-sand/70 px-2.5 py-1 text-xs font-medium text-ink;
+  }
+  .chip-sage {
+    @apply bg-sage-soft text-sage;
+  }
+  .chip-clay {
+    @apply bg-blush text-clay-dark;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold tracking-[0.14em] text-clay uppercase;
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-sand bg-paper px-3.5 py-2.5 text-base text-ink placeholder:text-muted/60;
+  }
+}
+
+/* Printing the style brief (R30): one tidy A4 page, no chrome. */
+@media print {
+  header,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+  body,
+  html {
+    background: #fff !important;
+  }
+  .print-page {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

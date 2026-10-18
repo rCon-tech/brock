@@ -51,7 +51,10 @@ async function loadPeople(
 }
 
 /** Engine items for a project: this room's live catalogue plus anything on the deck that has since been retired. */
-async function projectItems(db: Db, proj: typeof project.$inferSelect): Promise<EngineItem[]> {
+export async function projectItems(
+  db: Db,
+  proj: typeof project.$inferSelect,
+): Promise<EngineItem[]> {
   const live = await loadEngineItems(db, proj.roomType);
   const have = new Set(live.map((i) => i.id));
   const missing = [

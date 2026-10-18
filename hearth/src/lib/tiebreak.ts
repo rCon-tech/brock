@@ -4,13 +4,7 @@ import type { Db } from '@/db';
 import { MAX_TIEBREAK_ROUNDS, tiebreakCards } from '@/lib/engine/tiebreak';
 import { AppError, NotFound } from '@/lib/errors';
 import { newId } from '@/lib/ids';
-import {
-  computeSynthesis,
-  isFinished,
-  latestSynthesis,
-  nameSynthesis,
-  type Namer,
-} from '@/lib/synthesis';
+import { computeSynthesis, isFinished, latestSynthesis } from '@/lib/synthesis';
 
 export interface TiebreakState {
   roundsUsed: number;
@@ -115,17 +109,15 @@ export async function tiebreakState(
 
 /**
  * Call after bridge-round swipes. When everyone has answered every card, the board is rebuilt so
- * mutual yeses move into Agreed.
+ * mutual yeses move into Agreed. The caller names the new version (it can run after the response).
  */
 export async function afterBridgeSwipes(
   db: Db,
   projectId: string,
-  namer?: Namer,
-): Promise<boolean> {
+): Promise<{ rebuilt: boolean; version?: number }> {
   const all = await rounds(db, projectId);
-  if (all.length === 0) return false;
-  if (await openRound(db, projectId)) return false;
+  if (all.length === 0) return { rebuilt: false };
+  if (await openRound(db, projectId)) return { rebuilt: false };
   const out = await computeSynthesis(db, projectId);
-  if (out?.changed) await nameSynthesis(db, projectId, out.version, namer);
-  return !!out?.changed;
+  return out?.changed ? { rebuilt: true, version: out.version } : { rebuilt: false };
 }
