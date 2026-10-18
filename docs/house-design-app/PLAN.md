@@ -908,21 +908,21 @@ Revenue per board: see the formula in §5.
 
 | # | Risk | Mitigation |
 |---|---|---|
-| R1 | Couples don't find the bridge useful | Phase −1 gate before any engine work |
-| R2 | The catalogue is samey or wrong | Curation time, coverage grid, spot checks, uninformative-card filter |
-| R3 | Nobody finds the app | Four channels from day one (§4), measured separately; Phase −1 says which to lead with |
-| R4 | Affiliate revenue is too thin | Three other revenue lines tested by fake doors and B2B conversations (§5); plain links work if approvals lag |
-| R5 | Suggestions don't fit real homes | Room context (R14–R16); "Check the size" when dimensions are unknown; hide-risky switch |
-| R6 | One partner feels they lost | No scores, balanced selection, everyone brings something, anonymous vetoes, naming prompt rules, unit-tested (R20–R22) |
-| R7 | Partner B drops off | Pass-the-phone, 3-minute decks, personal result reward, partner-facing invite copy; completion by mode tracked |
-| R8 | 30 swipes is a thin signal | Diverse decks, smoothing, evidence on the board, tie-breaker, item stats over time |
-| R9 | Unsplash/affiliate terms | Hotlinking, attribution and download pings built in; share images use product images, not Unsplash; disclosure everywhere |
-| R10 | Email compliance (UK PECR/GDPR) | Alerts and lists are opt-in; one-click unsubscribe + `List-Unsubscribe` header; board-ready email is transactional to the creator only |
-| R11 | Thin AI SEO pages hurt rankings | Content computed from real catalogue data, every page reviewed before publishing, start with 10–20 not 60 |
-| R12 | Fake doors feel deceptive | Say "coming soon" immediately, never ask for payment details, offer a waitlist |
-| R13 | Someone already built this | Competitor scan in Phase −1; the reconciliation layer (bridge, balance, evidence) is the part to protect |
-| R14 | Swaps and ✕ reactions quietly drain a category | Swap queue of 10 per category; clear "that's everything at this budget" message; `pick_swapped` by category shows where the catalogue is thin |
-| R15 | Offline swipes arrive late or twice | `client_id` idempotency, batch endpoint tolerant of order; reveal waits until the participant's queue is empty |
+| K1 | Couples don't find the bridge useful | Phase −1 gate before any engine work |
+| K2 | The catalogue is samey or wrong | Curation time, coverage grid, spot checks, uninformative-card filter |
+| K3 | Nobody finds the app | Four channels from day one (§4), measured separately; Phase −1 says which to lead with |
+| K4 | Affiliate revenue is too thin | Three other revenue lines tested by fake doors and B2B conversations (§5); plain links work if approvals lag |
+| K5 | Suggestions don't fit real homes | Room context (R14–R16); "Check the size" when dimensions are unknown; hide-risky switch |
+| K6 | One partner feels they lost | No scores, balanced selection, everyone brings something, anonymous vetoes, naming prompt rules, unit-tested (R20–R22) |
+| K7 | Partner B drops off | Pass-the-phone, 3-minute decks, personal result reward, partner-facing invite copy; completion by mode tracked |
+| K8 | 30 swipes is a thin signal | Diverse decks, smoothing, evidence on the board, tie-breaker, item stats over time |
+| K9 | Unsplash/affiliate terms | Hotlinking, attribution and download pings built in; share images use product images, not Unsplash; disclosure everywhere |
+| K10 | Email compliance (UK PECR/GDPR) | Alerts and lists are opt-in; one-click unsubscribe + `List-Unsubscribe` header; board-ready email is transactional to the creator only |
+| K11 | Thin AI SEO pages hurt rankings | Content computed from real catalogue data, every page reviewed before publishing, start with 10–20 not 60 |
+| K12 | Fake doors feel deceptive | Say "coming soon" immediately, never ask for payment details, offer a waitlist |
+| K13 | Someone already built this | Competitor scan in Phase −1; the reconciliation layer (bridge, balance, evidence) is the part to protect |
+| K14 | Swaps and ✕ reactions quietly drain a category | Swap queue of 10 per category; clear "that's everything at this budget" message; `pick_swapped` by category shows where the catalogue is thin |
+| K15 | Offline swipes arrive late or twice | `client_id` idempotency, batch endpoint tolerant of order; reveal waits until the participant's queue is empty |
 
 ---
 
