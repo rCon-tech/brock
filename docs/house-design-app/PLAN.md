@@ -1,695 +1,603 @@
 # Hearth — Build Plan
 
-**Hearth** (working name, change it freely) is a shared house-design app. You sign in with Google and create a page for a property. Other people (a partner, family, a designer) join it from an invite link. Everyone links their own Pinterest account and picks which boards to share with the property. Hearth reads those pins, works out which ideas the members have *in common*, and suggests them for specific rooms. Upload a floorplan and Hearth finds the rooms. Upload photos of the real rooms and it renders mock-ups of those rooms restyled with the shared Pinterest ideas.
+> **Revision 2 (replaces Revision 1 entirely).** Pinterest is gone, along with the property-wide scope, floorplans, room photos and mock-ups. The MVP now does one job: **get two (or more) people to agree on a room's style in under 5 minutes.** Everyone swipes the *same* curated deck, and a synthesis engine turns the swipes into exact matches, a named "bridge" style, compromise pieces and buy links. Floorplans and mock-ups move to v2 (§15).
 
-This document covers everything needed to build v1: the technology, the external accounts, every file, the data model, the AI pipeline, the build order and the risks. No code exists yet. Each phase ends with acceptance criteria, so whoever builds it knows when the phase is done.
+**Hearth** (working name) is a mobile-first web app. Partner A starts a room project ("Living Room") and sends a link or QR code. Partner B opens it and starts swiping straight away, with no app to download and no account to create. Each person swipes about 12 whole-room photos (the vibe check) and then about 18 individual products (sofas, rugs, lighting…), and can spend up to 3 vetoes on hard deal-breakers. When everyone has finished, both see one shared board:
 
-> This plan sits in the `brock` repo only because that's where it was written. Hearth is a separate app: create a new repo (e.g. `rcon-tech/hearth`) and copy this file in as its `PLAN.md`. It deliberately reuses the Brock stack (Next.js 16, Drizzle, Postgres, Vitest, Playwright, Vercel + Neon), so nothing here is new territory except the AI and Pinterest parts.
+- **Agreed:** pieces everyone swiped right on, with buy buttons
+- **Your bridge style:** a named hybrid such as *"Warm Industrial"*, with the reasoning and what each person brings to it
+- **Compromise picks:** catalogue pieces that score well for *both* people, even if neither swiped them
+- **You both love / you differ on:** shared and clashing elements (dark wood, brass, clean lines…)
+- **Vetoes:** each person's deal-breakers, which are excluded from every suggestion
 
----
+An optional 8-card **tie-breaker round** lets both people swipe the compromise picks, which turns "suggested" into "agreed".
 
-## 1. Product decisions (decide these first)
+This document covers everything needed to build the MVP: the product rules, every technology, the external accounts, the catalogue pipeline, the algorithms, every file, the build order, the metrics and the risks. No code exists yet. Each phase ends with acceptance criteria.
 
-These defaults turn the brief into exact rules. Change any that don't match what you want before building.
-
-| # | Decision | Default | Why |
-|---|---|---|---|
-| D1 | Sign-in | **Google only** (OpenID Connect: `openid email profile`) | The brief asks for it, and these scopes need no Google verification review. |
-| D2 | Property roles | **Owner** (one, the creator), **Editor** (add rooms, upload, generate mock-ups), **Viewer** (look and react) | Lets you invite a builder or designer read-only. |
-| D3 | Joining | **Invite link** with a role, expiring after 7 days, revocable, usable by many people until it expires | No email service needed for v1. Copy the link into WhatsApp. |
-| D4 | Pinterest privacy | A member links Pinterest **once** per Hearth account, then picks **which boards** to share **per property**. Nothing is shared by default. | People have boards they don't want a partner's builder to see. |
-| D5 | Secret boards | Off in v1 (only the `boards:read` / `pins:read` scopes) | Fewer scopes = easier Pinterest app review. Add `*_secret` scopes later if asked. |
-| D6 | "Similar items" | Two pins are similar when their **image embeddings** are close (cosine similarity ≥ a tuned threshold, start at 0.82) **or** they share a detected item with the same category + material/colour. | Embeddings catch "same vibe"; item tags catch "you both saved a rattan pendant". |
-| D7 | A suggestion | A **cluster** of similar pins, scored by how many *different members* saved something in it, assigned to a **room**. Single-member clusters still show, ranked below shared ones. | The point is the overlap between people. |
-| D8 | Rooms | Come from the floorplan analysis **or** are added by hand. The floorplan result is always a draft the user confirms. | Vision models misread floorplans; a human check is cheap. |
-| D9 | Mock-ups | Generated from **one real room photo** + **up to 6 pins** from one suggestion. The room's walls, windows, floor plan and camera angle must stay; furniture, finishes and colours change. | Keeps mock-ups recognisably *your* room. |
-| D10 | Re-sync | Pinterest boards re-sync **nightly** and on demand ("Sync now", limited to once per 10 minutes). | Pins change; the Pinterest rate limit is finite. |
-| D11 | Disconnecting | Unlinking Pinterest **deletes** that member's pins, analysis and embeddings from Hearth, and recomputes suggestions. Leaving a property removes their boards from it. | Required by Pinterest's developer terms, and the right thing anyway. |
-| D12 | Device | **Mobile-first responsive web app** (works installed to the home screen). No native app in v1. | People take room photos on their phone. |
+> This plan sits in the `brock` repo only because that's where it was written. Hearth is a separate app: start a new repo (e.g. `rcon-tech/hearth`) and copy this file in as its `PLAN.md`. It reuses the Brock stack (Next.js 16, Drizzle, Postgres, Vitest, Playwright, Vercel + Neon), and Brock's "no account until you need one" approach.
 
 ---
 
-## 2. Technology (every piece)
+## 1. Product thesis (what we're testing)
 
-### 2.1 Runtime, framework, UI
+- Inspiration tools (Pinterest, Instagram) produce endless boards but no decisions. Planning tools (Homestyler, Planner 5D) need spatial setup before you get to style. Style quizzes (e.g. Havenly's Style Shuffle) are single-user.
+- Nobody **reconciles two people's tastes**. When A leans Industrial and B leans Minimalist, today's tools show zero overlap. Hearth finds the shared elements and proposes a bridge.
+- Making the second person sign up kills the loop, so **partner B never needs an account**.
+
+The MVP succeeds if (measured in PostHog, §11):
+
+| Metric | Target |
+|---|---|
+| Invited partners who finish swiping | ≥ 60% |
+| Median time from partner B opening the link to the board being ready | ≤ 5 min |
+| Boards rated "this helped us agree" (thumbs on the board) | ≥ 60% 👍 |
+| Boards with ≥ 1 buy-button click | ≥ 25% |
+
+---
+
+## 2. Product rules (decide these first)
+
+| # | Rule | Default | Why |
+|---|---|---|---|
+| R1 | Project | **One room** (room type + optional name + optional budget band). A user can have many. | Matches "resolve this room" |
+| R2 | Who starts | Creator signs in with **Google** (so they can come back and get the "they've finished" email). | The person who cares most has a reason to sign in |
+| R3 | Who joins | Anyone with the link/QR, as a **guest**: they type a first name and swipe. Guests can "Save with Google" later and keep their swipes. | No sign-up before value |
+| R4 | Participants | 2 by default, up to **4** (e.g. a teenager's bedroom, a house share). All the maths is N-person. | Couples first, without hard-coding 2 |
+| R5 | Invite link | Unguessable token, valid 14 days, until the project has 4 participants; the creator can revoke and regenerate. Also shown as a QR code. | Easy to share in person or over chat |
+| R6 | Room types at launch | **Living room, bedroom, dining room** | Furniture-led rooms swipe well. Kitchens and bathrooms are mostly fixtures; add them later. |
+| R7 | Decks | **Macro**: 12 whole-room photos. **Micro**: 18 products across fixed category quotas (§7.2). Everyone in a project gets the **same cards**, in their own shuffled order. | The same cards make exact matches possible; shuffling avoids order bias |
+| R8 | Swipe | Right = yes, left = no. Undo the last swipe. No "maybe": forced choice gives a cleaner signal and is faster. | Speed |
+| R9 | Vetoes | **3 per person per project**. A veto is a hard "no" on a card, and you can optionally say *why* by tapping one of its tags ("it's the velvet"). A vetoed item is never suggested; a vetoed **attribute** removes every item carrying it from compromise picks. | The deal-breaker layer from the brief, made more useful than a single card |
+| R10 | Privacy until reveal | You can't see anyone else's swipes until **you** have finished. The board appears once everyone who joined has finished, or when the creator presses "Show results now" (needs ≥ 2 finished). | Prevents anchoring on the partner's choices |
+| R11 | Tie-breaker round | After the board appears, an optional 8-card round of compromise picks. Mutual yes → moves into **Agreed**. Can be repeated twice. | Turns suggestions into agreement |
+| R12 | Buying | Product cards link through `/go/[itemId]`, which logs the click and redirects to the **affiliate link**. Affiliate disclosure on every board and in the footer. | Revenue + UK ASA/CMA (and US FTC) disclosure rules |
+| R13 | Budget band | Optional at project creation: £ / ££ / £££ (thresholds per category in config). Filters micro deck and compromise picks. | Stops "you both love a £6k sofa" |
+
+---
+
+## 3. Technology (every piece)
+
+### 3.1 App
 
 | Layer | Choice | Version target | Purpose |
 |---|---|---|---|
-| Language | TypeScript | 5.9 | Everything, front and back |
-| Runtime | Node.js | 24 (`.nvmrc`), engines `>=22` | Server, jobs, tooling |
-| Package manager | pnpm | 10 | Install, scripts, lockfile |
-| Framework | Next.js (App Router) | 16 | Pages, Server Components, Server Actions, route handlers, `proxy.ts` |
-| UI library | React | 19 | Components |
-| Styling | Tailwind CSS | 4 (`@tailwindcss/postcss`) | All styling |
-| Component kit | shadcn/ui (copied into `src/components/ui`, built on Radix UI primitives) | latest CLI | Buttons, dialogs, dropdowns, tabs, toasts, sheet, avatar |
-| Icons | lucide-react | latest | Icons |
-| Client data | TanStack Query | 5 | Polling job status (sync, analysis, mock-ups) |
-| Validation | Zod | 4 | Every request body, form, env var and AI structured output |
+| Language | TypeScript | 5.9 | Everything |
+| Runtime | Node.js | 24 (`.nvmrc`), engines `>=22` | Server, scripts |
+| Package manager | pnpm | 10 | — |
+| Framework | Next.js (App Router) | 16 | Pages, Server Actions, route handlers, `after()` for post-response work, `proxy.ts` |
+| UI | React | 19 | — |
+| Styling | Tailwind CSS | 4 | — |
+| Components | shadcn/ui (Radix primitives, copied into `src/components/ui`) | latest CLI | Buttons, dialogs, sheets, toasts, tabs, avatars |
+| Icons | lucide-react | latest | — |
+| Swipe physics | **motion** (formerly Framer Motion) + **@use-gesture/react** | 12 / 10 | Drag, fling, spring-back, card stack animation |
+| Client data | TanStack Query | 5 | Polling project state, optimistic swipes |
+| Validation | Zod | 4 | Inputs, env, AI output, feed rows |
+| QR codes | `qrcode` | 1.5 | Server-rendered SVG QR for the invite link |
 
-### 2.2 Data, auth, storage, jobs
+### 3.2 Data, auth, email, analytics
 
 | Layer | Choice | Version target | Purpose |
 |---|---|---|---|
-| Database | PostgreSQL + **pgvector** | Postgres 16, pgvector 0.8 | All data, plus vector search over pin embeddings |
-| ORM / migrations | Drizzle ORM + drizzle-kit | 0.45 / 0.31 | Schema, queries, `vector()` column, `cosineDistance()` |
-| Driver | `postgres` (postgres.js) | 3 | DB connection |
-| Auth | **Better Auth** with the Google social provider + Drizzle adapter | 1.x | Google sign-in, sessions (cookie), `user/session/account/verification` tables |
-| Pinterest OAuth | Hand-written OAuth 2.0 code flow (not Better Auth) | — | Pinterest is a *linked data source*, not a way to sign in, so it gets its own tokens table and refresh logic |
-| Token encryption | `node:crypto` AES-256-GCM | built-in | Encrypt Pinterest access/refresh tokens at rest |
-| File storage | **Vercel Blob** (`@vercel/blob`, client uploads) | 2.x | Floorplans, room photos, generated mock-ups |
-| Background jobs | **Inngest** (`inngest` SDK, served from a Next route) | 3.x | Pinterest sync, pin analysis, clustering, floorplan/room analysis, mock-up generation, nightly cron. Retries, step functions, concurrency + throttle limits. |
+| Database | PostgreSQL + **pgvector** | Postgres 16, pgvector 0.8 | All data + catalogue embeddings, style centroids |
+| ORM / migrations | Drizzle ORM + drizzle-kit | 0.45 / 0.31 | Schema, `vector()` columns, `cosineDistance()` |
+| Driver | postgres.js | 3 | — |
+| Auth | **Better Auth**: Google social provider + **anonymous plugin** + Drizzle adapter | 1.x | Google sign-in for creators; guest sessions for partners, linkable to Google later without losing data |
+| Email | **Resend** (+ React Email templates) | latest | One email: "Sam has finished — your board is ready" to the creator |
+| Product analytics | **PostHog** (`posthog-js`, `posthog-node`), cookieless mode until consent | latest | Funnels for the §1 metrics |
+| Errors | Sentry (`@sentry/nextjs`) | latest | — |
+| Scheduled jobs | **Vercel Cron** → route handler | — | Nightly product-feed refresh (price/stock) |
 
-### 2.3 AI and external APIs
+No job queue is needed: deck building and synthesis are fast in-process maths over pre-computed embeddings. The only live AI call (naming the bridge style) runs in `after()` once the response has been sent, and the board polls until it's there.
 
-| Job | Service | Model / endpoint | Why this one |
+### 3.3 Catalogue sources and AI (mostly offline)
+
+| Job | Service | Detail | When |
 |---|---|---|---|
-| Tag every pin (room type, style, items, materials, colours) | **Anthropic Claude API** (`@anthropic-ai/sdk`) via the **Message Batches API** (50% cheaper, async) | `claude-opus-5-5`, effort `low`, structured output (Zod schema) | Strong vision, reliable structured JSON |
-| Analyse a floorplan (rooms, sizes, positions) | Claude API | `claude-opus-5-5`, effort `high`, structured output | Hardest reasoning task in the app |
-| Analyse a room photo (type, fixed features, viewpoint, lighting) | Claude API | `claude-opus-5-5`, effort `medium`, structured output | — |
-| Name and explain a suggestion ("You both saved warm oak + boucle") | Claude API | `claude-opus-5-5`, effort `low` | Short text |
-| Write the image-edit brief for a mock-up | Claude API | `claude-opus-5-5`, effort `medium`, structured output | Turns pins + room analysis into a precise edit instruction |
-| Image embeddings for "similar" | **Voyage AI** multimodal embeddings (`voyageai` SDK) | `voyage-multimodal-3` (1024-dim; use the newest multimodal model when you start) | Anthropic has no embeddings endpoint; Voyage is the provider Anthropic recommends, and its multimodal model embeds images and text in one space |
-| Generate the mock-up image | **Google Gemini API** (`@google/genai`) | Gemini image model ("Nano Banana Pro", `gemini-3-pro-image-preview` at time of writing; confirm the current id) | Claude doesn't generate images. This model edits a source photo using several reference images and keeps the room's geometry well. Wrapped behind a `MockupRenderer` interface so FLUX Kontext (via fal.ai) or OpenAI's image model can be swapped in. |
-| Pinterest data | **Pinterest API v5** (REST, `fetch`) | `/v5/user_account`, `/v5/boards`, `/v5/boards/{id}/pins` | The only sanctioned way to read pins |
+| Whole-room photos (macro) | **Unsplash API** (Pexels API as a second source) | Free; licence allows use and modification; API terms require hotlinking their URLs, attribution ("Photo by X on Unsplash") and pinging the `download_location` when a photo is used | Import script; production-access approval from Unsplash before launch |
+| Products (micro) | **Awin** product feeds (UK affiliate network; add Rakuten/Impact/CJ for other retailers or regions) | CSV/XML feeds give title, image, price, stock, deep link with affiliate tracking. You must be approved by each retailer's programme on Awin. | Import script + nightly refresh |
+| Ad-hoc products | **Skimlinks** (optional) | Turns any retailer URL into an affiliate link, for hand-curated items not in a feed | Admin |
+| Tagging every catalogue item | **Claude API** (`@anthropic-ai/sdk`) via **Message Batches** (50% cheaper) | `claude-opus-5-5`, effort `low`, structured output: style weights, materials, colours, finishes, lines/shape, era, category, room types, quality flags | Offline, once per item |
+| Image embeddings ("CLIP-like") | **Voyage AI** multimodal embeddings (`voyageai`) | `voyage-multimodal-3` (1024-d; use the newest multimodal model when you start). Image + short text in one vector. | Offline, once per item |
+| Naming the bridge style + rationale | Claude API | `claude-opus-5-5`, effort `low`, structured output, server-side refusal fallback (`betas: ["server-side-fallback-2026-07-01"]`, `fallbacks: "default"`) | Live, once per board (version) |
 
-All Claude calls: `thinking: { type: "adaptive" }`, an explicit `output_config.effort`, `client.messages.parse()` with a Zod schema for JSON results, and the server-side refusal fallback (`betas: ["server-side-fallback-2026-07-01"]`, `fallbacks: "default"`) on the live (non-batch) calls. Always check `stop_reason` before reading content.
+> **Why Voyage instead of raw CLIP:** the catalogue is embedded offline, so either works. Voyage keeps everything in TypeScript with no GPU or Python, and it embeds text into the same space, which lets the admin tools search the catalogue for "dark wood" or "brass". If you'd rather self-host, an open SigLIP/CLIP model in a one-off Python script producing the same `vector` column is a drop-in swap. Keep the dimension in one constant.
 
-> **Cost lever:** pin tagging is the high-volume call. If the bill matters more than tag quality, switching just that one call to `claude-haiku-5-5` cuts its cost by roughly 40×. Measure tag quality on 50 pins before deciding.
-
-### 2.4 Quality, testing, delivery
+### 3.4 Quality and delivery
 
 | Layer | Choice | Purpose |
 |---|---|---|
-| Unit + integration tests | Vitest 3 (two projects: `unit`, `integration`) | Logic + DB tests |
-| HTTP mocking | MSW (Mock Service Worker) 2 | Fake Pinterest, Anthropic, Voyage, Gemini in tests; no real API calls in CI |
-| E2E tests | Playwright | Full flows in a browser, with a test-only sign-in bypass |
-| Lint / format | ESLint 9 (`eslint-config-next`) + Prettier 3 | — |
-| Type check | `tsc --noEmit` | — |
-| CI | GitHub Actions | Lint, typecheck, unit, integration (Postgres+pgvector service), E2E |
-| Local DB | Docker Compose, `pgvector/pgvector:pg16` image | Dev DB on :5432, test DB on :5433 |
-| Hosting | Vercel (app + Blob + cron-free; Inngest does scheduling) | — |
-| Prod database | Neon Postgres (pgvector enabled: `CREATE EXTENSION vector`) | — |
-| Error monitoring | Sentry (`@sentry/nextjs`) | Errors from pages, routes and Inngest functions |
+| Unit + integration | Vitest 3 (`unit`, `integration` projects) | Algorithms, DB |
+| HTTP mocking | MSW 2 | Fake Anthropic, Voyage, Unsplash, Resend in tests |
+| E2E | Playwright (two browser contexts = two partners) | Full flow |
+| Lint / format / types | ESLint 9, Prettier 3, `tsc --noEmit` | — |
+| CI | GitHub Actions (Postgres + pgvector service container) | — |
+| Scripts runner | `tsx` | Catalogue import/tag/embed scripts |
+| Feed parsing | `csv-parse` | Awin CSV feeds |
+| Local DB | Docker Compose, `pgvector/pgvector:pg16` | Dev :5432, test :5433 |
+| Hosting | Vercel (app + Cron) + Neon Postgres (`CREATE EXTENSION vector`) | — |
 
 ---
 
-## 3. Accounts and keys to set up before coding (Day 0)
+## 4. Accounts and keys (Day 0)
 
-Do these first; Pinterest approval in particular has lead time.
+Start the approvals first: Unsplash and the affiliate programmes have lead time.
 
-1. **Google Cloud** → new project → *Google Auth Platform* → consent screen (External, app name, support email) → *Clients* → **Web application** OAuth client. Authorised redirect URIs:
-   - `http://localhost:3000/api/auth/callback/google`
-   - `https://<your-prod-domain>/api/auth/callback/google`
-   - Copy `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
-2. **Pinterest** → developers.pinterest.com → *My apps* → **Connect app**. Fill in the app description honestly: "reads a user's chosen boards to suggest interior-design ideas shared between household members and render private mock-ups of their own rooms". Redirect URIs:
-   - `http://localhost:3000/api/pinterest/callback`
-   - `https://<your-prod-domain>/api/pinterest/callback`
-   - Scopes: `user_accounts:read`, `boards:read`, `pins:read`.
-   - New apps start on **Trial access** (low rate limits, limited who can connect). **Apply for Standard access as soon as Phase 2 works**: it needs a screen-recorded demo of the OAuth flow and how pins are used. Budget a couple of weeks.
-   - Copy `PINTEREST_APP_ID`, `PINTEREST_APP_SECRET`.
-   - Read the current Pinterest Developer Guidelines and API terms end to end before Phase 3 (see risk R1).
-3. **Anthropic** → console.anthropic.com → API key → `ANTHROPIC_API_KEY`. Set a monthly spend limit.
-4. **Voyage AI** → dash.voyageai.com → API key → `VOYAGE_API_KEY`.
-5. **Google AI Studio** → API key for the Gemini API → `GEMINI_API_KEY`. Enable billing (image models aren't on the free tier).
-6. **Neon** → project → database `hearth` → run `CREATE EXTENSION IF NOT EXISTS vector;` → `DATABASE_URL`.
-7. **Vercel** → import the repo → add a **Blob** store (gives `BLOB_READ_WRITE_TOKEN`) → add env vars.
-8. **Inngest** → app.inngest.com → connect the Vercel integration (gives `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`). Locally you use the Inngest dev server, no keys.
-9. **Sentry** → Next.js project → `SENTRY_DSN` (Phase 7).
-10. Generate secrets: `openssl rand -base64 32` for `BETTER_AUTH_SECRET` and again for `TOKEN_ENCRYPTION_KEY`.
+1. **Google Cloud** → Google Auth Platform → consent screen (External) → Web OAuth client. Redirect URIs: `http://localhost:3000/api/auth/callback/google`, `https://<domain>/api/auth/callback/google`. Scopes `openid email profile` (no verification review needed).
+2. **Unsplash** → unsplash.com/developers → new app (starts in demo mode with a low hourly limit) → apply for **production** once the swipe screen shows attribution correctly (they review screenshots).
+3. **Awin** → sign up as a **publisher** → add your site and promotional method → apply to the programmes of the homeware retailers you want → once approved, create a product-feed download URL. Approval for each programme is manual and some retailers want an existing live site: launch the site with a landing page early.
+4. **Anthropic** console → API key, monthly spend limit.
+5. **Voyage AI** → API key.
+6. **Resend** → API key, verify your sending domain (DNS records).
+7. **PostHog** → project (EU cloud if you're UK/EU-based) → project API key.
+8. **Neon** → database `hearth` → `CREATE EXTENSION IF NOT EXISTS vector;`.
+9. **Vercel** → import repo, set env vars, add the cron (§9.1 `vercel.ts`).
+10. **Sentry** → Next.js project → DSN.
+11. Secrets: `openssl rand -base64 32` for `BETTER_AUTH_SECRET` and `CRON_SECRET`.
 
 ### Environment variables (`.env.example`)
 
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | App database |
-| `TEST_DATABASE_URL` | Separate DB that integration/E2E tests wipe |
-| `BETTER_AUTH_SECRET` | Signs session cookies |
-| `BETTER_AUTH_URL` | `http://localhost:3000` locally, the prod URL in prod |
+| `DATABASE_URL`, `TEST_DATABASE_URL` | App DB, test DB (wiped by tests) |
+| `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | Sessions |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google sign-in |
-| `PINTEREST_APP_ID`, `PINTEREST_APP_SECRET` | Pinterest OAuth |
-| `PINTEREST_REDIRECT_URI` | Must exactly match a URI registered with Pinterest |
-| `TOKEN_ENCRYPTION_KEY` | 32-byte base64 key for AES-256-GCM |
-| `ANTHROPIC_API_KEY` | Claude |
-| `VOYAGE_API_KEY` | Embeddings |
-| `GEMINI_API_KEY` | Mock-up images |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob |
-| `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` | Jobs (prod only) |
-| `SENTRY_DSN` | Errors (prod only) |
-| `E2E_TEST_AUTH` | `1` only in E2E runs: enables `/api/test/sign-in` (never set in prod; the route also refuses when `NODE_ENV=production`) |
-| `SIMILARITY_THRESHOLD` | Optional override for D6 (default `0.82`) |
+| `ANTHROPIC_API_KEY` | Tagging + bridge naming |
+| `VOYAGE_API_KEY` | Embeddings (scripts only) |
+| `UNSPLASH_ACCESS_KEY` | Photo import + download pings |
+| `AWIN_FEED_URLS` | Comma-separated feed download URLs |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Notification email |
+| `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Analytics |
+| `SENTRY_DSN` | Errors |
+| `CRON_SECRET` | Vercel Cron calls the refresh route with `Authorization: Bearer <CRON_SECRET>` |
+| `ADMIN_EMAILS` | Comma-separated Google emails allowed into `/admin` |
+| `E2E_TEST_AUTH` | `1` only in E2E: enables `/api/test/sign-in` (route refuses in production) |
 
 ---
 
-## 4. Architecture
+## 5. Architecture
 
 ```
- Browser (Next.js pages, React 19, TanStack Query polling)
-    │  Server Actions / route handlers
-    ▼
- Next.js on Vercel ──────────────► Postgres (Neon) + pgvector
-    │  inngest.send(event)                ▲
-    ▼                                     │ writes results
- Inngest functions (durable steps, retries, throttles)
-    ├─ pinterest/account.sync   ──► Pinterest API v5
-    ├─ pins/analyse             ──► Claude (Batches) + Voyage embeddings
-    ├─ property/suggestions.recompute (pure TS + pgvector queries + Claude for names)
-    ├─ floorplan/analyse        ──► Claude vision
-    ├─ room-photo/analyse       ──► Claude vision
-    ├─ mockup/generate          ──► Claude (brief) ──► Gemini image ──► Vercel Blob
-    └─ cron: nightly re-sync
- Uploads: browser ──(client upload token)──► Vercel Blob; DB stores the blob URL
+            ┌──────────── OFFLINE (scripts, run by you) ─────────────┐
+ Unsplash ─►│ import-photos ─┐                                        │
+ Awin    ──►│ import-feed  ──┼─► catalogue_item (draft)               │
+            │                ├─► tag-catalogue   (Claude Batches)     │
+            │                ├─► embed-catalogue (Voyage)             │
+            │                └─► build-style-centroids                │
+            │ /admin/catalogue: review → status = live                │
+            └─────────────────────────────────────────────────────────┘
+                                   │ Postgres + pgvector
+            ┌──────────── ONLINE (Next.js on Vercel) ─────────────────┐
+ Partner A ─► create project ─► deck builder (pure TS) ─► project.decks
+            ─► share link / QR
+ Partner B ─► /j/[token] ─► guest session ─► swipe macro → micro (+ vetoes)
+ last finisher ─► synthesis (pure TS, ms) ─► after(): Claude names bridge
+            ─► board ─► tie-breaker round ─► /go/[id] affiliate redirect
+ Vercel Cron (nightly) ─► refresh feeds: price, stock, retire dead items
 ```
 
 Rules of the road:
 
-- **Pages never call an AI or Pinterest API directly.** They write a row with `status = 'queued'`, send an Inngest event, and poll a status endpoint. Everything slow is a job.
-- **Every AI result is validated with Zod** before it touches the DB. A result that fails validation marks the row `failed` with the reason; it is retried once by Inngest, then shown to the user as "couldn't analyse, try again".
-- **Every query is scoped by property membership.** One helper, `requireMember(propertyId, minRole)`, is called at the top of every server action and route that takes a `propertyId`.
-- Pinterest analysis is stored **per pin, not per property**: if two properties share the same member's board, the pin is tagged and embedded once.
+- **All per-user maths is deterministic TypeScript** in `src/lib/engine/`, unit-tested with synthetic vectors. AI is used only (a) offline to understand the catalogue and (b) once per board to *name and explain* a result the maths already chose. So the AI can't invent a match, and a failed AI call only costs the nice wording (the board falls back to the taxonomy name).
+- **Every project-scoped action calls `requireParticipant(projectId)`.** Guests are real (anonymous) Better Auth users, so there's one permission path.
+- Swipes are written one by one (idempotent upsert on `(participant_id, item_id)`) so closing the tab mid-deck loses nothing.
 
 ---
 
-## 5. Data model
+## 6. Data model
 
-All ids are `text` (cuid2-style, generated in app code) except Better Auth's own tables, which use what its CLI generates. All tables have `created_at timestamptz default now()`.
+Ids are app-generated `text` except Better Auth's tables. All tables have `created_at`.
 
-### 5.1 Auth (generated by Better Auth CLI)
+### 6.1 Auth (generated by the Better Auth CLI)
 
-`user` (id, name, email, email_verified, image, created_at, updated_at) · `session` · `account` (Google link) · `verification`.
+`user` (…, `is_anonymous`), `session`, `account`, `verification`.
 
-### 5.2 Properties and membership
-
-| Table | Columns | Notes |
-|---|---|---|
-| `property` | id, name, address (nullable), cover_image_url (nullable), created_by → user | |
-| `property_member` | property_id → property, user_id → user, role `owner|editor|viewer`, joined_at | PK (property_id, user_id). Exactly one owner per property (partial unique index on `role = 'owner'`). |
-| `property_invite` | id, property_id, token_hash (sha256 of the URL token), role `editor|viewer`, created_by, expires_at, revoked_at (nullable), use_count | Raw token appears only in the link. |
-
-### 5.3 Pinterest
+### 6.2 Catalogue
 
 | Table | Columns | Notes |
 |---|---|---|
-| `pinterest_connection` | user_id (PK) → user, pinterest_user_id, username, profile_image, access_token_enc, refresh_token_enc, access_expires_at, refresh_expires_at, scopes, last_synced_at, sync_status `idle|queued|running|failed`, sync_error | Tokens AES-256-GCM encrypted (`iv:tag:ciphertext` base64). |
-| `pinterest_board` | id (Pinterest board id, PK), owner_user_id → user, name, description, pin_count, image_url, updated_at | |
-| `pinterest_pin` | id (Pinterest pin id, PK), board_id → board, owner_user_id → user, title, description, link (outbound), image_url (largest available), image_width, image_height, dominant_color, pinned_at, removed_at (nullable, set when the pin disappears on re-sync) | |
-| `property_board` | property_id, board_id, shared_by_user_id | Which of a member's boards are shared into which property (D4). PK (property_id, board_id). |
+| `catalogue_item` | id, tier `macro|micro`, room_types text[], category (micro only, §7.1), title, image_url, image_w, image_h, source `unsplash|pexels|awin|manual`, source_id, attribution_name, attribution_url, unsplash_download_location, retailer, price_pence, currency, product_url, affiliate_url, in_stock bool, status `draft|live|retired`, tags jsonb (§7.1 shape), primary_style, style_weights jsonb (`{style: 0..1}`), embedding `vector(1024)`, tagged_at, embedded_at, last_seen_in_feed_at | Unique (source, source_id). HNSW index on embedding (cosine). GIN on room_types. |
+| `style` | slug (PK), name, description, centroid `vector(1024)`, item_count | ~25 rows, rebuilt by script |
 
-### 5.4 Analysis
+### 6.3 Projects and people
 
 | Table | Columns | Notes |
 |---|---|---|
-| `pin_analysis` | pin_id (PK) → pin, status `queued|done|failed|skipped`, is_interior bool, room_types text[], styles text[], palette text[] (hex), items jsonb (`[{category, description, material, colour}]`), summary text, model text, error text, analysed_at | `skipped` = not interior (recipes, outfits); excluded from suggestions |
-| `pin_embedding` | pin_id (PK), embedding `vector(1024)`, model text | HNSW index: `USING hnsw (embedding vector_cosine_ops)` |
-
-### 5.5 Rooms, uploads, suggestions, mock-ups
-
-| Table | Columns | Notes |
-|---|---|---|
-| `floorplan` | id, property_id, blob_url, width, height, status `queued|running|done|failed`, raw_result jsonb, error, uploaded_by | |
-| `room` | id, property_id, floorplan_id (nullable), name ("Kitchen"), room_type (enum, §7.1), width_m, length_m (nullable), bbox jsonb (`{x,y,w,h}` normalised 0–1 on the floorplan image, nullable), confirmed bool, sort_order | Manual rooms have no floorplan_id |
-| `room_photo` | id, room_id, blob_url, width, height, status, analysis jsonb (§7.4), error, uploaded_by | |
-| `suggestion` | id, property_id, room_id (nullable = "unassigned"), title, rationale, score real, member_count int, styles text[], palette text[], computed_at, version int | Rebuilt by the recompute job; `version` increments each run |
-| `suggestion_pin` | suggestion_id, pin_id, is_representative bool | |
-| `suggestion_reaction` | suggestion_id, user_id, value `-1|1` | Feeds the score (§7.3) |
-| `mockup` | id, room_photo_id, suggestion_id, pin_ids text[], brief jsonb, prompt text, status `queued|running|done|failed`, blob_url (nullable), model text, error, created_by | |
-| `mockup_reaction` | mockup_id, user_id, value `-1|1` | |
+| `project` | id, room_type, name, budget_band (nullable), created_by → user, macro_deck text[], micro_deck text[], deck_seed, reveal_forced_at (nullable) | Decks frozen at creation (R7) |
+| `project_invite` | id, project_id, token_hash, expires_at, revoked_at | Raw token only in the link |
+| `participant` | id, project_id, user_id, display_name, role `creator|partner`, joined_at, macro_done_at, micro_done_at, vetoes_left (default 3) | Unique (project_id, user_id); max 4 per project (checked in a transaction) |
+| `swipe` | participant_id, item_id, round `macro|micro|bridge`, value smallint (−1/1), decision_ms int, position int, created_at, updated_at | PK (participant_id, item_id, round) |
+| `veto` | id, participant_id, item_id, attribute (nullable, e.g. `material:velvet`) | Counts against `vetoes_left` |
+| `synthesis` | project_id, version, inputs_hash, status `computing|ready`, result jsonb (§7.4 shape), bridge_name, tagline, rationale, contributions jsonb, ai_model, computed_at | Latest version is shown; recomputed when swipes/vetoes change after reveal (e.g. tie-breaker) |
+| `bridge_round` | id, project_id, synthesis_version, item_ids text[], created_at | Max 2 per project |
+| `board_feedback` | project_id, participant_id, helpful bool | The "this helped us agree" thumbs |
+| `outbound_click` | id, item_id, project_id, participant_id (nullable), created_at | Affiliate clicks |
 
 ---
 
-## 6. Pinterest integration (exact flow)
+## 7. Catalogue pipeline (offline)
 
-1. **Connect** — `GET /api/pinterest/connect` creates a random `state`, stores it in an httpOnly cookie (10 min), and redirects to `https://www.pinterest.com/oauth/?client_id=…&redirect_uri=…&response_type=code&scope=user_accounts:read,boards:read,pins:read&state=…`.
-2. **Callback** — `GET /api/pinterest/callback?code&state`: check `state` against the cookie; `POST https://api.pinterest.com/v5/oauth/token` with HTTP Basic auth (`app_id:app_secret`) and form body `grant_type=authorization_code&code=…&redirect_uri=…`. Store both tokens encrypted with their expiries (read `expires_in` / `refresh_token_expires_in` from the response, don't hard-code them). Fetch `GET /v5/user_account` for username + avatar. Send `pinterest/account.sync`. Redirect back to where the user came from.
-3. **Token refresh** — `getAccessToken(userId)` in `pinterest/tokens.ts`: if the access token expires within 5 minutes, `POST /v5/oauth/token` with `grant_type=refresh_token`, store the new pair. If refresh fails with 400/401, mark the connection `failed` with "Reconnect Pinterest" and stop.
-4. **Sync** (Inngest, concurrency 1 per user, throttled globally to stay under the app's rate limit):
-   - `GET /v5/boards?page_size=100` following `bookmark` until null → upsert `pinterest_board`.
-   - For each board: `GET /v5/boards/{id}/pins?page_size=100` following `bookmark` → upsert `pinterest_pin` (pick the largest of `media.images` — `1200x`, then `600x`, then `originals`). Pins in the DB but not returned → set `removed_at`.
-   - On 429: Inngest `step.sleep` for the `Retry-After` seconds (or 60 s) and resume. Each board is its own step, so a failure resumes mid-sync.
-   - Send `pins/analyse` with the ids of new/changed pins, then `property/suggestions.recompute` for every property the user shares a board into.
-5. **Disconnect** — delete the connection, boards, pins (cascades to analysis/embeddings/`property_board`/`suggestion_pin`), call Pinterest's token revocation if the API offers one at build time, recompute affected properties.
-6. **Display rules** — always show a pin with its Pinterest attribution and link to `https://www.pinterest.com/pin/{id}/`. Never re-host pin images in Blob; hot-link `i.pinimg.com` (add it to `next.config.ts` `images.remotePatterns`).
+### 7.1 Taxonomy (`src/lib/taxonomy.ts`)
 
----
+- **Room types:** living_room, bedroom, dining_room (kitchen, bathroom, office, kids_room reserved for later).
+- **Styles (~25):** industrial, minimalist, japandi, scandinavian, mid_century, modern_farmhouse, coastal, boho, traditional, art_deco, maximalist, rustic, contemporary, mediterranean, wabi_sabi, hollywood_regency, french_country, transitional, organic_modern, eclectic, cottagecore, warm_minimal, brutalist, shaker, retro_70s.
+- **Attribute families** (the "elements" both people can share):
+  - `material`: oak, walnut, dark_wood, light_wood, rattan, cane, marble, travertine, concrete, linen, boucle, velvet, leather, wool, jute, metal_black, brass, chrome, glass, ceramic
+  - `colour`: white, cream, beige, greige, grey, charcoal, black, sage, olive, terracotta, rust, navy, blush, mustard, multicolour
+  - `line`: clean_lines, curved, chunky, slim_legs, tufted, rounded_edges, geometric, ornate
+  - `finish`: matte, gloss, distressed, natural, lacquered
+  - `mood`: airy, cosy, dramatic, calm, playful, earthy
+- **Micro categories** (living room quota in brackets): sofa (3), armchair (2), coffee_table (2), rug (3), ceiling_light (1), floor_lamp (1), table_lamp (1), storage (2), side_table (1), decor (2). Bedroom and dining have their own quotas in `src/lib/engine/quotas.ts`.
 
-## 7. AI pipeline (what each step does)
+### 7.2 Scripts (run locally against prod DB, or as a protected admin action)
 
-### 7.1 Shared vocabularies (`src/lib/taxonomy.ts`)
-
-- **Room types:** kitchen, living_room, dining_room, bedroom, bathroom, ensuite, wc, hallway, office, nursery, kids_room, utility, garden, patio, garage, other.
-- **Styles:** ~25 fixed labels (japandi, scandinavian, mid_century, modern_farmhouse, industrial, coastal, boho, minimalist, traditional, art_deco, maximalist, rustic, contemporary, mediterranean, wabi_sabi, …).
-- **Item categories:** sofa, armchair, dining_table, chair, bed, rug, pendant_light, floor_lamp, wall_lamp, cabinetry, worktop, splashback, tiles, flooring, wall_colour, wallpaper, curtains, shelving, art, mirror, plant, tap, bath, shower, vanity, storage, fireplace, other.
-
-Fixed vocabularies make tags comparable across members; free text goes in `description`.
-
-### 7.2 Pin tagging + embedding (`pins/analyse`)
-
-- Collect up to 500 pins per batch. Build one Claude Batches request per pin: system prompt (vocabularies, cached with `cache_control`), user content = the pin image by URL + title/description; `output_config.format` = JSON schema from `PinAnalysisSchema` (is_interior, room_types[], styles[], palette[], items[], summary).
-- Poll the batch with `step.sleep("1m")` until `ended`, then validate each result keyed by `custom_id` (= pin id) and upsert `pin_analysis`.
-- For pins with `is_interior = true`: call Voyage multimodal embeddings in chunks (image URL + summary text as one input) → upsert `pin_embedding`.
-- Then send `property/suggestions.recompute` for affected properties.
-
-### 7.3 Cross-referencing and suggestions (`property/suggestions.recompute`) — the core algorithm
-
-Pure TypeScript in `src/lib/suggestions/`, unit-tested without any API:
-
-1. **Gather** all non-removed, interior pins from boards shared into the property, with embeddings and tags, grouped by owner.
-2. **Edges.** For each pin, pgvector query: top 20 nearest pins *in this property* (`ORDER BY embedding <=> $1 LIMIT 20`). Keep an edge when cosine similarity ≥ `SIMILARITY_THRESHOLD`, **or** the two pins share an item with the same category and (material or colour). Edge weight = similarity, +0.05 per shared item, capped at 1.
-3. **Clusters.** Connected components over the edges, then split any component larger than 40 pins by re-running with the threshold +0.03 (prevents one "beige living room" blob swallowing everything). Single pins with no edges become singleton clusters.
-4. **Score** each cluster:
-   `score = 3 × distinct_members + mean_edge_weight + 0.5 × ln(pin_count) + Σ reactions (±1 each, from the previous version's matching suggestion)`.
-   Cross-member clusters therefore always outrank single-member ones.
-5. **Assign a room.** Majority vote of `room_types` across the cluster's pins → a room type. If the property has rooms of that type, assign to that room (if several, e.g. 3 bedrooms, assign to each and let the UI show it under all of them). If none, `room_id = null` ("Ideas without a room yet").
-6. **Describe.** Representative pins = the 4 with the highest summed edge weight. One Claude call per cluster (effort `low`): given the representatives' summaries/tags and which members saved them, return `{title, rationale}` (e.g. *"Warm oak and sage" — You and Sam both saved light oak cabinetry with sage-green walls*). Skip clusters already described in the previous version with the same pin set (hash the sorted pin ids).
-7. **Write** a new `version` of `suggestion` + `suggestion_pin` rows in one transaction; delete the old version.
-
-Also computed (cheap, no AI): a **taste overlap** panel per property — the styles, colours and item categories that appear in pins from ≥2 members, with counts.
-
-### 7.4 Floorplan analysis (`floorplan/analyse`)
-
-- Input: the uploaded image (client resizes to ≤ 2048 px long edge before upload).
-- Claude, effort `high`, schema `FloorplanSchema`: `{ units: "m"|"ft"|"unknown", rooms: [{ name, room_type, width, length, bbox: {x,y,w,h} (0–1), confidence }], notes }`. Prompt tells it to read printed labels and dimensions, convert feet to metres, and give its best bbox for each labelled room.
-- Results go into `room` with `confirmed = false`. The **Floorplan editor** shows the image with the boxes drawn on top; users drag/resize boxes, rename, change type, delete, add, then press **Confirm rooms**. Only confirmed rooms take part in suggestions.
-
-### 7.5 Room photo analysis (`room-photo/analyse`)
-
-- Claude, effort `medium`, schema `RoomPhotoSchema`: `{ room_type, fixed_features: [windows, doors, fireplace, beams, radiators…], replaceable: [current furniture/finishes], lighting: "bright"|"mixed"|"dim", viewpoint, estimated_ceiling_height_m, current_styles[], quality_issues[] }`.
-- If `room_type` disagrees with the room it was uploaded to, show a gentle warning ("This looks like a bathroom — move it?").
-- If `quality_issues` contains "too dark"/"too blurry", ask for a better photo before allowing mock-ups.
-
-### 7.6 Mock-up generation (`mockup/generate`)
-
-1. **Brief** — Claude (effort `medium`, schema `MockupBriefSchema`) gets the room photo analysis, the suggestion's title/rationale, and the chosen pins' summaries/items. It returns `{ keep: [...fixed features...], change: [{ element, to }], palette, style, negative: [...] , prompt }`. The `prompt` is a single precise image-edit instruction: *keep the walls, windows, floor plan, ceiling and camera angle exactly; replace X with Y; use palette …*.
-2. **Render** — `MockupRenderer.render({ roomPhoto, referenceImages (≤6 pin images), prompt })`. The Gemini implementation fetches all images, sends them inline with the prompt, and returns PNG bytes.
-3. **Store** — upload bytes to Vercel Blob (`mockups/{propertyId}/{mockupId}.png`), set `blob_url`, `status = done`.
-4. Concurrency: 2 mock-ups at a time per property, 10 globally; a user may have at most 5 queued. Each one costs real money (see §12).
-
-The mock-up page shows a **before/after slider**, the source pins underneath (with Pinterest attribution), thumbs up/down, and "Try again" (same brief, new render) / "Different idea" (pick another suggestion).
-
----
-
-## 8. Pages and API surface
-
-### 8.1 Pages
-
-| Route | What it shows |
+| Script | Does |
 |---|---|
-| `/` | Signed out: landing + "Continue with Google". Signed in: redirect to `/properties`. |
-| `/sign-in` | Google button (also where `proxy.ts` sends signed-out users, with `?next=`) |
-| `/properties` | Your properties as cards + "New property" |
-| `/properties/new` | Name + optional address → creates it, you're owner |
-| `/p/[propertyId]` | Property home: members (avatars), rooms grid, "Ideas for every room" (top suggestions), taste-overlap panel, setup checklist (link Pinterest → share boards → upload floorplan → add room photos) |
-| `/p/[propertyId]/boards` | Your Pinterest boards with toggles "share with this property"; status of sync/analysis |
-| `/p/[propertyId]/members` | Members + roles (owner can change/remove), invite link generator, revoke |
-| `/p/[propertyId]/floorplan` | Upload + floorplan editor (§7.4) |
-| `/p/[propertyId]/rooms/[roomId]` | Room: photos (upload), suggestions for this room, mock-ups |
-| `/p/[propertyId]/suggestions/[suggestionId]` | Suggestion: all pins (grouped by member), rationale, reactions, "Mock it up in…" room-photo picker |
-| `/p/[propertyId]/mockups/[mockupId]` | Before/after viewer, reactions, retry |
-| `/invite/[token]` | "Rich invited you to 12 Elm Road as an editor" → Join (sign in first if needed) |
-| `/settings` | Your account, Pinterest connection (connect/disconnect, last sync), delete account |
+| `scripts/import-photos.ts --room living_room --query "living room interior" --pages 10` | Unsplash search → upsert `catalogue_item` (tier macro, status draft), store attribution + download_location. Skips images < 1600px or portrait-only-wrong-aspect (keep 4:5–3:4 portrait, best on phones). |
+| `scripts/import-feed.ts` | Downloads each `AWIN_FEED_URLS` feed, maps rows with Zod (title, image, price, stock, deep link, merchant category) → candidate micro items (draft). Category mapping from merchant categories via `src/lib/catalogue/category-map.ts`; unmapped rows skipped and counted. |
+| `scripts/tag-catalogue.ts` | All items with `tagged_at IS NULL` → one Claude Batches request per item (image by URL + title) → validate against `ItemTagsSchema` → write tags, primary_style, style_weights. Rejects (status retired) items flagged `not_a_room`, `watermark`, `cluttered`, `cut_out_poor`. |
+| `scripts/embed-catalogue.ts` | Items with `embedded_at IS NULL` → Voyage multimodal (image + "{title}. {primary_style}. {top tags}") in chunks → write embedding. |
+| `scripts/build-style-centroids.ts` | For each style: weighted mean of live items' embeddings (weight = style_weights[style], only ≥ 0.5) → normalise → `style.centroid`. Prints item counts; a style with < 15 items gets a warning. |
+| `scripts/seed-dev.ts` | Loads `tests/fixtures/catalogue.json` (≈ 120 items with synthetic 1024-d vectors) for local dev and E2E, no API keys needed. |
 
-### 8.2 Route handlers (everything else is a Server Action)
+**Launch catalogue target:** per room type ≈ 150 live macro photos and ≈ 400 live micro products, spread across styles (the admin page shows a style × category coverage grid so gaps are visible).
 
-| Route | Purpose |
-|---|---|
-| `GET/POST /api/auth/[...all]` | Better Auth handler |
-| `GET /api/pinterest/connect` | Start Pinterest OAuth |
-| `GET /api/pinterest/callback` | Finish Pinterest OAuth |
-| `POST /api/uploads` | Vercel Blob `handleUpload`: checks membership + role, file type (jpeg/png/webp), size (≤ 15 MB), returns a client upload token; `onUploadCompleted` creates the `floorplan`/`room_photo` row and sends its analyse event |
-| `GET/POST/PUT /api/inngest` | Inngest `serve()` endpoint |
-| `GET /api/p/[propertyId]/status` | JSON: sync/analysis/floorplan/photo/mock-up statuses for polling |
-| `POST /api/test/sign-in` | E2E only (`E2E_TEST_AUTH=1` and not production): creates a user + session cookie |
+### 7.3 Admin review (`/admin/catalogue`)
 
-### 8.3 Server Actions (`src/app/**/actions.ts`)
+Grid of draft items with their tags, filterable by room/tier/style/category. Actions: approve (→ live), retire, edit tags, set room types. Bulk approve. Coverage grid. Text search via Voyage text embedding ("brass floor lamp") — the only online Voyage call, admin only.
 
-`createProperty`, `renameProperty`, `deleteProperty`, `createInvite`, `revokeInvite`, `acceptInvite`, `changeMemberRole`, `removeMember`, `leaveProperty`, `setBoardShared`, `syncPinterestNow`, `disconnectPinterest`, `updateRoom`, `addRoom`, `deleteRoom`, `confirmRooms`, `deleteRoomPhoto`, `reactToSuggestion`, `createMockup`, `retryMockup`, `reactToMockup`, `deleteAccount`. Each one: parse input with Zod → `requireSession()` → `requireMember()` → do it → `revalidatePath`.
+### 7.4 Nightly refresh (`/api/cron/refresh-feeds`)
+
+Re-download feeds, update price/stock/affiliate_url by (source, source_id). Items missing from the feed for 3 nights → `retired`. Out-of-stock items stay in history but are excluded from decks and compromise picks; on an existing board they show "Out of stock" without a buy button.
+
+---
+
+## 8. The engine (all pure TypeScript, `src/lib/engine/`)
+
+Notation: `e(i)` is item i's normalised embedding; `P` the set of participants; `L_p`, `D_p` the items p swiped right/left on (macro and micro; macro swipes weight ×1.5 because a whole room says more about overall taste).
+
+### 8.1 Deck building (at project creation)
+
+- **Macro (12 photos):** live macro items for the room type. Pick by **farthest-point sampling** over embeddings, starting from a seeded random item, with a constraint that the 12 cover ≥ 8 distinct `primary_style`s. Diversity is what lets 12 swipes locate someone's taste.
+- **Micro (18 products):** for each category quota (§7.1), live in-stock items in budget band, farthest-point sampling within the category so the 3 sofas look different from each other.
+- Each participant gets the same cards in their own seeded shuffle (macro always before micro).
+
+### 8.2 Taste profile per person
+
+- **Taste vector:** `t_p = normalise( mean_w(e(L_p)) − 0.5 · mean_w(e(D_p)) )` (weighted means; Rocchio-style).
+- **Attribute affinity:** for each attribute a on cards p has seen, `n` = exposures, `k` = right swipes; `aff_p(a) = (k + 1)/(n + 2) − 0.5` (Laplace-smoothed, range −0.5..+0.5). Ignore attributes with `n < 2`.
+- **Top styles:** rank styles by `cos(t_p, centroid_s)`; keep the top 3 with scores.
+- **Confidence:** fraction of macro swipes that agree with the top style's direction; shown as "strong / mixed taste". Low confidence makes the board suggest the tie-breaker round more prominently.
+
+### 8.3 Synthesis (when the board is revealed, and after each tie-breaker round)
+
+1. **Exact matches ("double rights"):** items every participant swiped right on, minus vetoed items. Micro matches → **Agreed** with buy buttons; macro matches → "Rooms you both loved".
+2. **Shared elements:** attributes with `aff_p(a) ≥ 0.2` for every p. Ranked by min affinity. → "You both love: dark wood · clean lines · brass".
+3. **Conflicts:** attributes where one person ≥ 0.2 and another ≤ −0.2. → "You differ on: velvet · navy".
+4. **Bridge style (maximin):** `bridge = argmax_s  min_p cos(t_p, centroid_s)`. The style the *least happy* person likes most. If every person's own top style is the same style, the board says "You already agree: Japandi" instead.
+5. **Compromise picks:** candidate pool = live, in-stock, in-budget micro items for the room type (whole catalogue, not just the deck), excluding vetoed items, items carrying a vetoed attribute, and items anyone swiped left on.
+   `s_p(i) = cos(e(i), t_p) + 0.3 · mean_{a ∈ tags(i)} aff_p(a)`; `score(i) = min_p s_p(i)` (maximin again: an item both people are OK with beats one person loves and the other hates).
+   Take the top 12 by score with **MMR** diversity (λ = 0.7) and at most 2 per category. Use a pgvector prefilter (top 300 nearest to the mean of the taste vectors) so this stays fast.
+6. **Hybrid rooms:** top 4 macro photos by the same maximin score → "Rooms in your bridge style".
+7. **Write** `synthesis.result` (all ids + scores + attributes) with `status = computing`, respond, then in `after()`:
+8. **Name it (Claude):** input = each person's display name + top styles, the bridge style, shared elements, conflicts, and the compromise picks' tags. Output (`BridgeNameSchema`): `{ name (≤ 3 words, built from taxonomy vocabulary, e.g. "Warm Industrial"), tagline (≤ 12 words), rationale (≤ 60 words), contributions: [{ participant, brings (≤ 15 words) }] }`. Validated; on failure or refusal, fall back to the bridge style's taxonomy name and a template sentence. Set `status = ready`.
+
+All of steps 1–6 take milliseconds. The `inputs_hash` (hash of all swipes + vetoes) skips recomputing when nothing changed.
+
+### 8.4 Tie-breaker round
+
+8 cards: the top 8 compromise picks nobody has swiped yet. Both people swipe them (same flow, round `bridge`). Mutual yes → Agreed. Then re-run synthesis (version + 1). Max 2 rounds per project.
+
+### 8.5 Test fixture that captures the whole idea
+
+`tests/fixtures/industrial-vs-minimalist.json`: a synthetic catalogue where A swipes right only on industrial items and B only on minimalist ones. **No exact matches.** Expected: shared elements include `clean_lines` and `metal_black` (present in both styles' fixture items); the bridge style is `warm_minimal`, whose fixture centroid sits between the two, not either person's own top style; every compromise pick scores ≥ 0.4 for both. This is the demo case in the pitch, so it's a regression test.
 
 ---
 
 ## 9. Every file
 
-Repo root of the new `hearth` repo. ✱ = generated by a tool, not hand-written.
+✱ = generated by a tool.
 
 ### 9.1 Root
 
 | File | Purpose |
 |---|---|
-| `package.json` | Deps + scripts: `dev`, `dev:jobs` (`inngest-cli dev`), `build`, `vercel-build` (migrate on prod then build), `lint`, `format`, `typecheck`, `db:up`, `db:generate`, `db:migrate`, `db:studio`, `test`, `test:integration`, `test:e2e` |
-| `pnpm-lock.yaml` ✱ | Lockfile |
+| `package.json` | Scripts: `dev`, `build`, `vercel-build` (migrate on prod, then build), `lint`, `format`, `typecheck`, `db:up`, `db:generate`, `db:migrate`, `db:studio`, `db:seed` (`tsx scripts/seed-dev.ts`), `catalogue:photos`, `catalogue:feed`, `catalogue:tag`, `catalogue:embed`, `catalogue:centroids`, `test`, `test:integration`, `test:e2e` |
+| `pnpm-lock.yaml` ✱ | — |
 | `.nvmrc` | `24` |
-| `.env.example` | All vars from §3, empty |
-| `.gitignore` | `node_modules`, `.next`, `.env*` (not `.env.example`), `playwright-report`, `test-results`, `coverage` |
-| `.prettierrc`, `.prettierignore` | Formatting |
-| `eslint.config.mjs` | Next + TS rules |
+| `.env.example` | §4 vars, empty |
+| `.gitignore`, `.prettierrc`, `.prettierignore` | — |
+| `eslint.config.mjs` | Next + TS |
 | `tsconfig.json` | Strict, `@/*` → `src/*` |
-| `next.config.ts` | `images.remotePatterns` for `i.pinimg.com` and the Blob host; Sentry wrapper (Phase 7) |
+| `next.config.ts` | `images.remotePatterns` for `images.unsplash.com` and feed image hosts; Sentry wrapper |
+| `vercel.ts` | Cron: `/api/cron/refresh-feeds` daily at 03:17 UTC |
 | `postcss.config.mjs` | Tailwind 4 |
-| `components.json` | shadcn/ui config |
-| `drizzle.config.ts` | Schema path, migrations dir, `DATABASE_URL` |
-| `docker-compose.yml` | `pgvector/pgvector:pg16` on :5432 (`hearth`) and :5433 (`hearth_test`, tmpfs) |
-| `vitest.config.ts` | `unit` (`tests/unit`) and `integration` (`tests/integration`, uses `TEST_DATABASE_URL`, single fork) projects |
-| `playwright.config.ts` | Starts `next dev` with `E2E_TEST_AUTH=1` and MSW-backed fakes |
-| `sentry.client.config.ts`, `sentry.server.config.ts`, `instrumentation.ts` | Sentry (Phase 7) |
-| `README.md` | What it is, setup, env vars, running jobs locally, testing, deploying |
-| `PLAN.md` | This document |
+| `components.json` | shadcn/ui |
+| `drizzle.config.ts` | — |
+| `docker-compose.yml` | `pgvector/pgvector:pg16` dev (:5432) + test (:5433, tmpfs) |
+| `vitest.config.ts` | `unit` + `integration` projects |
+| `playwright.config.ts` | `next dev` with `E2E_TEST_AUTH=1`, seeded fixture catalogue |
+| `instrumentation.ts`, `sentry.client.config.ts`, `sentry.server.config.ts` | Sentry |
+| `README.md` | Setup, catalogue pipeline, testing, deploying |
+| `PLAN.md` | This file |
 
-### 9.2 `.github/`
-
-| File | Purpose |
-|---|---|
-| `.github/workflows/ci.yml` | Jobs: lint+typecheck+unit; integration (service `pgvector/pgvector:pg16`, `db:migrate` first); e2e (Playwright, uploads report on failure) |
-| `.github/pull_request_template.md` | Summary / testing / screenshots |
-
-### 9.3 `drizzle/`
+### 9.2 CI and migrations
 
 | File | Purpose |
 |---|---|
-| `drizzle/0000_extensions.sql` | Hand-written: `CREATE EXTENSION IF NOT EXISTS vector;` |
-| `drizzle/0001_init.sql` ✱ | All tables from §5 |
-| `drizzle/0002_indexes.sql` | Hand-written: HNSW index on `pin_embedding`, partial unique owner index, GIN on `pin_analysis.room_types` |
-| `drizzle/meta/*` ✱ | Drizzle snapshots + journal |
+| `.github/workflows/ci.yml` | lint + typecheck + unit; integration (pgvector service, migrate); e2e (seeded catalogue) |
+| `.github/pull_request_template.md` | — |
+| `drizzle/0000_extensions.sql` | `CREATE EXTENSION IF NOT EXISTS vector;` |
+| `drizzle/0001_init.sql` ✱ | All tables (§6) |
+| `drizzle/0002_indexes.sql` | HNSW on `catalogue_item.embedding`, GIN on `room_types`, partial index on live in-stock items |
+| `drizzle/meta/*` ✱ | — |
 
-### 9.4 `src/db/`
-
-| File | Purpose |
-|---|---|
-| `src/db/index.ts` | postgres.js client + `drizzle()` instance (one per process) |
-| `src/db/schema/auth.ts` ✱ | Better Auth tables (generated with `npx @better-auth/cli generate`, then committed) |
-| `src/db/schema/property.ts` | `property`, `property_member`, `property_invite` |
-| `src/db/schema/pinterest.ts` | `pinterest_connection`, `pinterest_board`, `pinterest_pin`, `property_board` |
-| `src/db/schema/analysis.ts` | `pin_analysis`, `pin_embedding` |
-| `src/db/schema/rooms.ts` | `floorplan`, `room`, `room_photo` |
-| `src/db/schema/suggestions.ts` | `suggestion`, `suggestion_pin`, `suggestion_reaction` |
-| `src/db/schema/mockups.ts` | `mockup`, `mockup_reaction` |
-| `src/db/schema/index.ts` | Re-exports all schema files |
-
-### 9.5 `src/lib/` — logic (no React)
+### 9.3 `src/db/`
 
 | File | Purpose |
 |---|---|
-| `src/lib/env.ts` | Zod-parsed `process.env`; import `env` everywhere instead of `process.env` |
+| `src/db/index.ts` | Client + `drizzle()` |
+| `src/db/schema/auth.ts` ✱ | Better Auth tables |
+| `src/db/schema/catalogue.ts` | `catalogue_item`, `style` |
+| `src/db/schema/projects.ts` | `project`, `project_invite`, `participant` |
+| `src/db/schema/swipes.ts` | `swipe`, `veto`, `bridge_round` |
+| `src/db/schema/synthesis.ts` | `synthesis`, `board_feedback` |
+| `src/db/schema/clicks.ts` | `outbound_click` |
+| `src/db/schema/index.ts` | Re-exports |
+
+### 9.4 `src/lib/` — server logic
+
+| File | Purpose |
+|---|---|
+| `src/lib/env.ts` | Zod-parsed env |
 | `src/lib/ids.ts` | `newId()` |
-| `src/lib/errors.ts` | `AppError` (code, status, user message), `NotFound`, `Forbidden`, `Conflict` |
-| `src/lib/auth.ts` | `betterAuth({ database: drizzleAdapter(...), socialProviders: { google } })` |
-| `src/lib/auth-client.ts` | `createAuthClient()` for the browser (`signIn.social({ provider: "google" })`, `signOut`) |
-| `src/lib/session.ts` | `getSession()`, `requireSession()` (server only) |
-| `src/lib/permissions.ts` | `requireMember(propertyId, minRole)`, `roleAtLeast()` |
-| `src/lib/crypto.ts` | `encrypt()`, `decrypt()` (AES-256-GCM), `randomToken()`, `sha256()` |
-| `src/lib/taxonomy.ts` | Room types, styles, item categories (§7.1) + Zod enums |
-| `src/lib/properties.ts` | Create/rename/delete property, list a user's properties |
-| `src/lib/invites.ts` | Create/accept/revoke invite links |
-| `src/lib/members.ts` | Change role, remove, leave (owner can't leave without transferring) |
-| `src/lib/pinterest/client.ts` | Typed `fetch` wrapper for v5: auth header, bookmark pagination iterator, 429 → `RateLimited(retryAfter)` |
-| `src/lib/pinterest/oauth.ts` | Build authorize URL, exchange code, refresh token |
-| `src/lib/pinterest/tokens.ts` | `getAccessToken(userId)` with refresh-on-expiry, `saveTokens()` |
-| `src/lib/pinterest/types.ts` | Zod schemas for the v5 responses used (user_account, board, pin, paged list) |
-| `src/lib/pinterest/sync.ts` | Upsert boards/pins, mark removed — called step-by-step from the Inngest function |
-| `src/lib/pinterest/disconnect.ts` | Delete a user's Pinterest data |
-| `src/lib/ai/anthropic.ts` | Shared `Anthropic` client, model constant `CLAUDE_MODEL = "claude-opus-5-5"`, `callStructured(schema, params)` helper (parse + refusal/stop-reason checks) |
-| `src/lib/ai/schemas.ts` | Zod: `PinAnalysisSchema`, `FloorplanSchema`, `RoomPhotoSchema`, `SuggestionTextSchema`, `MockupBriefSchema` |
-| `src/lib/ai/prompts/pin-analysis.ts` | System prompt + per-pin user content builder |
-| `src/lib/ai/prompts/floorplan.ts` | Floorplan prompt |
-| `src/lib/ai/prompts/room-photo.ts` | Room photo prompt |
-| `src/lib/ai/prompts/suggestion-text.ts` | Title/rationale prompt |
-| `src/lib/ai/prompts/mockup-brief.ts` | Mock-up brief prompt |
-| `src/lib/ai/pin-analysis.ts` | Build a Batches request for N pins, collect + validate results |
-| `src/lib/ai/floorplan.ts` | `analyseFloorplan(blobUrl)` |
-| `src/lib/ai/room-photo.ts` | `analyseRoomPhoto(blobUrl)` |
-| `src/lib/ai/suggestion-text.ts` | `describeCluster(cluster)` |
-| `src/lib/ai/mockup-brief.ts` | `writeMockupBrief(roomAnalysis, suggestion, pins)` |
-| `src/lib/embeddings/voyage.ts` | `embedPins(pins)` → `{pinId, vector}[]`, chunked |
-| `src/lib/render/types.ts` | `MockupRenderer` interface |
-| `src/lib/render/gemini.ts` | Gemini implementation (fetch images → inline parts → PNG bytes) |
-| `src/lib/render/index.ts` | `getRenderer()` (one switch point for swapping providers) |
-| `src/lib/storage.ts` | `putMockup(bytes)`, `deleteBlob(url)`, allowed content types/sizes |
-| `src/lib/suggestions/gather.ts` | Load a property's pins + tags + embeddings |
-| `src/lib/suggestions/edges.ts` | Build similarity edges (pgvector kNN + shared-item rule) |
-| `src/lib/suggestions/cluster.ts` | Connected components + oversized-cluster split (pure) |
-| `src/lib/suggestions/score.ts` | Scoring formula (pure) |
-| `src/lib/suggestions/assign-room.ts` | Majority vote → room(s) (pure) |
-| `src/lib/suggestions/overlap.ts` | Taste-overlap panel data (pure) |
-| `src/lib/suggestions/recompute.ts` | Orchestrates the above, writes a new version transactionally |
-| `src/lib/rooms.ts` | Room CRUD, `confirmRooms`, apply floorplan result |
-| `src/lib/mockups.ts` | Create/retry mock-ups, enforce per-user queue limit |
-| `src/lib/status.ts` | Build the polling status payload for a property |
-| `src/lib/validation.ts` | Zod input schemas for every Server Action |
+| `src/lib/errors.ts` | `AppError`, `NotFound`, `Forbidden`, `Conflict` |
+| `src/lib/auth.ts` | `betterAuth({ socialProviders: { google }, plugins: [anonymous({ onLinkAccount })] })` — `onLinkAccount` moves a guest's participants to their Google user |
+| `src/lib/auth-client.ts` | Browser client (`signIn.social`, `signIn.anonymous`) |
+| `src/lib/session.ts` | `getSession()`, `requireSession()`, `requireAdmin()` |
+| `src/lib/permissions.ts` | `requireParticipant(projectId)`, `requireCreator(projectId)` |
+| `src/lib/crypto.ts` | `randomToken()`, `sha256()` |
+| `src/lib/taxonomy.ts` | §7.1 + Zod enums |
+| `src/lib/budget.ts` | Budget bands → price limits per category |
+| `src/lib/projects.ts` | Create project (builds decks), list mine, rename, delete |
+| `src/lib/invites.ts` | Create/revoke invite, accept (join as participant, max 4) |
+| `src/lib/swipes.ts` | Record/undo swipe, mark round done, record veto |
+| `src/lib/reveal.ts` | Is the board revealed? (R10) |
+| `src/lib/board.ts` | Assemble the board view-model from the latest synthesis + items |
+| `src/lib/project-state.ts` | Polling payload: participants, progress, reveal, synthesis status |
+| `src/lib/notify.ts` | Send "board ready" email (Resend), once per project |
+| `src/lib/analytics.ts` | Server-side PostHog capture helper |
+| `src/lib/unsplash.ts` | Search, map to catalogue rows, `trackDownload()` (called when a photo enters a deck) |
+| `src/lib/catalogue/feeds.ts` | Download + parse Awin feeds (csv-parse + Zod) |
+| `src/lib/catalogue/category-map.ts` | Merchant category → our category |
+| `src/lib/catalogue/upsert.ts` | Upsert items by (source, source_id) |
+| `src/lib/catalogue/refresh.ts` | Nightly price/stock/retire logic |
+| `src/lib/ai/anthropic.ts` | Client, `CLAUDE_MODEL = "claude-opus-5-5"`, `parseStructured()` helper (stop_reason/refusal checks) |
+| `src/lib/ai/schemas.ts` | `ItemTagsSchema`, `BridgeNameSchema` |
+| `src/lib/ai/prompts/tag-item.ts` | Tagging system prompt (taxonomy, cached) + per-item content |
+| `src/lib/ai/prompts/bridge-name.ts` | Naming prompt |
+| `src/lib/ai/tag-batch.ts` | Build/poll/collect a tagging batch |
+| `src/lib/ai/bridge-name.ts` | `nameBridge(input)` with fallback |
+| `src/lib/embeddings/voyage.ts` | `embedItems()`, `embedText()` |
+| `src/lib/engine/vector.ts` | `dot`, `cosine`, `normalise`, `mean`, `weightedMean` |
+| `src/lib/engine/rng.ts` | Seeded PRNG + shuffle |
+| `src/lib/engine/quotas.ts` | Micro category quotas per room type |
+| `src/lib/engine/deck.ts` | §8.1 farthest-point sampling + style coverage |
+| `src/lib/engine/profile.ts` | §8.2 taste vector, affinities, top styles, confidence |
+| `src/lib/engine/matches.ts` | §8.3 steps 1–3 |
+| `src/lib/engine/bridge.ts` | §8.3 step 4 maximin style |
+| `src/lib/engine/compromise.ts` | §8.3 steps 5–6 scoring + MMR |
+| `src/lib/engine/synthesise.ts` | Orchestrates the engine, computes `inputs_hash` |
+| `src/lib/engine/tiebreak.ts` | §8.4 card selection |
+| `src/lib/synthesis.ts` | Load inputs from DB, run engine, persist, schedule naming in `after()` |
+| `src/lib/validation.ts` | Zod schemas for every action/route input |
 
-### 9.6 `src/inngest/` — jobs
+### 9.5 `src/app/` — routes
 
 | File | Purpose |
 |---|---|
-| `src/inngest/client.ts` | `new Inngest({ id: "hearth", schemas })` with typed events |
-| `src/inngest/events.ts` | Event names + Zod payloads |
-| `src/inngest/functions/sync-pinterest.ts` | `pinterest/account.sync` (§6.4) |
-| `src/inngest/functions/nightly-sync.ts` | Cron `0 3 * * *`: fan out a sync per connection |
-| `src/inngest/functions/analyse-pins.ts` | `pins/analyse` (§7.2) |
-| `src/inngest/functions/recompute-suggestions.ts` | `property/suggestions.recompute`, debounced 60 s per property |
-| `src/inngest/functions/analyse-floorplan.ts` | `floorplan/analyse` |
-| `src/inngest/functions/analyse-room-photo.ts` | `room-photo/analyse` |
-| `src/inngest/functions/generate-mockup.ts` | `mockup/generate` (§7.6) |
-| `src/inngest/functions/index.ts` | Array of all functions for `serve()` |
+| `src/app/layout.tsx` | Shell, fonts, providers, toaster, footer with affiliate disclosure |
+| `src/app/globals.css` | Tailwind + theme tokens |
+| `src/app/providers.tsx` | TanStack Query, PostHog provider |
+| `src/app/manifest.ts`, `src/app/icon.svg`, `src/app/apple-icon.png` | Installable PWA |
+| `src/app/page.tsx` | Landing: "Settle your room style together in 5 minutes" → Start |
+| `src/app/start/page.tsx` | Pick room type, optional name + budget → sign in with Google if needed → create |
+| `src/app/start/actions.ts` | `createProject` |
+| `src/app/projects/page.tsx` | My projects (status per project) |
+| `src/app/r/[projectId]/page.tsx` | Project hub: participants + progress, invite link + QR + share button, "Start/continue swiping", board link when revealed, "Show results now" (creator) |
+| `src/app/r/[projectId]/actions.ts` | `regenerateInvite`, `revokeInvite`, `forceReveal`, `deleteProject` |
+| `src/app/r/[projectId]/swipe/page.tsx` | Swipe flow: macro → "Halfway! Now the pieces" interstitial → micro → done |
+| `src/app/r/[projectId]/swipe/actions.ts` | `recordSwipe`, `undoSwipe`, `recordVeto`, `finishRound` |
+| `src/app/r/[projectId]/board/page.tsx` | The shared board |
+| `src/app/r/[projectId]/board/actions.ts` | `startTiebreak`, `boardFeedback` |
+| `src/app/r/[projectId]/tiebreak/page.tsx` | Tie-breaker swipes (reuses the swipe stack) |
+| `src/app/j/[token]/page.tsx` | Join: "Rich wants your take on the Living Room" → first name → Go |
+| `src/app/j/[token]/actions.ts` | `joinProject` (anonymous sign-in if no session) |
+| `src/app/go/[itemId]/route.ts` | Log `outbound_click`, 302 to `affiliate_url` (`rel="sponsored nofollow"` on links) |
+| `src/app/admin/catalogue/page.tsx` | Catalogue review + coverage grid |
+| `src/app/admin/catalogue/actions.ts` | Approve, retire, edit tags, bulk |
+| `src/app/admin/metrics/page.tsx` | Simple DB-backed counts (projects, completion, clicks) as a PostHog backup |
+| `src/app/privacy/page.tsx`, `src/app/disclosure/page.tsx` | Privacy (guest data, analytics) + affiliate disclosure |
+| `src/app/not-found.tsx`, `src/app/error.tsx` | — |
+| `src/app/api/auth/[...all]/route.ts` | Better Auth handler |
+| `src/app/api/projects/[projectId]/state/route.ts` | Polling JSON |
+| `src/app/api/projects/[projectId]/qr/route.ts` | Invite QR as SVG |
+| `src/app/api/cron/refresh-feeds/route.ts` | Nightly refresh (checks `CRON_SECRET`) |
+| `src/app/api/test/sign-in/route.ts` | E2E-only |
+| `src/proxy.ts` | Redirect signed-out users away from `/projects`, `/start` (create step), `/admin` |
 
-### 9.7 `src/app/` — routes
-
-| File | Purpose |
-|---|---|
-| `src/app/layout.tsx` | HTML shell, fonts, `<Providers>`, `<Toaster>` |
-| `src/app/globals.css` | Tailwind + shadcn theme tokens (light/dark) |
-| `src/app/providers.tsx` | TanStack `QueryClientProvider` (client) |
-| `src/app/icon.svg`, `src/app/apple-icon.png`, `src/app/manifest.ts` | Icon + installable PWA manifest |
-| `src/app/page.tsx` | Landing / redirect |
-| `src/app/sign-in/page.tsx` | Google sign-in |
-| `src/app/properties/page.tsx` | Property list |
-| `src/app/properties/new/page.tsx` | New property form |
-| `src/app/properties/actions.ts` | `createProperty` |
-| `src/app/p/[propertyId]/layout.tsx` | Loads property + membership (404 if not a member), property nav tabs |
-| `src/app/p/[propertyId]/page.tsx` | Property home |
-| `src/app/p/[propertyId]/actions.ts` | Property-level actions (rename, delete, leave) |
-| `src/app/p/[propertyId]/boards/page.tsx` | Board sharing |
-| `src/app/p/[propertyId]/boards/actions.ts` | `setBoardShared`, `syncPinterestNow` |
-| `src/app/p/[propertyId]/members/page.tsx` | Members + invites |
-| `src/app/p/[propertyId]/members/actions.ts` | Invite/role/remove actions |
-| `src/app/p/[propertyId]/floorplan/page.tsx` | Floorplan upload + editor |
-| `src/app/p/[propertyId]/floorplan/actions.ts` | Room edits, `confirmRooms` |
-| `src/app/p/[propertyId]/rooms/[roomId]/page.tsx` | Room page |
-| `src/app/p/[propertyId]/rooms/[roomId]/actions.ts` | Photo delete, `createMockup` |
-| `src/app/p/[propertyId]/suggestions/[suggestionId]/page.tsx` | Suggestion detail |
-| `src/app/p/[propertyId]/suggestions/[suggestionId]/actions.ts` | `reactToSuggestion` |
-| `src/app/p/[propertyId]/mockups/[mockupId]/page.tsx` | Mock-up viewer |
-| `src/app/p/[propertyId]/mockups/[mockupId]/actions.ts` | `retryMockup`, `reactToMockup` |
-| `src/app/invite/[token]/page.tsx` | Accept invite |
-| `src/app/invite/[token]/actions.ts` | `acceptInvite` |
-| `src/app/settings/page.tsx` | Account + Pinterest connection |
-| `src/app/settings/actions.ts` | `disconnectPinterest`, `deleteAccount` |
-| `src/app/not-found.tsx`, `src/app/error.tsx` | Error pages |
-| `src/app/api/auth/[...all]/route.ts` | Better Auth `toNextJsHandler(auth)` |
-| `src/app/api/pinterest/connect/route.ts` | §6.1 |
-| `src/app/api/pinterest/callback/route.ts` | §6.2 |
-| `src/app/api/uploads/route.ts` | Blob `handleUpload` |
-| `src/app/api/inngest/route.ts` | Inngest `serve()` |
-| `src/app/api/p/[propertyId]/status/route.ts` | Polling status |
-| `src/app/api/test/sign-in/route.ts` | E2E-only sign-in |
-| `src/proxy.ts` | Next 16 proxy (formerly middleware): redirect signed-out users on `/properties`, `/p/*`, `/settings` to `/sign-in?next=` (cookie presence check only; real checks are server-side) |
-
-### 9.8 `src/components/`
+### 9.6 `src/components/`
 
 | File | Purpose |
 |---|---|
-| `src/components/ui/*` ✱ | shadcn/ui: button, card, dialog, dropdown-menu, input, label, select, tabs, sonner (toasts), avatar, badge, switch, skeleton, sheet, progress |
-| `src/components/Header.tsx` | Logo, property switcher, user menu |
-| `src/components/GoogleSignInButton.tsx` | Calls `authClient.signIn.social` |
-| `src/components/PropertyCard.tsx` | Property tile |
-| `src/components/SetupChecklist.tsx` | The 4 setup steps with ticks |
-| `src/components/MemberAvatars.tsx` | Overlapping avatars |
-| `src/components/MemberList.tsx` | Members table with role controls |
-| `src/components/InviteLinkDialog.tsx` | Pick role → generate → copy link |
-| `src/components/PinterestConnectButton.tsx` | Connect / reconnect state |
-| `src/components/BoardShareList.tsx` | Board rows with share switches + counts |
-| `src/components/SyncStatus.tsx` | Polls status; "Syncing 3/12 boards…", "Analysing 140 pins…" |
-| `src/components/PinCard.tsx` | Pin image, owner avatar, Pinterest attribution link |
-| `src/components/PinGrid.tsx` | Masonry grid of `PinCard` (CSS columns) |
-| `src/components/SuggestionCard.tsx` | 4 representative pins, title, "Sam + you", room chip |
-| `src/components/TasteOverlap.tsx` | Shared styles/colours/items chips + swatches |
-| `src/components/RoomCard.tsx` | Room tile with photo + suggestion count |
-| `src/components/ImageUploader.tsx` | Drop zone / camera input, client-side resize (`lib/client-image.ts`), Blob `upload()`, progress |
-| `src/components/FloorplanEditor.tsx` | Image + SVG overlay of room boxes; drag/resize; side list of rooms |
-| `src/components/RoomForm.tsx` | Name, type, size inputs |
-| `src/components/RoomPhotoGallery.tsx` | Room photos with analysis badges |
-| `src/components/MockupPicker.tsx` | Choose room photo (+ optionally deselect pins, max 6) → `createMockup` |
-| `src/components/BeforeAfterSlider.tsx` | Draggable comparison (pointer events, keyboard accessible) |
-| `src/components/ReactionButtons.tsx` | Thumbs up/down with counts |
-| `src/components/JobStatusBadge.tsx` | queued/running/done/failed |
-| `src/components/EmptyState.tsx` | Reusable empty states |
-| `src/lib/client-image.ts` | (browser) resize to ≤ 2048 px with canvas, JPEG 0.85, strip EXIF |
-| `src/hooks/usePropertyStatus.ts` | TanStack Query polling hook (2 s while anything is running, stops when idle) |
+| `src/components/ui/*` ✱ | shadcn: button, card, dialog, sheet, input, label, select, tabs, sonner, avatar, badge, progress, skeleton, tooltip |
+| `src/components/Header.tsx` | Logo, user menu / "Save with Google" for guests |
+| `src/components/RoomTypePicker.tsx` | Big tappable room tiles |
+| `src/components/BudgetPicker.tsx` | £ / ££ / £££ |
+| `src/components/InvitePanel.tsx` | Copy link, native share (`navigator.share`), QR |
+| `src/components/ParticipantProgress.tsx` | Avatars with "12/30 swiped" / "done" |
+| `src/components/SwipeDeck.tsx` | Card stack: gestures, fling thresholds, keyboard ←/→, buttons, undo, image preloading (next 3), progress |
+| `src/components/SwipeCard.tsx` | Full-bleed image, title/price (micro), attribution (macro) |
+| `src/components/VetoSheet.tsx` | Confirm veto + optional "what's the deal-breaker?" tag chips, tokens left |
+| `src/components/RoundInterstitial.tsx` | Macro → micro transition |
+| `src/components/WaitingForOthers.tsx` | After finishing: share again, "we'll email you" |
+| `src/components/board/BridgeStyleHero.tsx` | Bridge name, tagline, rationale, contributions, hybrid room photos |
+| `src/components/board/AgreedItems.tsx` | Exact micro matches with buy buttons |
+| `src/components/board/LovedRooms.tsx` | Exact macro matches |
+| `src/components/board/SharedElements.tsx` | "You both love" / "You differ on" chips |
+| `src/components/board/CompromisePicks.tsx` | Compromise products with per-person fit bars |
+| `src/components/board/Vetoes.tsx` | Each person's deal-breakers |
+| `src/components/board/TiebreakCta.tsx` | Start tie-breaker |
+| `src/components/board/BoardFeedback.tsx` | "Did this help you agree?" 👍/👎 |
+| `src/components/ProductCard.tsx` | Image, retailer, price, stock, Buy (→ `/go/[id]`) |
+| `src/components/Attribution.tsx` | Unsplash/Pexels credit with links |
+| `src/components/AffiliateNotice.tsx` | Inline disclosure |
+| `src/components/admin/CatalogueGrid.tsx`, `src/components/admin/CoverageGrid.tsx`, `src/components/admin/TagEditor.tsx` | Admin |
+| `src/hooks/useProjectState.ts` | Polls state (3 s while someone's swiping, stops when revealed) |
+| `src/emails/BoardReady.tsx` | React Email template |
 
-### 9.9 `tests/`
+### 9.7 `scripts/`
+
+`scripts/import-photos.ts`, `scripts/import-feed.ts`, `scripts/tag-catalogue.ts`, `scripts/embed-catalogue.ts`, `scripts/build-style-centroids.ts`, `scripts/seed-dev.ts` (§7.2).
+
+### 9.8 `tests/`
 
 | File | Purpose |
 |---|---|
-| `tests/setup/msw.ts` | MSW server with default handlers |
-| `tests/mocks/pinterest.ts` | Fake v5 endpoints (token, user_account, boards, pins with bookmarks, a 429) |
-| `tests/mocks/anthropic.ts` | Fake Messages + Batches responses (from fixtures) |
-| `tests/mocks/voyage.ts` | Deterministic fake embeddings |
-| `tests/mocks/gemini.ts` | Returns a 1×1 PNG |
-| `tests/fixtures/pins.json` | ~40 realistic pins across 2 members with known overlaps |
-| `tests/fixtures/pin-analysis.json` | Matching tag results |
-| `tests/fixtures/embeddings.json` | Hand-built vectors: known similar/dissimilar pairs |
-| `tests/fixtures/floorplan.png`, `floorplan-result.json` | Sample floorplan + expected analysis |
-| `tests/fixtures/room.jpg` | Sample room photo |
-| `tests/helpers/db.ts` | Reset test DB, factories (`makeUser`, `makeProperty`, `makePin`…) |
-| `tests/unit/crypto.test.ts` | Encrypt/decrypt round trip, tamper detection |
-| `tests/unit/permissions.test.ts` | Role ordering |
-| `tests/unit/pinterest-client.test.ts` | Pagination, 429 handling, response validation |
-| `tests/unit/cluster.test.ts` | Components, split of oversized clusters, singletons |
-| `tests/unit/score.test.ts` | Cross-member beats single-member; reactions move score |
-| `tests/unit/assign-room.test.ts` | Majority vote, multiple bedrooms, no matching room |
-| `tests/unit/overlap.test.ts` | Taste overlap counts |
-| `tests/unit/ai-schemas.test.ts` | Fixtures parse; malformed output is rejected |
-| `tests/integration/invites.test.ts` | Create/accept/expire/revoke; role enforced |
-| `tests/integration/pinterest-sync.test.ts` | Full sync against MSW; removed pins marked; tokens refreshed |
-| `tests/integration/suggestions.test.ts` | Fixtures → recompute → expected clusters/rooms, pgvector used |
-| `tests/integration/disconnect.test.ts` | Data deleted, suggestions recomputed |
-| `tests/integration/access-control.test.ts` | Non-members get 404 on every property action/route |
-| `tests/e2e/onboarding.spec.ts` | Sign in → create property → invite link → second user joins |
-| `tests/e2e/pinterest.spec.ts` | Connect (faked) → share boards → suggestions appear |
-| `tests/e2e/floorplan.spec.ts` | Upload → edit a room box → confirm |
-| `tests/e2e/mockup.spec.ts` | Room photo → pick suggestion → mock-up shows before/after |
+| `tests/setup/msw.ts` | MSW server |
+| `tests/mocks/anthropic.ts`, `voyage.ts`, `unsplash.ts`, `resend.ts` | Fake APIs |
+| `tests/fixtures/catalogue.json` | ≈ 120 items, synthetic vectors, tags (also the dev seed) |
+| `tests/fixtures/industrial-vs-minimalist.json` | §8.5 |
+| `tests/fixtures/awin-feed.csv` | Sample feed incl. bad rows |
+| `tests/helpers/db.ts` | Reset + factories |
+| `tests/helpers/vectors.ts` | Build synthetic vectors near given anchors |
+| `tests/unit/vector.test.ts` | Maths helpers |
+| `tests/unit/deck.test.ts` | Same cards for all, coverage constraint, quotas, budget filter, determinism by seed |
+| `tests/unit/profile.test.ts` | Taste vector direction, Laplace affinity, confidence |
+| `tests/unit/matches.test.ts` | Double rights, vetoes excluded, shared/conflict thresholds |
+| `tests/unit/bridge.test.ts` | Maximin picks the in-between style; "already agree" case |
+| `tests/unit/compromise.test.ts` | Vetoed attributes excluded, left-swiped excluded, MMR diversity, ≤ 2 per category |
+| `tests/unit/synthesise.test.ts` | §8.5 fixture end to end; N = 3 participants |
+| `tests/unit/feeds.test.ts` | Parsing, category mapping, bad rows skipped |
+| `tests/unit/ai-schemas.test.ts` | Valid/invalid AI outputs; fallback naming |
+| `tests/integration/invites.test.ts` | Join, max 4, expiry, revoke |
+| `tests/integration/swipes.test.ts` | Idempotent swipes, undo, veto tokens can't go below 0 |
+| `tests/integration/reveal.test.ts` | Hidden until finished; force reveal needs ≥ 2 finished |
+| `tests/integration/guest-upgrade.test.ts` | Guest links Google, keeps participant + swipes |
+| `tests/integration/access-control.test.ts` | Non-participants get 404 everywhere |
+| `tests/integration/refresh.test.ts` | Price/stock update, retire after 3 misses |
+| `tests/e2e/two-partners.spec.ts` | A creates → B joins in a second context → both swipe → board shows a match, a bridge name and compromise picks |
+| `tests/e2e/veto.spec.ts` | Veto with attribute → no compromise pick carries it |
+| `tests/e2e/tiebreak.spec.ts` | Tie-breaker mutual yes moves into Agreed |
+| `tests/e2e/mobile-swipe.spec.ts` | Touch-drag swipe on a phone viewport |
 
 ---
 
 ## 10. Build order
 
-Each phase is mergeable on its own and ends with its acceptance criteria passing in CI.
-
 ### Phase 0 — Skeleton (½ day)
 
-- [ ] `create-next-app` (TS, App Router, Tailwind, ESLint, `src/`), pnpm, `.nvmrc`, Prettier.
-- [ ] `shadcn init` + the components in §9.8.
-- [ ] Docker Compose with pgvector, Drizzle config, `0000_extensions.sql`, `src/lib/env.ts`.
-- [ ] Vitest (both projects), Playwright, MSW setup, CI workflow.
-- [ ] Deploy the empty app to Vercel with Neon attached.
+- [ ] Next.js app, pnpm, Tailwind, shadcn, ESLint/Prettier, Vitest, Playwright, MSW, CI, Docker Compose with pgvector, `env.ts`.
+- [ ] Deploy a landing page to Vercel + Neon (needed early for the Awin/Unsplash applications).
 
-**Done when:** `pnpm lint && pnpm typecheck && pnpm test` pass locally and in CI; the Vercel URL serves the landing page.
+**Done when:** CI is green and the landing page is live on your domain.
 
-### Phase 1 — Google sign-in, properties, invites (2–3 days)
+### Phase 1 — Catalogue pipeline (4–5 days, plus your curation time)
 
-- [ ] Better Auth + Google, generated auth schema, `/sign-in`, `proxy.ts`, user menu with sign-out.
-- [ ] Property schema, `/properties`, `/properties/new`, `/p/[id]` (empty home), `requireMember`.
-- [ ] Members page, invite links, `/invite/[token]`, role changes, leave/remove.
-- [ ] E2E sign-in bypass route.
+- [ ] Taxonomy, catalogue schema, import scripts (Unsplash, Awin), tagging (Batches), embeddings, style centroids, dev seed.
+- [ ] `/admin/catalogue` review + coverage grid.
+- [ ] Curate the living room first: ≈ 150 photos + ≈ 400 products live, every style with ≥ 15 items.
 
-**Done when:** you can sign in with Google on prod, create a property, send the invite link to a second Google account, and they land in the property as an editor; a third account without the link gets a 404 on the property URL; `onboarding.spec.ts` and `access-control.test.ts` pass.
+**Done when:** the coverage grid for living room has no empty style × tier cells; spot-check 30 random items and agree with ≥ 27 of their tags.
 
-### Phase 2 — Pinterest linking and sync (3–4 days)
+### Phase 2 — Projects, sign-in, guests, invites (2 days)
 
-- [ ] Pinterest OAuth routes, encrypted token storage, refresh.
-- [ ] Inngest set up (local dev server + Vercel integration), `sync-pinterest`, `nightly-sync`.
-- [ ] `/settings` connection card, `/p/[id]/boards` share toggles, `SyncStatus` polling.
-- [ ] Disconnect deletes everything.
-- [ ] **Apply for Pinterest Standard access** with a demo video of this phase.
+- [ ] Better Auth (Google + anonymous + link), `/start`, `/projects`, project hub, invite link + QR + share, `/j/[token]`, permissions.
 
-**Done when:** linking your real Pinterest account lists your boards; sharing a board shows its pins in the property; "Sync now" picks up a pin you just saved; disconnect removes them; `pinterest-sync.test.ts` passes including the 429 and token-refresh cases.
+**Done when:** on prod, you create a Living Room project, scan the QR on another phone, type a name, and appear on the hub as the second participant without creating an account; a third browser without the link gets 404.
 
-### Phase 3 — Pin analysis and cross-referenced suggestions (4–5 days)
+### Phase 3 — Swiping (3 days)
 
-- [ ] Taxonomy, AI schemas, Anthropic client helper, pin-analysis prompt.
-- [ ] `analyse-pins` with the Batches API; non-interior pins skipped.
-- [ ] Voyage embeddings + HNSW index.
-- [ ] `src/lib/suggestions/*` with unit tests first (fixtures with known answers), then `recompute-suggestions` job.
-- [ ] Manual rooms (add/edit/delete) so suggestions have somewhere to go before Phase 4.
-- [ ] Property home "Ideas for every room", taste-overlap panel, suggestion page, reactions.
-- [ ] Tune `SIMILARITY_THRESHOLD` on real boards from two people (try 0.78–0.88; pick the value where clusters look like "the same idea" to a human).
+- [ ] Deck builder + tests, `SwipeDeck` (gestures, keyboard, buttons, undo, preloading), persistence, interstitial, vetoes with attribute chips, waiting screen, Unsplash download pings.
 
-**Done when:** with two members sharing real boards, the property home shows suggestions grouped by room, cross-member ones first, each with a sensible title and "You + Sam" attribution; a recipe board shared by mistake produces no suggestions; reacting 👎 drops a suggestion after the next recompute; `suggestions.test.ts` passes.
+**Done when:** 30 swipes take under 3 minutes on a mid-range phone with no image pop-in; closing the tab mid-deck and reopening resumes at the right card; a 4th veto is impossible.
 
-### Phase 4 — Floorplan analysis (2–3 days)
+### Phase 4 — Synthesis and the board (4 days)
 
-- [ ] Blob client uploads + `/api/uploads` with membership/role/type/size checks; `ImageUploader` with client resize.
-- [ ] `analyse-floorplan` job, floorplan prompt and schema.
-- [ ] `FloorplanEditor` (boxes, drag/resize, edit, add, delete) and Confirm.
-- [ ] Recompute suggestions when rooms are confirmed.
+- [ ] Engine (profile, matches, bridge, compromise) test-first with the §8.5 fixture; persistence; naming in `after()` with fallback; board UI; `/go` redirect + disclosure; "board ready" email.
 
-**Done when:** uploading 3 different real estate-agent floorplans finds most labelled rooms with sensible types and sizes; you can fix the rest in under a minute; confirmed rooms replace the manual ones (or merge, with the user choosing); suggestions re-flow into the new rooms.
+**Done when:** you and someone with clearly different taste get a board with a bridge name you both find plausible, ≥ 8 compromise picks, no vetoed items, and working buy links that register clicks; `synthesise.test.ts` passes.
 
-### Phase 5 — Room photos (1–2 days)
+### Phase 5 — Tie-breaker round (1–2 days)
 
-- [ ] Room photo uploads from the room page (camera on mobile), `analyse-room-photo`, wrong-room and quality warnings.
+**Done when:** a mutual yes in the tie-breaker moves the item into Agreed and the board version increments; a third round isn't offered.
 
-**Done when:** a kitchen photo uploaded to the kitchen is accepted; a blurry/dark photo asks for a retake; a bathroom photo uploaded to the bedroom warns.
+### Phase 6 — Bedroom + dining, analytics, launch (3 days)
 
-### Phase 6 — Mock-ups (3–4 days)
+- [ ] Curate bedroom and dining catalogues; PostHog funnels for §1 (cookieless until consent); Sentry; nightly refresh cron; privacy + disclosure pages; accessibility pass (buttons for every gesture, alt text from tags, contrast); README.
 
-- [ ] `MockupRenderer` interface + Gemini implementation; brief prompt + schema.
-- [ ] `generate-mockup` job with concurrency limits, Blob storage, per-user queue limit.
-- [ ] `MockupPicker`, mock-up page with `BeforeAfterSlider`, reactions, retry.
-- [ ] Try 10 real room/suggestion pairs; tune the brief prompt until walls, windows and camera angle survive in ≥ 8/10.
+**Done when:** all E2E specs pass; 5 real couples complete a project unassisted and the funnel dashboard shows their times.
 
-**Done when:** from a room photo and a suggestion, a mock-up appears within ~1 minute showing *your* room restyled with the suggestion's pieces and palette; source pins are listed with Pinterest links; failures show a retry button and don't leave jobs stuck as `running`.
-
-### Phase 7 — Hardening and launch (2–3 days)
-
-- [ ] Sentry; structured logs in jobs (property id, job id, model, token usage, cost estimate).
-- [ ] Per-user daily caps (mock-ups/day, analyses/day) from env.
-- [ ] Account deletion (deletes Blob files too); privacy page explaining what is stored and how Pinterest data is used.
-- [ ] Lighthouse/accessibility pass on mobile; empty/loading/error states on every page.
-- [ ] README complete.
-
-**Done when:** all E2E specs pass in CI; a new user can go from "Continue with Google" to their first mock-up on a phone without help.
-
-**Rough total:** 3–4 weeks for one experienced engineer.
+**Rough total:** ~3 weeks of engineering + several days of catalogue curation.
 
 ---
 
-## 11. Running locally
+## 11. Analytics events (PostHog)
+
+`project_created` (room_type, budget_band) · `invite_shared` (method: copy/share/qr) · `invite_opened` · `partner_joined` · `swipe` (round, value, decision_ms — sampled) · `veto_used` (with_attribute) · `round_finished` (round, duration_ms) · `board_revealed` (participants, exact_matches, forced) · `bridge_named` (ai_ok/fallback) · `tiebreak_started/finished` · `board_feedback` (helpful) · `buy_clicked` (retailer, category, price band) · `guest_upgraded`.
+
+Funnel: project_created → invite_opened → partner_joined → round_finished(micro, partner) → board_revealed → board_feedback / buy_clicked.
+
+---
+
+## 12. Running locally
 
 ```bash
 pnpm install
-cp .env.example .env        # fill in
-pnpm db:up                  # Postgres+pgvector: dev :5432, test :5433
-pnpm db:migrate
+cp .env.example .env        # only DATABASE_URL, TEST_DATABASE_URL, BETTER_AUTH_*, GOOGLE_* needed for dev
+pnpm db:up && pnpm db:migrate
+pnpm db:seed                # fixture catalogue, no API keys needed
 pnpm dev                    # http://localhost:3000
-pnpm dev:jobs               # Inngest dev server at http://localhost:8288 (second terminal)
 ```
 
-Pinterest needs `http://localhost:3000/api/pinterest/callback` registered on the app. Vercel Blob works from localhost with the token.
+The catalogue scripts need the Anthropic, Voyage, Unsplash and Awin keys; run them against a branch DB on Neon first.
 
 ---
 
-## 12. Cost estimate (per property, ballpark; check current pricing)
+## 13. Costs
 
-| Item | Unit cost (approx.) | Typical property |
+| Item | Cost | Notes |
 |---|---|---|
-| Pin tagging, Opus 5.5 via Batches (~1.5k input, ~300 output tokens) | ≈ $0.006 / pin | 1,000 pins ≈ $6 one-off; re-syncs only tag new pins |
-| Embeddings (Voyage multimodal) | fractions of a cent / pin | < $0.50 |
-| Floorplan analysis | ≈ $0.05–0.15 | 1–2 ≈ $0.30 |
-| Room photo analysis | ≈ $0.02–0.05 | 10 ≈ $0.50 |
-| Suggestion titles | ≈ $0.005 / cluster | 50 ≈ $0.25 |
-| Mock-up (brief + image) | ≈ $0.05–0.25 depending on image model/resolution | 20 ≈ $1–5 |
+| Tagging the catalogue (≈ 1,700 items at launch, Batches) | ≈ $10 one-off | Opus 5.5 at effort `low`; new items only afterwards |
+| Embeddings | < $1 one-off | |
+| Bridge naming | ≈ $0.01 per board version | The only per-user AI cost |
+| Unsplash, Awin, PostHog, Resend, Sentry, Neon, Vercel | Free tiers cover the MVP | Check limits before a launch spike |
 
-So roughly **$10–15 per active property**, dominated by the first pin tagging. Haiku for tagging (§2.3) cuts that to ~$5. Hosting fits the free/hobby tiers of Vercel, Neon and Inngest until you have real users.
+Marginal cost per couple is about a cent, which suits an affiliate revenue model.
 
 ---
 
-## 13. Risks and how this plan handles them
+## 14. Risks
 
 | # | Risk | Mitigation |
 |---|---|---|
-| R1 | **Pinterest terms.** Pinterest restricts how API data is stored and used (e.g. no training ML models on it, deletion on disconnect, attribution). Generating images *inspired by* pins is a grey area. | Read the current guidelines before Phase 3. We never train on pins; we delete on disconnect; we always attribute and link back; mock-ups are private to the property's members and not shareable publicly in v1. Describe the mock-up feature plainly in the Standard-access application; if Pinterest objects, mock-ups can be driven by the *text* brief only (tags/palette), without sending pin images to the image model. |
-| R2 | **Pinterest access level.** Trial access can't serve real users. | Apply for Standard access at the end of Phase 2; build Phases 3–6 using your own account meanwhile. |
-| R3 | **Rate limits** during first sync of big accounts. | Inngest throttle + per-board steps + `Retry-After` sleeps; only shared boards' pins are analysed. |
-| R4 | **Floorplan misreads.** | Draft-then-confirm editor (D8); never use unconfirmed rooms. |
-| R5 | **Mock-ups distort the room.** | Strict brief with `keep` list; renderer interface allows switching models; users react and retry. |
-| R6 | **AI cost runaway.** | Batches for tagging, analyse each pin once globally, per-user caps, Anthropic spend limit, logged cost per job. |
-| R7 | **Privacy between members.** | Board sharing is opt-in per property (D4); only shared boards are visible to others; leaving/disconnecting removes data. |
-| R8 | **Similarity threshold is wrong for real data.** | It's an env var; Phase 3 includes a tuning step on real boards; fixtures lock in the behaviour once chosen. |
+| R1 | **The catalogue is the product.** Bad or samey cards make the synthesis meaningless. | Budget real curation time; coverage grid; spot-check tags; retire weak images ruthlessly. |
+| R2 | **Affiliate approvals.** Retailers on Awin approve publishers manually; some want an established site. | Launch the landing page in Phase 0; apply widely; Skimlinks as a fallback for any retailer. The MVP works without revenue: buy buttons can be plain links at first. |
+| R3 | **Unsplash terms.** Hotlinking, attribution and download pings are mandatory; production access is reviewed. | Built into `SwipeCard`/`Attribution` and the deck builder from day one. Pexels as a second source. |
+| R4 | **30 swipes is a thin signal.** | Diverse decks (farthest-point sampling), macro weighted ×1.5, Laplace smoothing, a confidence indicator, and the tie-breaker round to firm things up. |
+| R5 | **Partner B drop-off.** | One tap + first name to start; progress bar; total under 3 minutes; measured as the top funnel metric. |
+| R6 | **Stale prices / dead links.** | Nightly refresh; hide buy buttons when out of stock; retire after 3 missing nights. |
+| R7 | **UK/EU privacy (guests, analytics).** | Guest data is just a name + swipes; PostHog cookieless until consent; delete project deletes swipes; privacy page. |
+| R8 | **AI names something silly.** | Name constrained to taxonomy vocabulary, validated, with a deterministic fallback; the maths never depends on it. |
+| R9 | **Someone already built this.** | Before Phase 1, spend an hour searching the App Store / Play Store / Product Hunt for "couples interior swipe" apps and note how they differ. The reconciliation layer (bridge style + maximin compromise) is the part to protect. |
 
 ---
 
-## 14. Out of scope for v1 (good next steps)
+## 15. After the MVP (v2 ideas)
 
-- Email invites and notifications (Resend), comments on suggestions.
-- Shopping: matching items to real products and prices.
-- 3D/AR room scans (RoomPlan on iOS) instead of photos.
-- Secret Pinterest boards; other sources (Instagram saves, Houzz, uploaded screenshots).
-- Budget tracking and a "decided" board to hand to a builder.
-- Native mobile app.
+- **See it in your room:** upload a photo of the real room and render the agreed board into it with an image-editing model (the mock-up pipeline from Revision 1: Claude writes the brief, an image model renders, Vercel Blob stores).
+- **Floorplans:** read a floorplan to know room sizes and filter products that won't fit.
+- **Whole-home projects:** several rooms sharing one taste profile, so the second room starts with a smarter deck.
+- **Adaptive decks:** a second macro round chosen from where the two taste vectors disagree most.
+- **More rooms:** kitchen and bathroom (finish- and fixture-led decks).
+- **"Add your own" cards:** paste a product link or screenshot into the deck for the partner to swipe.
+- **Native app** if the web funnel proves out.
