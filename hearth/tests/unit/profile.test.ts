@@ -14,7 +14,11 @@ describe('taste profile', () => {
   });
 
   it('has no taste before any swipes', () => {
-    const profile = buildProfile({ id: 'x', name: 'X', swipes: [], vetoes: [] }, w.byId, w.centroids);
+    const profile = buildProfile(
+      { id: 'x', name: 'X', swipes: [], vetoes: [] },
+      w.byId,
+      w.centroids,
+    );
     expect(profile.taste).toBeNull();
     expect(profile.topStyles).toEqual([]);
     expect(tasteSentence(profile)).toMatch(/swipe a few more/i);
@@ -35,7 +39,9 @@ describe('taste profile', () => {
 
   it('treats a named deal-breaker as the most negative affinity (R9)', () => {
     const velvet = w.items.find((i) => i.attributes.includes('material:velvet'))!;
-    const p = persona('a', w, decks, () => true, [{ itemId: velvet.id, attribute: 'material:velvet' }]);
+    const p = persona('a', w, decks, () => true, [
+      { itemId: velvet.id, attribute: 'material:velvet' },
+    ]);
     const profile = buildProfile(p, w.byId, w.centroids);
     expect(profile.affinity.get('material:velvet')).toBe(-0.5);
   });

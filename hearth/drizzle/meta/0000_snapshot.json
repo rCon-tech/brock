@@ -1,5 +1,5 @@
 {
-  "id": "b4b7ab2f-b666-4976-93b7-1c50de5ee0c4",
+  "id": "32bd8d74-49f8-4905-8284-79456d9f9f63",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1733,6 +1733,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "from_pick": {
+          "name": "from_pick",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
         },
         "by_participant_id": {
           "name": "by_participant_id",

@@ -17,6 +17,8 @@ export default defineConfig({
           name: 'integration',
           include: ['tests/integration/**/*.test.ts'],
           environment: 'node',
+          // Each test file gets its own in-memory PGlite database, seeded by the test itself.
+          env: { DATABASE_URL: 'pglite://memory', SEED_ON_EMPTY: '0', SOLO_AFTER_MS: '1000' },
           testTimeout: 30_000,
           hookTimeout: 60_000,
         },

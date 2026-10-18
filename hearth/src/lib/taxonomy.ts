@@ -188,7 +188,14 @@ export const itemTagsSchema = z.object({
     })
     .nullable(),
   flags: z.array(
-    z.enum(['not_a_room', 'watermark', 'cluttered', 'poor_cutout', 'low_quality', 'people_visible']),
+    z.enum([
+      'not_a_room',
+      'watermark',
+      'cluttered',
+      'poor_cutout',
+      'low_quality',
+      'people_visible',
+    ]),
   ),
   summary: z.string().max(200),
 });

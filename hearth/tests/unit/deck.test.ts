@@ -23,7 +23,9 @@ describe('deck building', () => {
   });
 
   it('is deterministic for a seed and different for another', () => {
-    expect(decksFor(w, 'living_room', { seed: 'x' })).toEqual(decksFor(w, 'living_room', { seed: 'x' }));
+    expect(decksFor(w, 'living_room', { seed: 'x' })).toEqual(
+      decksFor(w, 'living_room', { seed: 'x' }),
+    );
     expect(decksFor(w, 'living_room', { seed: 'x' }).macro).not.toEqual(
       decksFor(w, 'living_room', { seed: 'y' }).macro,
     );
@@ -37,7 +39,8 @@ describe('deck building', () => {
 
   it('only uses items for the requested room', () => {
     const d = decksFor(w, 'bedroom');
-    for (const id of [...d.macro, ...d.micro]) expect(w.byId.get(id)!.roomTypes).toContain('bedroom');
+    for (const id of [...d.macro, ...d.micro])
+      expect(w.byId.get(id)!.roomTypes).toContain('bedroom');
     expect(d.micro.map((id) => w.byId.get(id)!.category)).toContain('bed');
   });
 

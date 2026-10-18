@@ -15,7 +15,12 @@ describe('vector maths', () => {
   });
 
   it('takes weighted means', () => {
-    expect(weightedMean([{ v: [1, 0], w: 3 }, { v: [0, 1], w: 1 }])).toEqual([0.75, 0.25]);
+    expect(
+      weightedMean([
+        { v: [1, 0], w: 3 },
+        { v: [0, 1], w: 1 },
+      ]),
+    ).toEqual([0.75, 0.25]);
     expect(weightedMean([])).toBeNull();
     expect(mean([1, 2, 3])).toBe(2);
   });

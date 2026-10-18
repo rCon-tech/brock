@@ -45,9 +45,14 @@ async function createDb(): Promise<Db> {
   const client = new PGlite({ dataDir, extensions: { vector } });
   await client.waitReady;
   await client.exec('CREATE EXTENSION IF NOT EXISTS vector');
-  const db = drizzlePglite(client, { schema });
-  await migratePglite(db, { migrationsFolder: MIGRATIONS });
-  return db as unknown as Db;
+  const db = drizzlePglite(client, { schema }) as unknown as Db;
+  await migratePglite(db as never, { migrationsFolder: MIGRATIONS });
+  if (env.SEED_ON_EMPTY !== '0') {
+    // Imported lazily: the seed code pulls in the synthetic catalogue generator.
+    const { seedIfEmpty } = await import('@/lib/seed/load');
+    await seedIfEmpty(db);
+  }
+  return db;
 }
 
 /** Test helper: drop the cached handle so the next getDb() builds a fresh database. */

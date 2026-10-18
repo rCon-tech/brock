@@ -19,8 +19,10 @@ function run(people: Person[], context: ProjectContext = EMPTY_CONTEXT, budgetBa
   });
 }
 
-const industrial = (id = 'a') => persona(id, w, decks, styleIs('industrial', 'brutalist', 'contemporary'));
-const minimalist = (id = 'b') => persona(id, w, decks, styleIs('minimalist', 'japandi', 'scandinavian'));
+const industrial = (id = 'a') =>
+  persona(id, w, decks, styleIs('industrial', 'brutalist', 'contemporary'));
+const minimalist = (id = 'b') =>
+  persona(id, w, decks, styleIs('minimalist', 'japandi', 'scandinavian'));
 
 describe('industrial vs minimalist (the pitch)', () => {
   const r = run([industrial(), minimalist()]);
@@ -67,7 +69,9 @@ describe('industrial vs minimalist (the pitch)', () => {
     for (const p of r.picks) perCat.set(p.category, (perCat.get(p.category) ?? 0) + 1);
     expect(Math.max(...perCat.values())).toBeLessThanOrEqual(2);
     const rejected = new Set(
-      [industrial(), minimalist()].flatMap((p) => p.swipes.filter((s) => s.value === -1).map((s) => s.itemId)),
+      [industrial(), minimalist()].flatMap((p) =>
+        p.swipes.filter((s) => s.value === -1).map((s) => s.itemId),
+      ),
     );
     for (const p of r.picks) expect(rejected.has(p.itemId)).toBe(false);
   });
@@ -111,7 +115,9 @@ describe('agreement', () => {
     expect(Object.keys(r.brings)).toHaveLength(3);
     expect(r.picks).toHaveLength(12);
     const fit = meanFitPerPerson(r.picks);
-    expect(Math.max(...Object.values(fit)) - Math.min(...Object.values(fit))).toBeLessThanOrEqual(0.15);
+    expect(Math.max(...Object.values(fit)) - Math.min(...Object.values(fit))).toBeLessThanOrEqual(
+      0.15,
+    );
   });
 
   it('builds a solo board from one person’s swipes (R31)', () => {
@@ -136,7 +142,9 @@ describe('agreement', () => {
 
 describe('vetoes (R9, R22)', () => {
   it('keeps vetoed items and vetoed attributes off the board', () => {
-    const velvet = w.items.find((i) => i.tier === 'micro' && i.attributes.includes('material:velvet'))!;
+    const velvet = w.items.find(
+      (i) => i.tier === 'micro' && i.attributes.includes('material:velvet'),
+    )!;
     const a = persona('a', w, decks, styleIs('industrial', 'brutalist'), [
       { itemId: velvet.id, attribute: 'material:velvet' },
     ]);
@@ -153,14 +161,19 @@ describe('vetoes (R9, R22)', () => {
 
   it('never attributes a veto to a person on the result', () => {
     const velvet = w.items.find((i) => i.attributes.includes('material:velvet'))!;
-    const a = persona('a', w, decks, styleIs('industrial'), [{ itemId: velvet.id, attribute: 'material:velvet' }]);
+    const a = persona('a', w, decks, styleIs('industrial'), [
+      { itemId: velvet.id, attribute: 'material:velvet' },
+    ]);
     const json = JSON.stringify(run([a, minimalist()]).vetoedAttributes);
     expect(json).not.toContain('"a"');
   });
 });
 
 describe('room context (R14, R15)', () => {
-  const grey: ProjectContext = { ...EMPTY_CONTEXT, keeping: [{ category: 'sofa', colour: 'grey' }] };
+  const grey: ProjectContext = {
+    ...EMPTY_CONTEXT,
+    keeping: [{ category: 'sofa', colour: 'grey' }],
+  };
 
   it('never suggests a sofa when keeping one, and badges pieces that go with it', () => {
     const d = decksFor(w, 'living_room', { context: grey });
@@ -181,16 +194,23 @@ describe('room context (R14, R15)', () => {
     const r = run([a, b], ctx);
     return {
       r,
-      risky: r.picks.slice(0, 6).filter((p) => w.byId.get(p.itemId)!.attributes.includes('practical:light_fabric')).length,
+      risky: r.picks
+        .slice(0, 6)
+        .filter((p) => w.byId.get(p.itemId)!.attributes.includes('practical:light_fabric')).length,
     };
   };
 
   it('pushes risky fabrics down for a household with a dog, with a badge (R15)', () => {
     const none = riskyCount(EMPTY_CONTEXT);
-    const dog = riskyCount({ ...EMPTY_CONTEXT, household: { dog: true, cat: false, youngKids: false } });
+    const dog = riskyCount({
+      ...EMPTY_CONTEXT,
+      household: { dog: true, cat: false, youngKids: false },
+    });
     expect(none.risky).toBeGreaterThan(0);
     expect(dog.risky).toBeLessThan(none.risky);
-    const badged = dog.r.picks.filter((p) => w.byId.get(p.itemId)!.attributes.includes('practical:light_fabric'));
+    const badged = dog.r.picks.filter((p) =>
+      w.byId.get(p.itemId)!.attributes.includes('practical:light_fabric'),
+    );
     for (const p of badged) expect(p.householdRisks).toContain('pets');
   });
 
@@ -213,7 +233,10 @@ describe('inputs hash', () => {
     const h1 = inputsHash({ ...base, people: [a, minimalist()] });
     const reversed = { ...a, swipes: a.swipes.slice().reverse() };
     expect(inputsHash({ ...base, people: [minimalist(), reversed] })).toBe(h1);
-    const flipped = { ...a, swipes: a.swipes.map((s, i) => (i === 0 ? { ...s, value: -s.value as 1 | -1 } : s)) };
+    const flipped = {
+      ...a,
+      swipes: a.swipes.map((s, i) => (i === 0 ? { ...s, value: -s.value as 1 | -1 } : s)),
+    };
     expect(inputsHash({ ...base, people: [flipped, minimalist()] })).not.toBe(h1);
   });
 });

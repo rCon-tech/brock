@@ -10,7 +10,13 @@ const w = world();
 const decks = decksFor(w);
 const a = persona('a', w, decks, styleIs('industrial', 'brutalist', 'contemporary'));
 const b = persona('b', w, decks, styleIs('minimalist', 'japandi', 'scandinavian'));
-const base = { roomType: 'living_room', context: EMPTY_CONTEXT, budgetBand: null, items: w.items, centroids: w.centroids };
+const base = {
+  roomType: 'living_room',
+  context: EMPTY_CONTEXT,
+  budgetBand: null,
+  items: w.items,
+  centroids: w.centroids,
+};
 const result = synthesise({ ...base, people: [a, b] });
 
 describe('swaps (R28)', () => {
@@ -43,7 +49,8 @@ describe('board signals', () => {
       ],
       swapsOut: [{ participantId: 'b', itemId: result.picks[3].itemId }],
     });
-    const find = (pid: string, item: string) => people.find((p) => p.id === pid)!.swipes.find((s) => s.itemId === item);
+    const find = (pid: string, item: string) =>
+      people.find((p) => p.id === pid)!.swipes.find((s) => s.itemId === item);
     expect(find('a', p1.itemId)?.value).toBe(-1);
     expect(find('b', p2.itemId)?.value).toBe(1);
     expect(find('b', p3.itemId)).toBeUndefined();

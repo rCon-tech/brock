@@ -231,6 +231,7 @@ CREATE TABLE "pick_swap" (
 	"category" text NOT NULL,
 	"from_item_id" text NOT NULL,
 	"to_item_id" text,
+	"from_pick" jsonb NOT NULL,
 	"by_participant_id" text NOT NULL,
 	"undone_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL

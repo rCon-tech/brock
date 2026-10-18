@@ -1,15 +1,7 @@
-import {
-  boolean,
-  integer,
-  jsonb,
-  pgTable,
-  primaryKey,
-  text,
-  timestamp,
-} from 'drizzle-orm/pg-core';
+import { boolean, integer, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 import { catalogueItem } from './catalogue';
 import { participant, project } from './projects';
-import type { SynthesisResult } from '@/lib/engine/types';
+import type { Pick, SynthesisResult } from '@/lib/engine/types';
 
 export const synthesis = pgTable(
   'synthesis',
@@ -76,6 +68,8 @@ export const pickSwap = pgTable('pick_swap', {
     .notNull()
     .references(() => catalogueItem.id),
   toItemId: text('to_item_id').references(() => catalogueItem.id),
+  /** The pick as it was before the swap, so undo restores it exactly. */
+  fromPick: jsonb('from_pick').$type<Pick>().notNull(),
   byParticipantId: text('by_participant_id')
     .notNull()
     .references(() => participant.id, { onDelete: 'cascade' }),

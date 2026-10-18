@@ -52,6 +52,19 @@ function anchorLabel(context: ProjectContext, item: EngineItem): string | null {
   return null;
 }
 
+/** Builds a pick record for an item chosen outside the main selection, e.g. a swap (R28). */
+export function describePick(item: EngineItem, profiles: Profile[], context: ProjectContext): Pick {
+  const fit: Record<string, number> = {};
+  for (const p of profiles) fit[p.personId] = fitFor(p, item);
+  return {
+    itemId: item.id,
+    category: item.category!,
+    goesWith: anchorLabel(context, item),
+    householdRisks: householdRisks(context.household, item.attributes),
+    fit,
+  };
+}
+
 /**
  * Picks products that work for everyone (maximin), then balances them so total satisfaction stays
  * even between people instead of one person's favourites dominating. Diversity comes from MMR and
