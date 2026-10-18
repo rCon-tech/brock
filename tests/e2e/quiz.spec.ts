@@ -146,6 +146,8 @@ test('losing the risked Brock drops the day to 0', async ({ context, page }) => 
   await rigHouse(id, 'paper');
   await page.getByRole('button', { name: 'Rock' }).click();
   await page.getByRole('button', { name: 'RISK IT' }).click();
+  // Wait for the risked round to exist before rigging it.
+  await expect(page.getByTestId('risk-banner')).toBeVisible();
 
   await rigHouse(id, 'paper');
   await page.getByRole('button', { name: 'Rock' }).click();
