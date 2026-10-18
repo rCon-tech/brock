@@ -1,0 +1,70 @@
+{
+  "name": "hearth",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed-dev.ts",
+    "catalogue:photos": "tsx scripts/import-photos.ts",
+    "catalogue:feed": "tsx scripts/import-feed.ts",
+    "catalogue:tag": "tsx scripts/tag-catalogue.ts",
+    "catalogue:embed": "tsx scripts/embed-catalogue.ts",
+    "catalogue:centroids": "tsx scripts/build-style-centroids.ts",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "playwright test"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ]
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "@electric-sql/pglite-pgvector": "^0.0.11",
+    "@use-gesture/react": "^10.3.1",
+    "better-auth": "^1.3.0",
+    "drizzle-orm": "^0.45.4",
+    "idb-keyval": "^6.2.1",
+    "lucide-react": "^0.540.0",
+    "motion": "^12.0.0",
+    "next": "^16.4.0",
+    "postgres": "^3.4.9",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@playwright/test": "^1.64.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "drizzle-kit": "^0.31.11",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.0",
+    "fake-indexeddb": "^6.0.0",
+    "postcss": "^8.5.30",
+    "prettier": "^3.9.10",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}
