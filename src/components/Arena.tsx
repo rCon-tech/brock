@@ -14,17 +14,17 @@ interface Props {
   outcome: RoundResult | null;
   /** Show the end state without replaying the action, e.g. when coming back to a finished Brock. */
   still?: boolean;
-  /** The player's armour tier (0 to 3), earned every 3 wins in today's run. Cosmetic only. */
+  /** The player's armour tier (0 to 4), earned every 2 wins in today's run. Cosmetic only. */
   armor?: number;
   /** The armour tier just went up with this round: say so. */
   upgraded?: boolean;
 }
 
-export const ARMOR_NAMES = ['', 'BRONZE', 'STEEL', 'GOLD'] as const;
+export const ARMOR_NAMES = ['', 'BRONZE', 'STEEL', 'GOLD', 'LEGENDARY'] as const;
 
-/** One armour tier per 3 wins in the run, up to 3 (at 9 wins). */
+/** One armour tier per 2 wins in the run, up to 4 (at 8 wins). Weapons come from tier 2. */
 export function armorTier(score: number): number {
-  return Math.min(3, Math.floor(score / 3));
+  return Math.min(4, Math.floor(score / 2));
 }
 
 const BEAT_MS = 400;
@@ -72,6 +72,7 @@ function Side({
         </svg>
         <svg className="hand" viewBox="0 0 240 160" aria-hidden="true" focusable="false">
           <g className="pivot">
+            {armor >= 2 && <use href={`#armor-back-${armor}`} />}
             <use href={`#hand-${shape}`} />
             {armor > 0 && <use href={`#armor-${armor}`} />}
           </g>

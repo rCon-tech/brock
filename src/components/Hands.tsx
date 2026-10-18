@@ -10,6 +10,7 @@ const cuff = { fill: 'var(--cuff-c)' } as const;
 const armor = { fill: 'var(--armor-c)' } as const;
 const armorShade = { stroke: 'var(--armor-shade)' } as const;
 const GOLD = '#f6d23c';
+const STEEL = '#dfe6ec';
 
 /**
  * The comic hand drawings, defined once per page and drawn with <Hand>. Every hand points right
@@ -326,6 +327,109 @@ export function HandDefs() {
           <use href="#armor-plate" />
           <use href="#armor-pauldron" />
           <use href="#armor-gem" />
+        </symbol>
+        <symbol id="armor-4" viewBox="0 0 240 160" overflow="visible">
+          <use href="#armor-spikes" />
+          <use href="#armor-plate" />
+          <use href="#armor-pauldron" />
+          <use href="#armor-gem" />
+        </symbol>
+
+        {/*
+          Weapons, drawn behind the hand and arm (Arena puts the armor-back-N symbol first):
+          a blade strapped under the wrist, then a broadsword slung behind the arm, set alight
+          at the top tier.
+        */}
+        <g id="weapon-wrist-blade">
+          <rect
+            x="52"
+            y="112"
+            width="36"
+            height="30"
+            rx="4"
+            style={armor}
+            stroke={INK}
+            strokeWidth="4"
+          />
+          <path
+            d="M58 134 H204 L232 140 L204 146 H58 Z"
+            fill={STEEL}
+            stroke={INK}
+            strokeWidth="4"
+            strokeLinejoin="round"
+          />
+          <path d="M72 140 H198" stroke="#8b98a3" strokeWidth="2.5" strokeLinecap="round" />
+        </g>
+        <g id="weapon-sword-blade">
+          <path
+            d="M36 -10 H226 L256 0 L226 10 H36 Z"
+            fill={STEEL}
+            stroke={INK}
+            strokeWidth="4"
+            strokeLinejoin="round"
+          />
+          <path d="M46 0 H222" stroke="#8b98a3" strokeWidth="3" strokeLinecap="round" />
+        </g>
+        <g id="weapon-sword-hilt">
+          <rect
+            x="0"
+            y="-6"
+            width="26"
+            height="12"
+            rx="3"
+            fill="#6b3b1f"
+            stroke={INK}
+            strokeWidth="3.5"
+          />
+          <circle cx="-5" cy="0" r="8" style={armor} stroke={INK} strokeWidth="3.5" />
+          <rect
+            x="24"
+            y="-20"
+            width="12"
+            height="40"
+            rx="3"
+            style={armor}
+            stroke={INK}
+            strokeWidth="3.5"
+          />
+        </g>
+        <g id="weapon-flames" stroke={INK} strokeWidth="3" strokeLinejoin="round">
+          <path
+            d="M120 -9 Q130 -40 142 -12 Q152 -52 166 -12 Q178 -58 192 -11 Q204 -50 214 -10 Q228 -40 236 -8 Q246 -26 252 -3 Z"
+            fill="#ff7a1a"
+          />
+          <path
+            d="M120 9 Q132 34 144 12 Q156 42 170 12 Q184 44 198 11 Q210 36 222 9 Q234 26 244 5 Z"
+            fill="#ff7a1a"
+          />
+          <path
+            d="M134 -10 Q144 -30 152 -11 Q164 -38 176 -11 Q188 -36 200 -10 Q212 -28 222 -9 Z"
+            fill={GOLD}
+            stroke="none"
+          />
+          <path
+            d="M136 10 Q146 24 156 11 Q168 28 180 11 Q192 26 204 10 Z"
+            fill={GOLD}
+            stroke="none"
+          />
+        </g>
+        <symbol id="armor-back-2" viewBox="0 0 240 160" overflow="visible">
+          <use href="#weapon-wrist-blade" />
+        </symbol>
+        <symbol id="armor-back-3" viewBox="0 0 240 160" overflow="visible">
+          <g transform="translate(6 150) rotate(-48)">
+            <use href="#weapon-sword-blade" />
+            <use href="#weapon-sword-hilt" />
+          </g>
+          <use href="#weapon-wrist-blade" />
+        </symbol>
+        <symbol id="armor-back-4" viewBox="0 0 240 160" overflow="visible">
+          <g transform="translate(6 150) rotate(-48)">
+            <use href="#weapon-flames" />
+            <use href="#weapon-sword-blade" />
+            <use href="#weapon-sword-hilt" />
+          </g>
+          <use href="#weapon-wrist-blade" />
         </symbol>
 
         <symbol id="win-burst" viewBox="-100 -100 200 200">

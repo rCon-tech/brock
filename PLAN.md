@@ -1,6 +1,6 @@
 # Brock — Build Plan
 
-> **Revision 6.** The quiz questions are now pub-quiz level (125, new ids). Once the quiz's extra life has been spent, the run can be risked once on an all-or-nothing Brock: a win carries the run on without scoring, a loss drops the day to 0 (migration `0004_risk_it`, additive: `brock.risk`). Cosmetic armour on the player's hand at 3, 6 and 9 wins in a run.
+> **Revision 6.** The quiz questions are now pub-quiz level (125, new ids). Once the quiz's extra life has been spent, the run can be risked once on an all-or-nothing Brock: a win carries the run on without scoring, a loss drops the day to 0 (migration `0004_risk_it`, additive: `brock.risk`). Cosmetic armour on the player's hand every 2 wins in a run (2, 4, 6, 8), with weapons from 4 wins.
 
 > **Revision 5 (supersedes streaks and the lifeline).** One *run* a day instead of one Brock: every win adds 1 to today's score and you throw again; the first loss ends the run. Today's score ranks on a **Today** board (resets at midnight UTC) and each player's best run on an **All-time** board. After the run ends you can try once a day to **win another life**: 5 hard multiple-choice questions themed on rocks, paper and scissors, 15 seconds each (server-enforced), right/wrong revealed only at the end; 5/5 reopens the run with its score kept. Migration `0003_daily_runs` is additive (`brock.score`, `player.best_score`, `brock_quiz`); the old streak columns and `brock_rescue` are unused. Rules R3, R4, R6 and R8 below are replaced; see `README.md`.
 
