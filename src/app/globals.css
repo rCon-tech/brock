@@ -492,6 +492,31 @@ button.option:disabled {
     filter: saturate(0.55) brightness(0.92);
   }
 }
+/* Armour, earned every 3 wins in a run. */
+.arena-side[data-armor='1'] {
+  --armor-c: #c47b34;
+  --armor-shade: #8a521f;
+}
+.arena-side[data-armor='2'] {
+  --armor-c: #c9d3dc;
+  --armor-shade: #7d8a96;
+}
+.arena-side[data-armor='3'] {
+  --armor-c: var(--color-gold);
+  --armor-shade: #c08a12;
+}
+.arena-side[data-armor='3'] .hand-box .hand {
+  animation: gold-glow 1.6s ease-in-out infinite alternate;
+}
+@keyframes gold-glow {
+  from {
+    filter: drop-shadow(0 0 2px rgb(255 240 150 / 0.6));
+  }
+  to {
+    filter: drop-shadow(0 0 10px rgb(255 236 120 / 0.95));
+  }
+}
+
 /* Coming back to a finished Brock: show the end state without replaying the action. */
 .arena[data-still] .pivot,
 .arena[data-still] .hand-box .hand {
@@ -518,6 +543,17 @@ button.option:disabled {
   white-space: nowrap;
   z-index: 3;
   pointer-events: none;
+}
+.call[data-kind='upgrade'] {
+  top: 6%;
+  color: var(--color-gold);
+  font-size: clamp(24px, 7vw, 40px);
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(3deg);
+  /* After the BROCK! call clears, then stays a moment. */
+  animation:
+    slam 0.45s 1.1s cubic-bezier(0.2, 1.8, 0.4, 1) 1 forwards,
+    call-out 0.3s 3s ease-in forwards;
 }
 .call[data-kind='beat'] {
   animation: beat 0.4s ease-out 1;
@@ -612,7 +648,8 @@ button.option:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .call[data-kind='brock'] {
+  .call[data-kind='brock'],
+  .call[data-kind='upgrade'] {
     display: none;
   }
   .logo-burst,

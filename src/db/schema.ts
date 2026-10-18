@@ -19,6 +19,8 @@ export const roundResultEnum = pgEnum('round_result', ['win', 'loss', 'draw']);
 export const brockStatusEnum = pgEnum('brock_status', ['pending', 'won', 'lost']);
 export const rescueStatusEnum = pgEnum('rescue_status', ['offered', 'asked', 'passed', 'failed']);
 export const quizStatusEnum = pgEnum('quiz_status', ['active', 'passed', 'failed']);
+/** The all-or-nothing Brock offered after a quiz-won life is lost too. */
+export const riskStatusEnum = pgEnum('risk_status', ['active', 'survived', 'lost']);
 
 /**
  * A player. There are no accounts: each browser holds a secret cookie that maps to a player
@@ -74,6 +76,12 @@ export const brock = pgTable(
     status: brockStatusEnum('status').notNull().default('pending'),
     /** Rounds won in today's run: the day's score. */
     score: integer('score').notNull().default(0),
+    /**
+     * Null until the player risks their run (only after the quiz's extra life is spent). While
+     * 'active' the next decided round doesn't score: a win keeps the run going ('survived'), a
+     * loss drops the day's score to 0 ('lost').
+     */
+    risk: riskStatusEnum('risk'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     decidedAt: timestamp('decided_at', { withTimezone: true }),
   },

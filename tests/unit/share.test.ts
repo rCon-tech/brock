@@ -19,6 +19,16 @@ describe('buildShareText', () => {
     ).toBe('Brock #3: run of 2 🔥\n🟩🟥❤️🟩🟥');
   });
 
+  it('marks the risked Brock after the second undone loss', () => {
+    expect(
+      buildShareText({
+        brockNumber: 3,
+        results: ['win', 'loss', 'win', 'loss', 'draw', 'win', 'loss'],
+        score: 2,
+      }),
+    ).toBe('Brock #3: run of 2 🔥\n🟩🟥❤️🟩🟥🎲⬜🟩🟥');
+  });
+
   it('omits the url line when none is given', () => {
     expect(buildShareText({ brockNumber: 3, results: ['loss'], score: 0 })).toBe(
       'Brock #3: run of 0 🔥\n🟥',

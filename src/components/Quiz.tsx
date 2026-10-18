@@ -80,7 +80,7 @@ function Offer({
         ONE MORE LIFE?
       </div>
       <p className="text-[15px] leading-relaxed">
-        Answer <strong>5 tough questions</strong> on rocks, paper and scissors,{' '}
+        Answer <strong>5 quick questions</strong> on rocks, paper and scissors,{' '}
         <strong>15 seconds</strong> each. Get all 5 right and your run of <strong>{score}</strong>{' '}
         carries on. One try a day.
       </p>

@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import type { RevealedRound, TodayState } from '@/lib/brock-service';
+import type { RevealedRound, ThrowResult, TodayState } from '@/lib/brock-service';
 import type { Throw } from '@/lib/game';
-import { Arena, type ArenaMode } from './Arena';
+import { Arena, ARMOR_NAMES, armorTier, type ArenaMode } from './Arena';
 import { Countdown } from './Countdown';
 import { HandleForm } from './HandleForm';
 import { Quiz } from './Quiz';
+import { RiskBanner, RiskOffer } from './Risk';
 import { RoundReveal } from './RoundReveal';
 import { ScoreBadge } from './ScoreBadge';
 import { ShareButton } from './ShareButton';
@@ -38,6 +39,8 @@ const STALE_ERRORS = ['stale_round', 'new_day', 'already_played', 'unauthorized'
 /** Three beats of "rock… paper… scissors…" while the server resolves the throw. */
 const SUSPENSE_MS = 1200;
 
+const cap = (s: string) => s[0] + s.slice(1).toLowerCase();
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function revealedArena(round: RevealedRound, still: boolean): ArenaState {
@@ -56,6 +59,10 @@ export function BrockGame() {
   const [phase, setPhase] = useState<Phase>('loading');
   const [arena, setArena] = useState<ArenaState>(IDLE);
   const [lastRound, setLastRound] = useState<RevealedRound | null>(null);
+  /** Whether `lastRound` was the all-or-nothing Brock. */
+  const [lastRisked, setLastRisked] = useState(false);
+  /** The last win earned a new armour tier. */
+  const [upgraded, setUpgraded] = useState(false);
   const [picked, setPicked] = useState<Throw | null>(null);
   const [message, setMessage] = useState('');
   const [announce, setAnnounce] = useState('');
@@ -64,6 +71,7 @@ export function BrockGame() {
   const show = useCallback((data: TodayState) => {
     setState(data);
     setLastRound(null);
+    setUpgraded(false);
     const final = data.rounds.at(-1);
     // Coming back to a finished run shows how it ended, without replaying the action.
     setArena(data.status === 'over' && final ? revealedArena(final, true) : IDLE);
@@ -110,18 +118,28 @@ export function BrockGame() {
         throw new Error(data.error);
       }
 
-      const next = data as TodayState & { round: RevealedRound };
+      const next = data as ThrowResult;
       setLastRound(next.round);
+      setLastRisked(next.risked);
+      const armorUp = armorTier(next.score) > armorTier(state.score);
+      setUpgraded(armorUp);
       setState(next);
       setArena(revealedArena(next.round, false));
       setPhase(next.status === 'playing' ? 'revealed' : 'done');
       setAnnounce(
-        next.round.result === 'win'
-          ? `You win! The House threw ${next.round.house}. That’s ${next.score} in a row.`
-          : next.round.result === 'loss'
-            ? `The House wins with ${next.round.house}. Your run ends at ${next.score}.`
-            : `It’s a tie. The House threw ${next.round.house} too. Brock again.`,
+        next.risked && next.round.result === 'win'
+          ? `You survived! The House threw ${next.round.house}. Your run carries on from ${next.score}.`
+          : next.risked && next.round.result === 'loss'
+            ? `The House wins with ${next.round.house}. Today’s run drops to 0.`
+            : next.round.result === 'win'
+              ? `You win! The House threw ${next.round.house}. That’s ${next.score} in a row.`
+              : next.round.result === 'loss'
+                ? `The House wins with ${next.round.house}. Your run ends at ${next.score}.`
+                : `It’s a tie. The House threw ${next.round.house} too. Brock again.`,
       );
+      if (armorUp) {
+        setAnnounce((a) => `${a} ${cap(ARMOR_NAMES[armorTier(next.score)])} armour unlocked!`);
+      }
     } catch {
       // The request may have landed even though we didn't hear back, so resync with the server.
       setMessage('Something went wrong. Please try again.');
@@ -147,7 +165,14 @@ export function BrockGame() {
     }
   }
 
+  /** After taking the risk: the run reopens for the all-or-nothing Brock. */
+  function onRisk(next: TodayState) {
+    show(next);
+    setAnnounce(`All or nothing. Win to keep your run of ${next.score}; lose and today scores 0.`);
+  }
+
   function brockAgain() {
+    setUpgraded(false);
     setArena(IDLE);
     setPhase('ready');
   }
@@ -165,8 +190,8 @@ export function BrockGame() {
   const finalRound = state.rounds.at(-1) ?? null;
   // While the clock runs, the question gets the screen to itself: no scrolling past the arena.
   const asking = state.quiz?.status === 'active';
-  // While a life is still to be won, the day isn't settled yet.
-  const settled = !asking && !state.quizAvailable;
+  // While a life is still to be won, or the run can still be risked, the day isn't settled yet.
+  const settled = !asking && !state.quizAvailable && !state.riskAvailable;
   const quiz = (
     <Quiz
       quiz={state.quiz}
@@ -204,11 +229,11 @@ export function BrockGame() {
 
       {phase === 'error' && <ErrorPanel message={message} onRetry={() => void load()} />}
 
-      {!asking && <Arena {...arena} />}
+      {!asking && <Arena {...arena} armor={armorTier(state.score)} upgraded={upgraded} />}
 
       {phase === 'ready' && state.openRound && (
         <>
-          {quiz}
+          {state.risk === 'active' ? <RiskBanner score={state.score} /> : !state.risk && quiz}
           <HouseCommit hash={state.openRound.commitHash} round={state.openRound.roundNo} />
           <ThrowPicker onPick={onPick} />
         </>
@@ -225,7 +250,7 @@ export function BrockGame() {
 
       {phase === 'revealed' && lastRound && (
         <>
-          <RoundReveal round={lastRound} score={state.score} />
+          <RoundReveal round={lastRound} score={state.score} risked={lastRisked} />
           <button type="button" onClick={brockAgain} className="btn-ink">
             BROCK
           </button>
@@ -234,8 +259,13 @@ export function BrockGame() {
 
       {phase === 'done' && finalRound && (
         <>
-          {!asking && <RoundReveal round={finalRound} score={state.score} />}
+          {!asking && (
+            <RoundReveal round={finalRound} score={state.score} risked={state.risk === 'lost'} />
+          )}
           {quiz}
+          {state.riskAvailable && (
+            <RiskOffer score={state.score} onUpdate={onRisk} onStale={() => void load()} />
+          )}
           {!asking && state.handle === null && (
             <div className="panel w-full max-w-md p-4">
               <HandleForm

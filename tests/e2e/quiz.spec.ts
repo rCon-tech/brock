@@ -49,14 +49,16 @@ test('five right answers win another life, and the run carries on from its score
   await expect(page.getByTestId('outcome')).toHaveText('YOU WIN!');
   await expect(scoreCaption(page, 3)).toBeVisible();
 
-  // Losing again ends the day: the quiz is once a day.
+  // Losing again: the quiz is once a day.
   await page.getByRole('button', { name: 'BROCK', exact: true }).click();
   await rigHouse(id, 'paper');
   await page.getByRole('button', { name: 'Rock' }).click();
   await expect(page.getByTestId('outcome')).toHaveText('THE HOUSE WINS');
   await expect(page.getByText('You’ve used today’s extra life.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'WIN ANOTHER LIFE' })).toHaveCount(0);
-  await expect(page.getByText('See you tomorrow!')).toBeVisible();
+  // What's left is the all-or-nothing risk, so it isn't "see you tomorrow" yet.
+  await expect(page.getByRole('button', { name: 'RISK IT' })).toBeVisible();
+  await expect(page.getByText('See you tomorrow!')).toHaveCount(0);
 });
 
 test('one wrong answer is only revealed at the end, and costs the life', async ({
@@ -101,4 +103,56 @@ test('reloading mid-question shows the same question with the clock still runnin
   await expect(card.getByText('Question 2 of 5')).toBeVisible();
   await expect(card.getByRole('heading')).toHaveText(question!);
   await expect(card.getByLabel(/^1[0-3] seconds left$/)).toBeVisible();
+});
+
+test('after the extra life is spent, risking it all: a win carries the run on without scoring', async ({
+  context,
+  page,
+}) => {
+  const id = await loseARun(context, page);
+  await page.getByRole('button', { name: 'WIN ANOTHER LIFE' }).click();
+  for (let i = 0; i < 5; i++) await answer(page, id, i, true);
+  await expect(page.getByTestId('quiz-verdict')).toHaveText('ANOTHER LIFE!');
+
+  // Lose again: no more quiz, but the run can be risked.
+  await rigHouse(id, 'paper');
+  await page.getByRole('button', { name: 'Rock' }).click();
+  await expect(page.getByTestId('outcome')).toHaveText('THE HOUSE WINS');
+  await expect(page.getByText('RISK IT ALL?')).toBeVisible();
+  await expect(page.getByText('See you tomorrow!')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'RISK IT' }).click();
+  await expect(page.getByTestId('risk-banner')).toBeVisible();
+  await rigHouse(id, 'scissors');
+  await page.getByRole('button', { name: 'Rock' }).click();
+  await expect(page.getByTestId('outcome')).toHaveText('SURVIVED!');
+  await expect(scoreCaption(page, 2)).toBeVisible();
+
+  // Back to normal: the next win scores.
+  await page.getByRole('button', { name: 'BROCK', exact: true }).click();
+  await expect(page.getByTestId('risk-banner')).toHaveCount(0);
+  await rigHouse(id, 'scissors');
+  await page.getByRole('button', { name: 'Rock' }).click();
+  await expect(scoreCaption(page, 3)).toBeVisible();
+  // Three wins in the run: bronze armour.
+  await expect(page.getByTestId('player-side')).toHaveAttribute('data-armor', '1');
+});
+
+test('losing the risked Brock drops the day to 0', async ({ context, page }) => {
+  const id = await loseARun(context, page);
+  await page.getByRole('button', { name: 'WIN ANOTHER LIFE' }).click();
+  for (let i = 0; i < 5; i++) await answer(page, id, i, true);
+  await expect(page.getByTestId('quiz-verdict')).toHaveText('ANOTHER LIFE!');
+  await rigHouse(id, 'paper');
+  await page.getByRole('button', { name: 'Rock' }).click();
+  await page.getByRole('button', { name: 'RISK IT' }).click();
+  // Wait for the risked round to exist before rigging it.
+  await expect(page.getByTestId('risk-banner')).toBeVisible();
+
+  await rigHouse(id, 'paper');
+  await page.getByRole('button', { name: 'Rock' }).click();
+  await expect(page.getByText(/and it’s nothing\. Today scores 0\./)).toBeVisible();
+  await expect(scoreCaption(page, 0)).toBeVisible();
+  await expect(page.getByText('See you tomorrow!')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'RISK IT' })).toHaveCount(0);
 });
