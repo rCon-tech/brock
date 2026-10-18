@@ -7,13 +7,19 @@ interface Props {
   round: RevealedRound;
   /** The run's score after this round. */
   score: number;
+  /** The round was the all-or-nothing Brock. */
+  risked?: boolean;
 }
 
 const STAMP = { win: 'YOU WIN!', loss: 'THE HOUSE WINS', draw: 'TIE!' } as const;
 
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 
-function verdict(round: RevealedRound, score: number): string {
+function verdict(round: RevealedRound, score: number, risked: boolean): string {
+  if (risked && round.result === 'win')
+    return `${cap(round.player)} beats ${round.house}. You survived! Your run carries on from ${score}.`;
+  if (risked && round.result === 'loss')
+    return `${cap(round.house)} beats ${round.player}. All or nothing… and it’s nothing. Today scores 0.`;
   if (round.result === 'win')
     return `${cap(round.player)} beats ${round.house}. ${score === 1 ? 'First win' : `That’s ${score} in a row`}. Keep going!`;
   if (round.result === 'loss')
@@ -64,15 +70,15 @@ function FairnessPanel({ round }: { round: RevealedRound }) {
 }
 
 /** The outcome stamp, what beat what, and the fairness proof for the round. */
-export function RoundReveal({ round, score }: Props) {
+export function RoundReveal({ round, score, risked = false }: Props) {
   const [showProof, setShowProof] = useState(false);
 
   return (
     <div className="flex w-full flex-col items-center gap-3 text-center">
       <div className="stamp" data-outcome={round.result} data-testid="outcome">
-        {STAMP[round.result]}
+        {risked && round.result === 'win' ? 'SURVIVED!' : STAMP[round.result]}
       </div>
-      <p className="font-slab text-[15px] tracking-wide">{verdict(round, score)}</p>
+      <p className="font-slab text-[15px] tracking-wide">{verdict(round, score, risked)}</p>
       <button
         type="button"
         onClick={() => setShowProof((v) => !v)}

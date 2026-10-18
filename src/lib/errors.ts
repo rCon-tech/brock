@@ -11,7 +11,8 @@ export type DomainErrorCode =
   | 'rate_limited'
   | 'no_quiz'
   | 'quiz_closed'
-  | 'stale_question';
+  | 'stale_question'
+  | 'no_risk';
 
 const STATUS: Record<DomainErrorCode, number> = {
   invalid_request: 400,
@@ -27,6 +28,7 @@ const STATUS: Record<DomainErrorCode, number> = {
   no_quiz: 409,
   quiz_closed: 409,
   stale_question: 409,
+  no_risk: 409,
 };
 
 export class DomainError extends Error {

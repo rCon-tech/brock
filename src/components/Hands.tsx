@@ -7,6 +7,9 @@ const NAIL = '#fffaf0';
 const skin = { fill: 'var(--skin-c)' } as const;
 const shade = { stroke: 'var(--shade-c)' } as const;
 const cuff = { fill: 'var(--cuff-c)' } as const;
+const armor = { fill: 'var(--armor-c)' } as const;
+const armorShade = { stroke: 'var(--armor-shade)' } as const;
+const GOLD = '#f6d23c';
 
 /**
  * The comic hand drawings, defined once per page and drawn with <Hand>. Every hand points right
@@ -248,6 +251,81 @@ export function HandDefs() {
             stroke={INK}
             strokeWidth="3"
           />
+        </symbol>
+
+        {/*
+          Armour for the player's forearm, earned every 3 wins in a run. Drawn over the arm only,
+          so it fits every throw. Colours come from --armor-c / --armor-shade.
+        */}
+        <g id="armor-plate">
+          <path
+            d="M34 65 L100 59 L100 125 L34 121 Z"
+            style={armor}
+            stroke={INK}
+            strokeWidth="5"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M40 70 L94 65"
+            style={armorShade}
+            strokeWidth="5"
+            strokeLinecap="round"
+            opacity=".8"
+          />
+          <path d="M52 64 L52 122M82 61 L82 124" stroke={INK} strokeWidth="3" opacity=".55" />
+          <g fill={GOLD} stroke={INK} strokeWidth="2.5">
+            <circle cx="42" cy="75" r="3.5" />
+            <circle cx="42" cy="111" r="3.5" />
+            <circle cx="92" cy="70" r="3.5" />
+            <circle cx="92" cy="114" r="3.5" />
+          </g>
+        </g>
+        <g id="armor-spikes" style={armor} stroke={INK} strokeWidth="4" strokeLinejoin="round">
+          <path d="M40 68 L46 38 L57 67 Z" />
+          <path d="M59 66 L67 32 L76 65 Z" />
+          <path d="M78 64 L87 33 L94 63 Z" />
+          <path d="M44 121 L51 146 L60 122 Z" />
+          <path d="M74 124 L83 148 L90 124 Z" />
+        </g>
+        <g id="armor-pauldron">
+          <path
+            d="M-12 62 Q12 52 38 60 L40 126 Q12 132 -12 122 Z"
+            style={armor}
+            stroke={INK}
+            strokeWidth="5"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M-4 72 Q14 66 30 70M-4 92 Q14 86 32 90M-4 112 Q14 108 32 110"
+            style={armorShade}
+            strokeWidth="4"
+            fill="none"
+            strokeLinecap="round"
+          />
+        </g>
+        <g id="armor-gem">
+          <path
+            d="M67 78 L78 92 L67 106 L56 92 Z"
+            fill="#c4202c"
+            stroke={INK}
+            strokeWidth="4"
+            strokeLinejoin="round"
+          />
+          <path d="M62 88 L67 82" stroke={NAIL} strokeWidth="3" strokeLinecap="round" />
+        </g>
+        <symbol id="armor-1" viewBox="0 0 240 160" overflow="visible">
+          <use href="#armor-plate" />
+        </symbol>
+        <symbol id="armor-2" viewBox="0 0 240 160" overflow="visible">
+          <use href="#armor-spikes" />
+          <use href="#armor-plate" />
+          <use href="#armor-pauldron" />
+        </symbol>
+        <symbol id="armor-3" viewBox="0 0 240 160" overflow="visible">
+          <use href="#armor-spikes" />
+          <use href="#armor-plate" />
+          <use href="#armor-pauldron" />
+          <use href="#armor-gem" />
         </symbol>
 
         <symbol id="win-burst" viewBox="-100 -100 200 200">

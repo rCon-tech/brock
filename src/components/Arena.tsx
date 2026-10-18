@@ -14,6 +14,17 @@ interface Props {
   outcome: RoundResult | null;
   /** Show the end state without replaying the action, e.g. when coming back to a finished Brock. */
   still?: boolean;
+  /** The player's armour tier (0 to 3), earned every 3 wins in today's run. Cosmetic only. */
+  armor?: number;
+  /** The armour tier just went up with this round: say so. */
+  upgraded?: boolean;
+}
+
+export const ARMOR_NAMES = ['', 'BRONZE', 'STEEL', 'GOLD'] as const;
+
+/** One armour tier per 3 wins in the run, up to 3 (at 9 wins). */
+export function armorTier(score: number): number {
+  return Math.min(3, Math.floor(score / 3));
 }
 
 const BEAT_MS = 400;
@@ -39,14 +50,22 @@ function Side({
   label,
   shape,
   result,
+  armor = 0,
 }: {
   side: 'player' | 'house';
   label: string;
   shape: Throw;
   result?: 'win' | 'lose';
+  armor?: number;
 }) {
   return (
-    <div className="arena-side" data-side={side} data-result={result}>
+    <div
+      className="arena-side"
+      data-side={side}
+      data-result={result}
+      data-armor={armor || undefined}
+      data-testid={`${side}-side`}
+    >
       <div className="hand-box">
         <svg className="burst" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
           <use href="#win-burst" />
@@ -54,6 +73,7 @@ function Side({
         <svg className="hand" viewBox="0 0 240 160" aria-hidden="true" focusable="false">
           <g className="pivot">
             <use href={`#hand-${shape}`} />
+            {armor > 0 && <use href={`#armor-${armor}`} />}
           </g>
         </svg>
       </div>
@@ -63,7 +83,7 @@ function Side({
 }
 
 /** Your hand against the House's: idle fists, the pumping countdown, then the reveal. */
-export function Arena({ mode, player, house, outcome, still }: Props) {
+export function Arena({ mode, player, house, outcome, still, armor = 0, upgraded }: Props) {
   const revealed = mode === 'revealed';
   const playerResult = !revealed
     ? undefined
@@ -83,7 +103,13 @@ export function Arena({ mode, player, house, outcome, still }: Props) {
   return (
     <div className="arena" data-mode={mode} data-still={still ? '' : undefined}>
       <div className="arena-hands">
-        <Side side="player" label="YOU" shape={revealed ? player : 'rock'} result={playerResult} />
+        <Side
+          side="player"
+          label="YOU"
+          shape={revealed ? player : 'rock'}
+          result={playerResult}
+          armor={armor}
+        />
         <Side
           side="house"
           label="THE HOUSE"
@@ -100,6 +126,11 @@ export function Arena({ mode, player, house, outcome, still }: Props) {
       {revealed && !still && (
         <div className="call" data-kind="brock" aria-hidden="true">
           BROCK!
+        </div>
+      )}
+      {revealed && !still && upgraded && armor > 0 && (
+        <div className="call" data-kind="upgrade" aria-hidden="true">
+          {ARMOR_NAMES[armor]} ARMOUR!
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, max } from 'drizzle-orm';
 import { getDb, schema, type Db, type Tx } from '@/db';
 import type { BrockQuizRow, BrockRoundRow, BrockRow, Player, QuizItem } from '@/db/schema';
 import { brockNumber, msUntilReset, utcDay, type Day } from './day';
@@ -54,11 +54,22 @@ export interface TodayState {
   quiz: QuizView | null;
   /** True when the run is over and today's quiz hasn't been tried yet. */
   quizAvailable: boolean;
+  /**
+   * The all-or-nothing Brock: `active` while it's being played, then `survived` (the run carried
+   * on) or `lost` (the day's score went to 0). Null if it hasn't been taken.
+   */
+  risk: RiskStatus | null;
+  /** True when the quiz's extra life has been spent too, and the run can still be risked. */
+  riskAvailable: boolean;
 }
+
+export type RiskStatus = 'active' | 'survived' | 'lost';
 
 export interface ThrowResult extends TodayState {
   /** The round that was just thrown, now revealed. */
   round: RevealedRound;
+  /** The round was the risked Brock: a win didn't score, and a loss cost the day's score. */
+  risked: boolean;
 }
 
 function toRevealed(row: BrockRoundRow): RevealedRound {
@@ -110,6 +121,8 @@ function buildState(
     quiz: quizView(quiz, now),
     // Runs that ended under the old one-Brock rules ('won') don't get a quiz.
     quizAvailable: today.status === 'lost' && quiz === null,
+    risk: today.risk,
+    riskAvailable: today.status === 'lost' && quiz?.status === 'passed' && today.risk === null,
   };
 }
 
@@ -170,6 +183,15 @@ async function seenQuestions(tx: Tx, playerId: string): Promise<string[]> {
     .innerJoin(brock, eq(brock.id, brockQuiz.brockId))
     .where(eq(brock.playerId, playerId));
   return rows.flatMap((r) => r.items.map((i) => i.questionId));
+}
+
+/** The player's best score over all their runs, as stored now. */
+async function bestRun(tx: Tx, playerId: string): Promise<number> {
+  const [row] = await tx
+    .select({ best: max(brock.score) })
+    .from(brock)
+    .where(eq(brock.playerId, playerId));
+  return row?.best ?? 0;
 }
 
 /**
@@ -233,22 +255,37 @@ export async function submitThrow(
 
     let allRounds = rounds.map((r) => (r.id === revealedRow.id ? revealedRow : r));
     let playerRow = await loadPlayer(tx, playerId, true);
+    const risked = today.risk === 'active';
 
     if (result === 'loss') {
       [today] = await tx
         .update(brock)
-        .set({ status: 'lost', decidedAt: now })
+        .set({
+          status: 'lost',
+          decidedAt: now,
+          // Losing the risked Brock wipes out the day's run.
+          ...(risked && { risk: 'lost' as const, score: 0 }),
+        })
         .where(eq(brock.id, today.id))
         .returning();
       [playerRow] = await tx
         .update(player)
-        .set({ totalLosses: playerRow.totalLosses + 1 })
+        .set({
+          totalLosses: playerRow.totalLosses + 1,
+          // The best run may have been today's, which no longer counts.
+          ...(risked && { bestScore: await bestRun(tx, playerId) }),
+        })
         .where(eq(player.id, playerId))
         .returning();
     } else {
       if (result === 'win') {
-        const score = today.score + 1;
-        [today] = await tx.update(brock).set({ score }).where(eq(brock.id, today.id)).returning();
+        // Winning the risked Brock carries the run on from where it was, without scoring.
+        const score = risked ? today.score : today.score + 1;
+        [today] = await tx
+          .update(brock)
+          .set({ score, ...(risked && { risk: 'survived' as const }) })
+          .where(eq(brock.id, today.id))
+          .returning();
         [playerRow] = await tx
           .update(player)
           .set({
@@ -269,6 +306,7 @@ export async function submitThrow(
     return {
       ...buildState(now, today, playerRow, allRounds, quiz),
       round: toRevealed(revealedRow),
+      risked,
     };
   });
 }
@@ -345,6 +383,42 @@ export async function answerQuiz(
         .returning();
       rounds = [...rounds, next];
     }
+
+    const playerRow = await loadPlayer(tx, playerId, false);
+    return buildState(now, today, playerRow, rounds, quiz);
+  });
+}
+
+/**
+ * Risks the run on one more Brock. Only offered once the quiz's extra life has been won and lost
+ * again, and only once a day. The run reopens with a fresh, committed round: a win carries the
+ * run on from its score (without adding to it), a loss drops the day's score to 0.
+ */
+export async function startRisk(
+  playerId: string,
+  now: Date = new Date(),
+  database: Db = getDb(),
+): Promise<TodayState> {
+  const day = utcDay(now);
+
+  return database.transaction(async (tx) => {
+    let today = await lockToday(tx, playerId, day);
+    const quiz = await loadQuiz(tx, today.id, now);
+    if (today.status !== 'lost' || quiz?.status !== 'passed' || today.risk !== null) {
+      throw new DomainError('no_risk');
+    }
+
+    [today] = await tx
+      .update(brock)
+      .set({ status: 'pending', decidedAt: null, risk: 'active' })
+      .where(eq(brock.id, today.id))
+      .returning();
+    let rounds = await loadRounds(tx, today.id);
+    const [next] = await tx
+      .insert(brockRound)
+      .values(freshRound(today.id, rounds.length + 1))
+      .returning();
+    rounds = [...rounds, next];
 
     const playerRow = await loadPlayer(tx, playerId, false);
     return buildState(now, today, playerRow, rounds, quiz);

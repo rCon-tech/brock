@@ -29,6 +29,13 @@
       "when": 1792153725460,
       "tag": "0003_daily_runs",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792309576598,
+      "tag": "0004_risk_it",
+      "breakpoints": true
     }
   ]
 }
