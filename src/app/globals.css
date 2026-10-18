@@ -505,8 +505,23 @@ button.option:disabled {
   --armor-c: var(--color-gold);
   --armor-shade: #c08a12;
 }
+.arena-side[data-armor='4'] {
+  --armor-c: #3a3149;
+  --armor-shade: #9a7be0;
+}
 .arena-side[data-armor='3'] .hand-box .hand {
   animation: gold-glow 1.6s ease-in-out infinite alternate;
+}
+.arena-side[data-armor='4'] .hand-box .hand {
+  animation: fire-glow 0.9s ease-in-out infinite alternate;
+}
+@keyframes fire-glow {
+  from {
+    filter: drop-shadow(0 0 3px rgb(255 120 30 / 0.7));
+  }
+  to {
+    filter: drop-shadow(0 0 12px rgb(255 90 20 / 0.95));
+  }
 }
 @keyframes gold-glow {
   from {
