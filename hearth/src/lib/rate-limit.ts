@@ -33,11 +33,14 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
+/** Test and staging runs raise every limit by this factor; production leaves it at 1. */
+const MULTIPLIER = Number(process.env.RATE_LIMIT_MULTIPLIER ?? 1) || 1;
+
 /** The limits from R36, in one place. */
 export const LIMITS = {
-  createProject: { limit: 10, windowMs: DAY },
-  join: { limit: 20, windowMs: HOUR },
-  swipes: { limit: 120, windowMs: MINUTE },
-  go: { limit: 60, windowMs: MINUTE },
-  reactions: { limit: 60, windowMs: MINUTE },
+  createProject: { limit: 10 * MULTIPLIER, windowMs: DAY },
+  join: { limit: 20 * MULTIPLIER, windowMs: HOUR },
+  swipes: { limit: 120 * MULTIPLIER, windowMs: MINUTE },
+  go: { limit: 60 * MULTIPLIER, windowMs: MINUTE },
+  reactions: { limit: 60 * MULTIPLIER, windowMs: MINUTE },
 } as const;

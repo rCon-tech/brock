@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/cron/item-stats", "schedule": "17 5 * * *" },
+    { "path": "/api/cron/check-images", "schedule": "17 6 * * *" }
+  ]
+}

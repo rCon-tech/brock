@@ -1,0 +1,61 @@
+name: Hearth
+
+on:
+  push:
+    branches: [main]
+    paths: ['hearth/**', '.github/workflows/hearth.yml']
+  pull_request:
+    paths: ['hearth/**', '.github/workflows/hearth.yml']
+
+concurrency:
+  group: hearth-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: hearth
+
+jobs:
+  check:
+    name: Lint, typecheck, unit and integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: hearth/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: hearth/.nvmrc
+          cache: pnpm
+          cache-dependency-path: hearth/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      # PGlite runs in-process, so no database service is needed.
+      - run: pnpm test:integration
+
+  e2e:
+    name: End-to-end tests (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: hearth/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: hearth/.nvmrc
+          cache: pnpm
+          cache-dependency-path: hearth/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: hearth-playwright-report
+          path: |
+            hearth/playwright-report
+            hearth/test-results

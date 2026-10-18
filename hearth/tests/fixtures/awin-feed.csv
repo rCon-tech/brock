@@ -1,0 +1,11 @@
+aw_product_id,merchant_product_id,product_name,description,search_price,currency,aw_deep_link,merchant_deep_link,merchant_image_url,alternate_image,merchant_category,in_stock
+1001,A1,Oslo 3 Seater Sofa in Grey Boucle,"A cosy sofa. W210 x D95 x H85 cm. Easy to clean.",£899.00,GBP,https://track.example/1001,https://shop.example/oslo-sofa,https://img.example/oslo.jpg,https://img.example/oslo-2.jpg,Furniture > Sofas,1
+1002,A2,Kyoto Oak Coffee Table,"Solid oak top. 110 x 60 x 42cm",£1 249.50,GBP,https://track.example/1002,https://shop.example/kyoto,https://img.example/kyoto.jpg,,Living Room > Tables,in stock
+1003,A3,Brass Arc Floor Lamp,"Adjustable arc, 1800mm tall",89.99,GBP,https://track.example/1003,,https://img.example/arc.jpg,,Lighting,0
+1004,A4,Jute Rug 160x230,"Natural jute weave",£120.00,GBP,https://track.example/1004,,https://img.example/jute.jpg,,Rugs,1
+1005,A5,Mystery Item,"Who knows",£10.00,GBP,https://track.example/1005,,https://img.example/mystery.jpg,,Gifts > Misc,1
+1006,A6,Walnut Bedside Table,"Two drawers",£149.00,GBP,https://track.example/1006,,https://img.example/bedside.jpg,,Bedroom,1
+1007,A7,Velvet Armchair,"Deep seat",£0.00,GBP,https://track.example/1007,,https://img.example/velvet.jpg,,Armchairs,1
+1008,A8,Linen Sofa No Image,"No picture",£500.00,GBP,https://track.example/1008,,,,Sofas,1
+1009,A9,Ceramic Table Lamp,"Glazed base",£65.00,GBP,not a url,,https://img.example/lamp.jpg,,Lamps,1
+1010,A10,Dining Chair Set of Two,"Wooden frame",£180.00,GBP,https://track.example/1010,,https://img.example/chair.jpg,,Dining,1

@@ -186,3 +186,47 @@ describe('image checks (R33)', () => {
     expect(reset.imageFailures).toBe(0);
   });
 });
+
+describe('item stats (§12)', () => {
+  it('counts likes, tie-breaker mutual yeses, clicks and purchases without anything personal', async () => {
+    const { refreshItemStats } = await import('@/lib/stats/item-stats');
+    const { itemStats, outboundClick, shoppingListItem } = await import('@/db/schema');
+    const { startTiebreak, afterBridgeSwipes } = await import('@/lib/tiebreak');
+    const { recordSwipes } = await import('@/lib/swipes');
+    const { newId } = await import('@/lib/ids');
+    const c = await revealedCouple();
+
+    const round = await startTiebreak(db, c.projectId);
+    const [yes, ...rest] = round.itemIds;
+    for (const pid of [c.participantId, c.partnerId]) {
+      await recordSwipes(
+        db,
+        pid,
+        round.itemIds.map((id, i) => ({
+          clientId: `${pid}-stat-${i}`.padEnd(10, 'x'),
+          itemId: id,
+          round: 'bridge' as const,
+          value: id === yes ? (1 as const) : pid === c.participantId ? (1 as const) : (-1 as const),
+        })),
+      );
+    }
+    await afterBridgeSwipes(db, c.projectId);
+    await db.insert(outboundClick).values({ id: newId(), itemId: yes, surface: 'board' });
+    await db
+      .update(shoppingListItem)
+      .set({ boughtAt: new Date() })
+      .where(eq(shoppingListItem.itemId, yes));
+
+    await refreshItemStats(db);
+    const [row] = await db.select().from(itemStats).where(eq(itemStats.itemId, yes));
+    expect(row).toMatchObject({ tiebreakShown: 1, tiebreakMutualYes: 1, clicks: 1 });
+    const [other] = await db.select().from(itemStats).where(eq(itemStats.itemId, rest[0]));
+    expect(other).toMatchObject({ tiebreakShown: 1, tiebreakMutualYes: 0 });
+    const swiped = (await db.select().from(itemStats)).filter((r) => r.exposures > 0);
+    expect(swiped.length).toBeGreaterThan(20);
+    // Running it again gives the same numbers: it recomputes, it doesn't double count.
+    await refreshItemStats(db);
+    const [again] = await db.select().from(itemStats).where(eq(itemStats.itemId, yes));
+    expect(again).toMatchObject({ tiebreakShown: 1, tiebreakMutualYes: 1, clicks: 1 });
+  });
+});

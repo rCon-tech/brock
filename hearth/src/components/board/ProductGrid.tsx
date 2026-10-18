@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState, useTransition } from 'react';
+import { undoSwapAction } from '@/app/r/[projectId]/board/actions';
 import { ItemReactions } from '@/components/board/ItemReactions';
 import { SaveButton } from '@/components/board/SaveButton';
 import { SwapButton } from '@/components/board/SwapButton';
@@ -21,6 +23,8 @@ interface Props {
 
 const RISK_TEXT = { pets: 'May not suit pets', kids: 'May not suit young kids' } as const;
 
+const UNDO_MS = 10_000;
+
 export function ProductGrid({
   board,
   participantId,
@@ -29,7 +33,13 @@ export function ProductGrid({
   riskFilter,
   empty,
 }: Props) {
+  const router = useRouter();
   const [hideRisky, setHideRisky] = useState(false);
+  // Undo lives here, not on the card: the swapped card is replaced, so it can't hold it (R28).
+  const [undoable, setUndoable] = useState<string | null>(null);
+  const [undoing, startUndo] = useTransition();
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
   const { items, result, reactions, shopping, participants, project } = board;
   const picks = new Map(result.picks.map((p) => [p.itemId, p]));
   const names = new Map(participants.map((p) => [p.id, p.name]));
@@ -98,6 +108,11 @@ export function ProductGrid({
                       participantId={participantId}
                       itemId={id}
                       category={pick.category}
+                      onSwapped={(swapId) => {
+                        setUndoable(swapId);
+                        if (timer.current) clearTimeout(timer.current);
+                        timer.current = setTimeout(() => setUndoable(null), UNDO_MS);
+                      }}
                     />
                   ) : null}
                 </div>
@@ -112,6 +127,28 @@ export function ProductGrid({
           );
         })}
       </ul>
+      {undoable ? (
+        <div
+          role="status"
+          className="fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-full bg-ink px-5 py-3 text-sm text-paper shadow-lg"
+        >
+          Swapped for the next best.
+          <button
+            type="button"
+            className="font-semibold underline"
+            disabled={undoing}
+            onClick={() =>
+              startUndo(async () => {
+                await undoSwapAction(participantId, undoable);
+                setUndoable(null);
+                router.refresh();
+              })
+            }
+          >
+            Undo
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

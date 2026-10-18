@@ -9,6 +9,8 @@ const eslintConfig = [
       'drizzle/**',
       'coverage/**',
       'playwright-report/**',
+      // Hearth is a separate app in a sub-folder with its own tooling.
+      'hearth/**',
       'next-env.d.ts',
     ],
   },

@@ -176,7 +176,8 @@ export const ITEM_STATUSES = ['draft', 'live', 'retired'] as const;
 /** What the tagging step produces for each catalogue item (§10.2). */
 export const itemTagsSchema = z.object({
   primary_style: z.enum(STYLES),
-  style_weights: z.record(z.enum(STYLES), z.number().min(0).max(1)),
+  // An array rather than a record: structured outputs handle arrays of objects most reliably.
+  style_weights: z.array(z.object({ style: z.enum(STYLES), weight: z.number() })),
   attributes: z.array(attributeSchema),
   room_types: z.array(z.enum(ROOM_TYPES)).min(1),
   category: z.enum(CATEGORIES).nullable(),
