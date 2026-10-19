@@ -128,7 +128,8 @@ body {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0 var(--color-ink);
 }
-.btn-paper[aria-current='page'] {
+.btn-paper[aria-current='page'],
+.btn-paper[aria-pressed='true'] {
   background: var(--color-ink);
   color: var(--color-gold);
   box-shadow: 3px 3px 0 var(--color-olive);
